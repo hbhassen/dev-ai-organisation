@@ -1,0 +1,22 @@
+# DEVAI-035, DEVAI-144: secrets and generated artifacts never belong to source history.
+**/target/
+**/node_modules/
+**/dist/
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+.ods-local/
+.artifacts/
+suiteInstall/
+suiteInstall-*.zip
+*.vsix
+*.log
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+credentials.json
+.vscode-test/
+config/local.*
+*.class
