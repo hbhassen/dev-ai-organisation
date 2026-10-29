@@ -2,6 +2,8 @@
 
 Le point d’entrée `script.bat` reconstruit tout le produit : Maven, tests des connecteurs avec services simulés, TypeScript, tests de la webview, VSIX et package autonome. Il accepte un fichier JSON conforme à `config/organisation.schema.json`. Les validations supplémentaires de chemins, d’URL et de fichiers sont exécutées par `tools/organisation_profile.py` avant la compilation.
 
+L'orchestration utilise Python 3.11+ (`tools/build.py`) sans appel PowerShell, y compris pour obtenir Maven. Les mêmes prérequis JDK 21, Node 24/npm et Git restent nécessaires. Le lanceur de gateway livré utilise également Python 3.11+.
+
 ```bat
 script.bat config\organisations\demo\organisation.json
 ```
@@ -46,6 +48,8 @@ Le staging du VSIX est créé dans un nouveau dossier ignoré à chaque compilat
 Le profil `demo` comporte des URL d’exemple et des paramètres à remplacer. Les mocks vivent exclusivement dans les tests ; ce profil n’active aucun faux service dans l’application. Aucune clé réelle d’organisation n’a été fournie pour cette livraison. Les clés privées de test OIDC/TLS/signature sont créées en mémoire ou dans un fichier temporaire supprimé après chargement. Les valeurs synthétiques des fixtures ne donnent accès à aucun service.
 
 À la demande explicite de l’utilisateur, la branche `dev/toreprise` conserve exceptionnellement un instantané de `suiteInstall`, configuration d’exemple comprise. Cette exception ne change pas l’exclusion des artefacts sur `main` et `develop`. Le package provient du commit tagué ; le commit d’instantané est un commit ultérieur et ne remplace pas `BUILD.json.sourceCommit`. Ne pas fusionner les binaires de cette branche vers les branches source. Les futurs secrets réels ne sont pas inventés ni récupérés dans les credentials du poste.
+
+La branche `script/vsix` constitue une seconde exception explicitement demandée pour le correctif 0.2.1 : le code y est commité avant la reconstruction, puis le dossier `suiteInstall/` correspondant est ajouté dans un commit distinct. `BUILD.json.sourceCommit` désigne ce commit source, pas le commit ultérieur contenant les binaires. Cet instantané de branche n'implique pas la création d'un tag ni d'une release GitHub.
 
 ## Références de mise en œuvre
 

@@ -6,7 +6,7 @@ Le périmètre cible reste celui des 166 exigences de [specification.md](specifi
 
 ## Construire sous Windows
 
-Préparer **JDK 21 sur PATH**, **Node.js 24 avec npm**, **Python 3.11+** et Git. Le wrapper télécharge Maven 3.9.11. Les versions des dépendances sont verrouillées par Maven et `package-lock.json`.
+Préparer **JDK 21 sur PATH**, **Node.js 24 avec npm**, **Python 3.11+** et Git. Les scripts `.bat` et `mvnw.cmd` ne lancent pas PowerShell. `tools/build.py` orchestre la compilation et les tests ; `tools/maven_wrapper.py` télécharge Maven 3.9.11 selon `.mvn/wrapper/maven-wrapper.properties`, vérifie son SHA-256 et le conserve dans le cache ignoré `.artifacts/maven/`. Les versions des dépendances sont verrouillées par Maven et `package-lock.json`.
 
 ```bat
 build.bat
@@ -22,6 +22,8 @@ script.bat config\organisations\demo\organisation.json
 La compilation par organisation est décrite dans [PROFILS-ORGANISATION](docs/PROFILS-ORGANISATION.md). Elle surcharge notamment le nom du plugin après installation, son identité et sa gateway. Les tests navigateur téléchargent Chromium via la version verrouillée de Playwright.
 
 Chaque script renvoie un code non nul en cas d'échec. Aucun `skipTests`. Les scripts ne publient pas automatiquement les livrables et ne modifient pas votre installation VS Code pendant le build.
+
+`scripts/start-gateway.bat` appelle `scripts/start_gateway.py` et demande aussi Python 3.11+ sur la machine de livraison. Il charge `gateway.env` sans évaluer son contenu comme des commandes, résout les références `${VARIABLE}` et démarre Java directement. `scripts/install-extension.bat` utilise la CLI `code`. Les points d'entrée `.ps1` conservés pour compatibilité restent facultatifs et ne sont appelés par aucun script batch du projet.
 
 ## Installer et configurer
 
@@ -41,4 +43,4 @@ Le fournisseur initial est exclusivement **Mistral**. `ModelProvider` est le poi
 | `scripts`, `tools` | Build, contrôles, packaging et gouvernance hors ligne |
 | `examples`, `config`, `docs` | Publication des règles, déploiement et exploitation |
 
-Les commentaires des symboles portent leurs références `DEVAI-xxx`. Le contrôle syntaxique ne remplace pas une revue de pertinence. Les binaires et packages restent exclus des branches source. Exception explicitement demandée : un instantané de la release et sa configuration d’exemple est conservé sur `dev/toreprise`. Aucun secret réel d’organisation n’a été fourni.
+Les commentaires des symboles portent leurs références `DEVAI-xxx`. Le contrôle syntaxique ne remplace pas une revue de pertinence. Les binaires et packages restent exclus des branches source. Exceptions explicitement demandées : l'ancien instantané sur `dev/toreprise` et la livraison `suiteInstall/` du correctif 0.2.1 sur `script/vsix`. Sur cette dernière branche, le commit de livraison suit le commit source identifié dans `suiteInstall/BUILD.json` ; les binaires ne doivent pas être fusionnés dans `main` ou `develop`. Aucun secret réel d’organisation n’a été fourni.

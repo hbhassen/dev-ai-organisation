@@ -10,7 +10,7 @@ def main() -> None:
     root = Path(__file__).resolve().parent.parent
     ids = set(re.findall(r"DEVAI-\d{3}", (root / "specification.md").read_text(encoding="utf-8")))
     failures = []
-    files = [*root.joinpath("tools").rglob("*.py"), *root.joinpath("examples").rglob("*.py")]
+    files = [*root.joinpath("tools").rglob("*.py"), *root.joinpath("examples").rglob("*.py"), *root.joinpath("scripts").rglob("*.py")]
     for file in files:
         for node in ast.walk(ast.parse(file.read_text(encoding="utf-8"), filename=str(file.relative_to(root)))):
             if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):

@@ -8,5 +8,5 @@ if not defined ODS_BUILD_PROFILE (
   echo Or define ODS_ORGANISATION_PROFILE.
   exit /b 2
 )
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\build.ps1" -Task Package -OrganisationProfile "%ODS_BUILD_PROFILE%"
+python "%~dp0tools\build.py" --task Package --organisation-profile "%ODS_BUILD_PROFILE%"
 exit /b %errorlevel%

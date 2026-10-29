@@ -4,6 +4,8 @@
 
 Windows, VS Code Desktop 1.95.0 ou supérieur dans la série 1.x (dont 1.95.2) et Java 21 sur PATH. Les outils des projets ne sont pas embarqués : Git, Node/npm, Python, Maven Wrapper et SDK .NET selon la stack. Angular CLI 21.2.5 accepte notamment Node 24. Un simple runtime .NET ne suffit pas à créer un starter.
 
+Le lanceur `scripts/start-gateway.bat` nécessite **Python 3.11+ sur PATH** en plus de Java 21. Les scripts batch du projet, y compris le build et la génération VSIX, ne font aucun appel PowerShell. L'installation du VSIX utilise uniquement la CLI `code`.
+
 ## Depuis suiteInstall
 
 Le manifeste du VSIX déclare `engines.vscode: "^1.95.0"` : VS Code accepte son installation à partir de 1.95.0 et avant 2.0.0. Les versions antérieures restent exclues ; la compatibilité avec toutes les versions passées ou futures n'est pas garantie. Le code est compilé avec `@types/vscode` verrouillé à `1.95.0`, afin de détecter l'utilisation d'API VS Code plus récentes.
@@ -16,6 +18,8 @@ Si VS Code 1.95.2 refuse l'ancien VSIX 0.2.0, installer le **VSIX 0.2.1 reconstr
 4. Pour les services réels, copier `config/gateway.env.example` en `config/gateway.env`, remplacer les exemples puis relancer la gateway. Protéger ce fichier ; ne jamais le commiter.
 5. Dans VS Code, renseigner `ods.gatewayUrl` puis ouvrir **ODS: Ouvrir les outils**. La valeur locale est `http://127.0.0.1:8080` ; utiliser HTTPS pour un serveur distant.
 6. Ouvrir et approuver le dossier, connecter le SSO puis le compte GitLab utilisateur. Le serveur vérifie la correspondance OIDC/GitLab avant toute opération distante.
+
+Pour choisir un autre fichier de configuration, utiliser `scripts\start-gateway.bat --config "<CONFIGURATION>/gateway.env"` ; l'ancien argument `-Config` reste accepté. Les valeurs sont lues littéralement, sans exécution de shell ; une référence `${VARIABLE}` exige une variable d'environnement non vide.
 
 Les JAR et le VSIX sont autonomes par rapport au checkout source. Le JDK, VS Code, les services et les outils de développement restent des prérequis externes. Contrôler les empreintes de `SHA256SUMS` avant une installation organisationnelle.
 
