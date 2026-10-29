@@ -1,0 +1,6 @@
+# DEVAI-127: production never uses the local development database fallback.
+spring:
+  datasource:
+    url: ${ODS_DATABASE_URL}
+    username: ${ODS_DATABASE_USER}
+    password: ${ODS_DATABASE_PASSWORD}

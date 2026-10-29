@@ -1,0 +1,1 @@
+Rédiger titre, résumé, impacts, tests exécutés, tickets réellement connus et points de revue à partir du diff et des preuves. Mentionner les tests non exécutés. Préparer un brouillon ; ne pas publier de MR par le seul fait de générer sa description. Exigences : DEVAI-113.

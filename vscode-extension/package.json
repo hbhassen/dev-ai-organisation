@@ -1,0 +1,25 @@
+{
+  "name": "organisation-development-standard",
+  "displayName": "Organisation Development Standard",
+  "description": "Five governed development views with Java engine, Mistral agent, quality, security and GitFlow.",
+  "version": "0.1.0",
+  "publisher": "ods-internal",
+  "license": "UNLICENSED",
+  "engines": {"vscode": "^1.96.0"},
+  "categories": ["Other"],
+  "main": "./dist/extension.js",
+  "activationEvents": ["onView:ods.workspace", "onUri"],
+  "capabilities": {"untrustedWorkspaces": {"supported": "limited", "description": "Project reads, execution and changes require a trusted workspace."}, "virtualWorkspaces": false},
+  "extensionKind": ["workspace"],
+  "contributes": {
+    "commands": [{"command": "ods.open", "title": "ODS: Ouvrir les outils"}, {"command": "ods.signIn", "title": "ODS: Connexion SSO"}, {"command": "ods.gitlabToken", "title": "ODS: Connecter GitLab"}, {"command": "ods.signOut", "title": "ODS: Déconnexion"}],
+    "viewsContainers": {"activitybar": [{"id": "ods", "title": "ODS", "icon": "media/ods.svg"}]},
+    "views": {"ods": [{"id": "ods.workspace", "name": "Development Standard", "type": "webview"}]},
+    "configuration": {"title": "ODS", "properties": {
+      "ods.gatewayUrl": {"type": "string", "default": "http://127.0.0.1:8080", "description": "Gateway ODS administrée. HTTPS requis sauf loopback de développement.", "scope": "machine"},
+      "ods.javaPath": {"type": "string", "default": "java", "description": "Exécutable Java 21 du poste.", "scope": "machine"}
+    }}
+  },
+  "scripts": {"compile": "tsc -p .", "lint": "node scripts/check-docs.cjs", "test": "node --test test/*.test.cjs", "package": "vsce package --no-dependencies --allow-missing-repository --skip-license --out ../.artifacts/organisation-development-standard-0.1.0.vsix", "vscode:prepublish": "npm run compile && npm run lint"},
+  "devDependencies": {"@types/node": "22.19.1", "@types/vscode": "1.96.0", "@vscode/vsce": "4.1.0", "typescript": "5.9.3"}
+}

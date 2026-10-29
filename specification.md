@@ -1,7 +1,7 @@
 # Spécification complète — Organisation Development Standard (ODS)
 
 **Version documentaire : 1.1 — 29 octobre 2026**  
-**Statut : spécification de réalisation ; application non encore développée dans le dossier source.**  
+**Statut : référentiel cible ; une implémentation 0.1.0 est présente. Voir `docs/CONFORMITE.md` pour la couverture et les écarts, et `docs/VALIDATION.md` pour les preuves. La conformité complète n’est pas encore prononcée.**
 **Public : architecture, tech leads, développeurs, sécurité, exploitation et recette.**
 
 ## Sommaire

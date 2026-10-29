@@ -1,0 +1,1 @@
+{"compilerOptions":{"module":"commonjs","target":"ES2022","lib":["ES2022","DOM"],"outDir":"dist","rootDir":"src","strict":true,"esModuleInterop":true,"sourceMap":false,"skipLibCheck":true},"include":["src/**/*.ts"]}

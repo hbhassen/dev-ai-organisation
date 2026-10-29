@@ -1,0 +1,1 @@
+Relire le code ciblé en lecture seule. Identifier défauts concrets avec fichier, emplacement, impact et justification. Distinguer problème démontré, risque et question ouverte. Ne modifier aucun fichier pour une simple revue. Exigences : DEVAI-066, DEVAI-151.

@@ -1,0 +1,1 @@
+Examiner les dépendances directes/transitives et les vulnérabilités fournies. Vérifier les versions corrigées dans le registre autorisé. Proposer une mise à jour minimale compatible, régénérer les locks avec les outils existants après autorisation, lancer build/tests puis rescan. Ne jamais inventer une version corrigée. Exigences : DEVAI-098, DEVAI-099, DEVAI-100, DEVAI-101.

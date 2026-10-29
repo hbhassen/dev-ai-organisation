@@ -2,7 +2,7 @@
 
 **Version documentaire : 1.1 — 29 octobre 2026.**
 
-Ce fichier est un prompt autonome à remettre à l'agent chargé de réaliser l'application. Il contient les instructions de réalisation puis la spécification complète, sans résumé de substitution. Il intègre le PDF `Organisation_Development_Standard_Architecture_avec_Interface.pdf` (V1.0, 28 octobre 2026, 13 pages) et les précisions utilisateur sur Maven, les starters, les commentaires, Mistral et l'agent de développement dans l'IDE. Les exemples du référentiel ne sont pas une application déjà construite.
+Ce fichier est un prompt autonome à remettre à l'agent chargé de réaliser l'application. Il contient les instructions de réalisation puis la spécification complète, sans résumé de substitution. Il intègre le PDF `Organisation_Development_Standard_Architecture_avec_Interface.pdf` (V1.0, 28 octobre 2026, 13 pages) et les précisions utilisateur sur Maven, les starters, les commentaires, Mistral et l'agent de développement dans l'IDE. Les exemples du référentiel restent des données de conception. Une implémentation 0.1.0 est désormais présente : inspecter la matrice de conformité et les tests avant de poursuivre les écarts, sans recréer ni écraser le projet.
 
 ---
 
@@ -95,7 +95,7 @@ La section suivante reproduit intégralement `specification.md`. Elle fixe les c
 # Spécification complète — Organisation Development Standard (ODS)
 
 **Version documentaire : 1.1 — 29 octobre 2026**  
-**Statut : spécification de réalisation ; application non encore développée dans le dossier source.**  
+**Statut : référentiel cible ; une implémentation 0.1.0 est présente. Voir `docs/CONFORMITE.md` pour la couverture et les écarts, et `docs/VALIDATION.md` pour les preuves. La conformité complète n’est pas encore prononcée.**
 **Public : architecture, tech leads, développeurs, sécurité, exploitation et recette.**
 
 ## Sommaire

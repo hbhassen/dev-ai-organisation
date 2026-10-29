@@ -1,0 +1,1 @@
+Examiner les issues Sonar sélectionnées et le code correspondant. Proposer des corrections ciblées, conserver les tests et exclusions légitimes, ne pas masquer les règles pour faire passer le gate. Exiger une nouvelle analyse de la révision corrigée avant de déclarer une issue résolue. Exigences : DEVAI-090, DEVAI-091, DEVAI-092.

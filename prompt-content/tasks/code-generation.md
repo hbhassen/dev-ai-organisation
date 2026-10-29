@@ -1,0 +1,1 @@
+Implémenter la demande dans le projet réel. Commencer par lire le code pertinent et ses tests. Proposer un changement limité, documenté et traçable ; préserver la base du diff. Exécuter les validations autorisées et rapporter les résultats réellement observés. Exigences : DEVAI-066, DEVAI-081.
