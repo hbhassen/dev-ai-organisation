@@ -38,5 +38,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $version = (Get-Content suiteInstall/VERSION).Trim()
+          $identity = Get-Content suiteInstall/BUILD.json -Raw | ConvertFrom-Json
+          if ($identity.sourceDirty -or $identity.sourceCommit -ne (git rev-parse HEAD).Trim()) { throw 'Delivery does not match clean tagged source' }
           gh release create "v$version" "suiteInstall-$version.zip" ".artifacts/organisation-development-standard-$version.vsix" --verify-tag --title "ODS $version" --notes-file CHANGELOG.md
           if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }

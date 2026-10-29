@@ -50,6 +50,9 @@ try {
     $version = $pom.project.version
     $manifest = Get-Content -LiteralPath (Join-Path $projectRoot 'vscode-extension/package.json') -Raw | ConvertFrom-Json
     if ($version -ne $manifest.version) { throw 'Maven and VSIX versions differ.' }
+    $buildSourceCommit = (& git rev-parse HEAD).Trim()
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot identify the source commit before build.' }
+    $buildSourceDirty = [bool]((& git status --porcelain --untracked-files=normal | Out-String).Trim())
     New-Item -ItemType Directory -Path '.artifacts' -Force | Out-Null
     Invoke-Checked $java @('tools/CheckDocumentation.java', $projectRoot)
     Invoke-Checked 'python' @('tools/check_python.py')
@@ -104,8 +107,9 @@ try {
         [IO.File]::WriteAllText((Join-Path $suite 'VERSION'), "$version`n", [Text.UTF8Encoding]::new($false))
         $sourceCommit = (& git rev-parse HEAD).Trim()
         if ($LASTEXITCODE -ne 0) { throw 'Cannot identify the source commit.' }
+        if ($sourceCommit -ne $buildSourceCommit) { throw 'The source commit changed during build; rebuild before delivery.' }
         $sourceState = (& git status --porcelain --untracked-files=normal | Out-String).Trim()
-        $buildIdentity = @{ version=$version; sourceCommit=$sourceCommit; sourceDirty=[bool]$sourceState; builtAtUtc=[DateTime]::UtcNow.ToString('o') } | ConvertTo-Json
+        $buildIdentity = @{ version=$version; sourceCommit=$sourceCommit; sourceDirty=($buildSourceDirty -or [bool]$sourceState); builtAtUtc=[DateTime]::UtcNow.ToString('o') } | ConvertTo-Json
         [IO.File]::WriteAllText((Join-Path $suite 'BUILD.json'), $buildIdentity, [Text.UTF8Encoding]::new($false))
         foreach ($deliveredText in Get-ChildItem -LiteralPath $suite -Recurse -File | Where-Object { $_.Extension -in @('.md','.py','.ps1','.bat','.json','.yml','.example') }) {
             if ((Get-Content -LiteralPath $deliveredText.FullName -Raw -Encoding UTF8) -match '(?i)[A-Z]:\\Users\\|/home/[^<\s]+/|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----') { throw "Sensitive workstation data in delivery: $($deliveredText.Name)" }
