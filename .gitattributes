@@ -7,3 +7,6 @@
 mvnw text eol=lf
 *.bat text eol=crlf
 *.cmd text eol=crlf
+
+# Exceptional release snapshot: preserve asset bytes and configuration digests.
+suiteInstall/** -text
