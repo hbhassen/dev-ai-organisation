@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "hmsile-integration",
+  "extension": {
+    "name": "hmsile-dev-ia",
+    "publisher": "hmsile",
+    "displayName": "HMSile dev IA"
+  },
+  "gatewayUrl": "http://127.0.0.1:8080",
+  "envFiles": ["gateway.env.example"],
+  "environment": {},
+  "files": [
+    {
+      "source": "application-organisation.properties",
+      "target": "application-organisation.properties"
+    }
+  ]
+}

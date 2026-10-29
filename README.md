@@ -27,6 +27,8 @@ Chaque script renvoie un code non nul en cas d'échec. Aucun `skipTests`. Les sc
 
 ## Installer et configurer
 
+Le dossier [integration](integration/README.md) contient le profil **HMSile dev IA**, les paramètres d'organisation fictifs et le guide pas à pas de personnalisation, build et installation. Sur `hm/integration`, l'instantané `suiteInstall/` de démonstration 0.3.0 est exceptionnellement versionné ; il n'a pas été reconstruit avec ce profil.
+
 Voir [INSTALLATION](docs/INSTALLATION.md) et [CONFIGURATION](docs/CONFIGURATION.md). Le gateway embarqué démarre automatiquement après vérification de l’accès Git existant, sans connexion SSO. Les services et identifiants sont fixés au build ; les secrets distribués restent extractibles, limite acceptée du mode autonome. Quality et Security analysent les fichiers enregistrés sans attendre un commit. Les URL `*.organisation.example` sont des exemples à remplacer ; aucune connexion réussie n'est simulée.
 
 Le fournisseur initial est exclusivement **Mistral**. `ModelProvider` est le point d'extension futur ; ajouter un autre fournisseur nécessite une évolution de gouvernance, des tests et un déploiement serveur.

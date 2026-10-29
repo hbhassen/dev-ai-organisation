@@ -1,0 +1,2 @@
+# Private administrator copies must never enter Git, even on hm/integration.
+local/

@@ -1,5 +1,11 @@
 # Changelog
 
+## Préparation intégration HMSile — 2026-10-29 (base 0.3.0)
+
+- Ajout des modèles `integration/` pour HMSile dev IA : Mistral/Vibe, Xray, Sonar, GitLab, gouvernance et mappings de projets, avec URL fictives et placeholders.
+- Guide de configuration privée, compilation et installation du VSIX personnalisé ; aucun build ni test relancé pour cette préparation.
+- Instantané `suiteInstall/` de démonstration 0.3.0 exceptionnellement versionné sur `hm/integration`, sans reconstruction ni changement de sa provenance `e89936a`.
+
 
 ## 0.3.0 — 2026-10-29
 
