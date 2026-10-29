@@ -158,7 +158,7 @@ def package(root, version, java, engine, gateway, vsix, profile, source):
         if document.is_file() and document.suffix in (".md", ".py", ".ps1", ".bat", ".json", ".yml", ".example", ".env", ".properties"):
             if re.search(r"(?i)[A-Z]:\\Users\\|/home/[^<\s]+/|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----", document.read_text(encoding="utf-8-sig")):
                 raise ValueError(f"Sensitive workstation data in delivery: {document.name}")
-    (suite / "SHA256SUMS").write_text("".join(f"{digest(artifact)}  bin/{artifact.name}\n" for artifact in sorted((suite / "bin").iterdir())), encoding="utf8")
+    (suite / "SHA256SUMS").write_text("".join(f"{digest(artifact)}  bin/{artifact.name}\n" for artifact in sorted((suite / "bin").iterdir()) if artifact.is_file()), encoding="utf8")
     test_delivery(java, suite / "bin" / engine.name, suite / "bin" / gateway.name, root)
     archive = root / f"suiteInstall-{version}.zip"
     if archive.exists():
