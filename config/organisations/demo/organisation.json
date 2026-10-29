@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "organisation-demo",
+  "extension": {
+    "name": "organisation-development-standard",
+    "publisher": "ods-internal",
+    "displayName": "ORGANISATION DEVELOPMENT STANDARD"
+  },
+  "gatewayUrl": "http://127.0.0.1:8080",
+  "envFiles": [
+    "gateway.env.example"
+  ],
+  "environment": {
+    "ODS_MODEL_ALIAS": "mistral-coding-approved"
+  },
+  "files": [
+    {
+      "source": "application-organisation.properties",
+      "target": "application-organisation.properties"
+    }
+  ]
+}

@@ -48,6 +48,7 @@ public final class ScanService {
     }
     /** Retrieves actual Sonar issues and gate using an administratively configured project key. Exigences : DEVAI-088, DEVAI-089. */
     public Map<String,Object> sonar(Jwt jwt,String token,long project,int page) {
+        if(page<1||page>10000) throw new OdsException("INVALID_REQUEST","Page invalide");
         gitlab.authorize(jwt,project,token); String projectKey=settings.require("sonar-project-"+project); URI base=settings.origin("sonar-url");
         String auth="Basic "+Base64.getEncoder().encodeToString((settings.require("sonar-token")+":").getBytes(StandardCharsets.UTF_8)); Map<String,String> headers=Map.of("Authorization",auth);
         URI analysesUri=URI.create(base+"/api/project_analyses/search?project="+RemoteHttp.encode(projectKey)+"&ps=1");
@@ -68,6 +69,12 @@ public final class ScanService {
         gitlab.authorize(jwt,project,token); if(!buildNumber.matches("[A-Za-z0-9._-]{1,100}")) throw new OdsException("INVALID_REQUEST","Numéro de build invalide");
         String name=settings.require("jfrog-build-"+project);
         JsonNode response=http.json("GET",URI.create(settings.origin("jfrog-url")+"/xray/api/v2/summary/build?build_name="+RemoteHttp.encode(name)+"&build_number="+RemoteHttp.encode(buildNumber)),Map.of("Authorization","Bearer "+settings.require("jfrog-token")),null);
-        return Map.of("source","XRAY","buildName",name,"buildNumber",buildNumber,"report",Json.map(response),"freshness","BUILD_REPORT");
+        List<Map<String,Object>> findings=new ArrayList<>();
+        if(response.path("issues").isArray()) for(JsonNode issue:response.path("issues")) {
+            Map<String,Object> finding=new LinkedHashMap<>();
+            finding.put("key",issue.path("issue_id").asText()); finding.put("message",issue.path("summary").asText()); finding.put("severity",issue.path("severity").asText("UNKNOWN"));
+            finding.put("components",issue.path("components")); finding.put("cves",issue.path("cves")); finding.put("providerEvidence",Json.map(issue)); findings.add(finding);
+        }
+        return Map.of("source","XRAY","buildName",name,"buildNumber",buildNumber,"issues",findings,"report",Json.map(response),"freshness","BUILD_REPORT","commitVerified",false);
     }
 }

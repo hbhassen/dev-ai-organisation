@@ -68,3 +68,7 @@ Les contenus de conversations et résultats sont chiffrés en AES-256-GCM avec c
 Le connecteur déclenche un pipeline dans un projet runner dédié sur une révision administrée. Celui-ci récupère le commit cible exact, compile dans un job isolé, puis utilise les scanners réels. Les tâches de scan ne nécessitent aucun droit IA. Les corrections utilisent les actions séparées `SONAR_REMEDIATION` et `XRAY_REMEDIATION` et une sélection native d'issues. Un nouveau scan est nécessaire pour constater la résolution.
 
 Les contrats Sonar proviennent des [exemples officiels de l'API](https://github.com/SonarSource/sonarqube/tree/master/server/sonar-webserver-webapi/src/main/resources/org/sonar/server). La lecture Xray utilise [Build Summary v2](https://docs.jfrog.com/security/reference/build-summary_artifacts-v2-openapi). Les licences, versions et formats de l'organisation doivent encore être qualifiés.
+
+## Personnalisation et tests d’intégration 0.2.0
+
+Le template de présentation est séparé du contrôleur natif et testé dans Chromium avec les mêmes fichiers HTML/JS/CSS. Le profil organisationnel n’affecte que le staging de distribution et la configuration externe ; il ne désactive pas les contrôles serveur. Les tests HTTPS exercent les adaptateurs réels contre un serveur local de fixtures, un issuer OIDC et une politique signée éphémères. Aucun serveur de mocks n’est embarqué dans le JAR ou activable en production.

@@ -1,4 +1,4 @@
-# Organisation Development Standard — 0.1.0
+# Organisation Development Standard — 0.2.0
 
 Extension VS Code à cinq vues avec moteur Java 21/Maven et gateway Spring Boot. Le code implémente les starters standards, les outils locaux, les diffs avec approbation, un agent Mistral, les politiques signées, les quotas, les connecteurs GitLab/Sonar/Xray et les prompts organisationnels remplaçables.
 
@@ -12,11 +12,14 @@ Préparer **JDK 21 sur PATH**, **Node.js 24 avec npm**, **Python 3.11+** et Git.
 build.bat
 generate-vsix.bat
 package.bat
+script.bat config\organisations\demo\organisation.json
 ```
 
 - `build.bat` : contrôle des commentaires/IDs, build Maven avec tests, `npm ci`, compilation/lint/tests TypeScript et démarrage réel des JAR.
-- `generate-vsix.bat` : même validation, puis création et inspection de `.artifacts/organisation-development-standard-0.1.0.vsix`, moteur inclus.
-- `package.bat` : même validation, puis dossier autonome `suiteInstall/` et archive `suiteInstall-0.1.0.zip`, avec tests depuis les JAR livrés.
+- `generate-vsix.bat` : même validation, puis création et inspection de `.artifacts/organisation-development-standard-0.2.0.vsix`, moteur inclus.
+- `package.bat` : même validation, puis dossier autonome `suiteInstall/` et archive `suiteInstall-0.2.0.zip`, avec tests depuis les JAR livrés.
+
+La compilation par organisation est décrite dans [PROFILS-ORGANISATION](docs/PROFILS-ORGANISATION.md). Elle surcharge notamment le nom du plugin après installation, son identité et sa gateway. Les tests navigateur téléchargent Chromium via la version verrouillée de Playwright.
 
 Chaque script renvoie un code non nul en cas d'échec. Aucun `skipTests`. Les scripts ne publient pas automatiquement les livrables et ne modifient pas votre installation VS Code pendant le build.
 
@@ -38,4 +41,4 @@ Le fournisseur initial est exclusivement **Mistral**. `ModelProvider` est le poi
 | `scripts`, `tools` | Build, contrôles, packaging et gouvernance hors ligne |
 | `examples`, `config`, `docs` | Publication des règles, déploiement et exploitation |
 
-Les commentaires des symboles portent leurs références `DEVAI-xxx`. Le contrôle syntaxique ne remplace pas une revue de pertinence. Les binaires, fichiers secrets et packages de livraison sont exclus de Git.
+Les commentaires des symboles portent leurs références `DEVAI-xxx`. Le contrôle syntaxique ne remplace pas une revue de pertinence. Les binaires et packages restent exclus des branches source. Exception explicitement demandée : un instantané de la release et sa configuration d’exemple est conservé sur `dev/toreprise`. Aucun secret réel d’organisation n’a été fourni.

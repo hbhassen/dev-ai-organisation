@@ -57,3 +57,7 @@ Un changement contient `path`, `baseHash` (`MISSING` pour création), `content` 
 ## Erreurs et limites
 
 Les erreurs portent un code stable et un message filtré : `ACTION_DENIED`, `MODEL_NOT_ALLOWED`, `POLICY_INVALID`, `POLICY_EXPIRED`, `POLICY_REPLAYED`, `QUOTA_EXCEEDED`, `RATE_LIMITED`, `STALE_BASE`, `STALE_REPORT`, `CONTEXT_REJECTED`, `DEPENDENCY_UNAVAILABLE`, `IDEMPOTENCY_CONFLICT`. Les schémas rejettent les champs inattendus sur les demandes sensibles. Les limites de contexte, processus, durée et concurrence sont documentées dans le code et `CONFIGURATION.md`.
+
+## Présentation des rapports en 0.2.0
+
+`GET /api/v1/quality/reports` accepte `page` entre 1 et 10000 et retourne `paging` avec les résultats normalisés. La vue utilise Précédent/Suivant. `GET /api/v1/security/reports` expose `issues` normalisées (`key`, `message`, `severity`, `components`, `cves`, `providerEvidence`) et conserve `report`. `commitVerified: false` indique explicitement que le build summary ne prouve pas sa correspondance avec le commit du workspace.

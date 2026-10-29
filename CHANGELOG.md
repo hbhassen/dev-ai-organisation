@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.0 — 2026-10-29
+
+- Interface à cinq onglets avec icônes, badges, barre de quota et navigation clavier, adaptée aux panneaux étroits.
+- Saisie IA avec suggestions, modes, envoi clavier, arrêt et prévention des doubles soumissions ; brouillon conservé si la demande est refusée.
+- Sélection multifichier avec aperçu et consentement ; contexte serveur par références de commit, refus des buffers non enregistrés dans ce mode.
+- Sélection des fichiers du diff avant application et recalcul du plan ; révocation des accords lors d’un changement de périmètre du plan.
+- Navigation dans les pages Sonar, liste de résultats Xray et préremplissage de la description de MR sur une révision inchangée.
+- `script.bat <profil.json>` : reconstruction intégrale et surcharge du nom du plugin, de son identité, de la gateway et des fichiers de configuration serveur, sans modifier les sources.
+- Tests d’intégration HTTPS de GitLab, Mistral/SSE, Sonar, Xray et runner avec JWT OIDC et politique signée ; scénarios d’erreur et de refus.
+- Annulation d’une demande encore en soumission lorsque le projet se ferme ; blocage des interactions concurrentes et des doubles départs.
+- Tests navigateur de la webview et tests natifs des nouvelles fonctions ; documentation et matrice actualisées.
+- Publication de développement et instantané de livraison sur `dev/toreprise`, selon l’exception demandée ; aucune configuration réelle d’organisation fournie.
+
 ## 0.1.0 — 2026-10-29
 
 - Création de l'extension à cinq vues, du moteur Java 21 et de la gateway Maven/Spring Boot.

@@ -76,7 +76,7 @@ export class GatewayClient implements vscode.UriHandler {
     if (!metadataResponse.ok) throw new Error('Métadonnées OIDC indisponibles');
     const metadata: any = await metadataResponse.json();
     if (metadata.issuer !== config.issuer || !metadata.authorization_endpoint?.startsWith('https:') || !metadata.token_endpoint?.startsWith('https:')) throw new Error('Métadonnées OIDC incohérentes');
-    const redirect = (await vscode.env.asExternalUri(vscode.Uri.parse(`${vscode.env.uriScheme}://ods-internal.organisation-development-standard/callback`))).toString();
+    const redirect = (await vscode.env.asExternalUri(vscode.Uri.parse(`${vscode.env.uriScheme}://${this.context.extension.id}/callback`))).toString();
     const verifier = randomBytes(32).toString('base64url'), state = randomBytes(24).toString('base64url');
     this.authorization = { state, verifier, redirect, tokenEndpoint: metadata.token_endpoint, clientId: config.clientId, base: this.base().origin, created: Date.now() };
     const url = new URL(metadata.authorization_endpoint);

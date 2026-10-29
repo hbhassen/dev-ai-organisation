@@ -1,7 +1,7 @@
 # Spécification complète — Organisation Development Standard (ODS)
 
-**Version documentaire : 1.1 — 29 octobre 2026**  
-**Statut : référentiel cible ; une implémentation 0.1.0 est présente. Voir `docs/CONFORMITE.md` pour la couverture et les écarts, et `docs/VALIDATION.md` pour les preuves. La conformité complète n’est pas encore prononcée.**
+**Version documentaire : 1.2 — 29 octobre 2026**
+**Statut : référentiel cible ; une implémentation 0.2.0 est présente. Voir `docs/CONFORMITE.md` pour la couverture et les écarts, et `docs/VALIDATION.md` pour les preuves. La conformité complète n’est pas encore prononcée.**
 **Public : architecture, tech leads, développeurs, sécurité, exploitation et recette.**
 
 ## Sommaire
@@ -274,6 +274,8 @@ Le bandeau DOIT afficher le projet GitLab actif, sa branche, sa stack, l'état d
 
 **Recette :** une bascule de racine met à jour le bandeau et les commandes sans afficher un quota ou une permission provenant de la racine précédente.
 
+**Précision utilisateur 1.2 :** conserver cinq onglets de largeur égale dans l’ordre **Starter, IA, Quality, Security, GitFlow**, chacun avec une icône monochrome et un état sélectionné accessible. Le bandeau présente l’organisation, le projet, la branche, les badges de connexion/autorisation ; la carte IA affiche le contexte et la consommation.
+
 ### DEVAI-014 — Contrat JSON-RPC local
 
 **Origine :** PDF p. 4, 11 ; Conception. **Responsable :** extension / moteur.
@@ -349,6 +351,8 @@ Les webviews DOIVENT utiliser une CSP restrictive, des ressources locales autori
 Les vues DOIVENT respecter les thèmes VS Code, le clavier, l'ordre de focus, les noms accessibles et les états compréhensibles sans couleur seule. Les résultats ouvrent fichier et ligne avec les API éditeur ; une référence invalide affiche un diagnostic. L'interface initiale est en français, avec libellés métier des cinq onglets conservés et textes externalisés.
 
 **Recette :** un parcours initialisation / chat / rapport / diff fonctionne au clavier en thème clair et sombre ; les raisons de refus sont lisibles par lecteur d'écran.
+
+**Précision utilisateur 1.2 :** la saisie du chat privilégie une zone compacte inspirée des assistants IDE, avec trombone, sélection du mode et bouton d’envoi. Entrée envoie, Maj+Entrée insère une ligne ; empêcher les doubles soumissions et conserver un brouillon refusé.
 
 ### DEVAI-020 — Authentification OIDC native
 
@@ -1597,6 +1601,27 @@ Le système DOIT séparer profils développement, test, qualification et product
 
 **Recette :** une gateway production configurée avec un modèle non Mistral dans la politique initiale ou une clé de signature de démonstration refuse les opérations concernées et fournit un diagnostic sûr.
 
+**Précision utilisateur 1.2 :** fournir `script.bat <profil-organisation.json>` et son schéma. Le profil regroupe identité et nom affiché du plugin, URL publique de gateway, fichiers de variables et configurations serveur. La reconstruction valide les entrées, applique les surcharges dans un staging isolé et livre la configuration séparée du VSIX. Les URL réelles pourront être introduites ultérieurement ; les mocks restent limités aux tests.
+
+```mermaid
+sequenceDiagram
+    actor Admin as Administrateur
+    participant CLI as script.bat
+    participant V as Validation du profil
+    participant B as Maven et tests
+    participant S as Staging VSIX
+    participant D as suiteInstall
+    Admin->>CLI: profil organisation JSON
+    CLI->>V: Schéma, URL et fichiers déclarés
+    V-->>CLI: Profil valide ou erreur bloquante
+    CLI->>B: Compilation complète et tests avec mocks
+    B-->>CLI: Résultat et artefacts vérifiés
+    CLI->>S: Métadonnées publiques et nom affiché
+    S-->>D: VSIX et JAR
+    CLI->>D: Configuration serveur distincte + empreintes
+    D-->>Admin: Archive versionnée et identité du commit
+```
+
 ### DEVAI-128 — Séparation des privilèges d'exploitation
 
 **Origine :** PDF p. 7–8 ; Conception. **Responsable :** exploitation / sécurité.
@@ -1681,6 +1706,8 @@ Les tests DOIVENT couvrir les modules métier, les contrats IPC/REST, la base r�
 
 **Recette :** `verify` inclut les tests d'intégration configurés et un défaut d'autorisation provoqué est détecté par au moins un test négatif.
 
+**Précision utilisateur 1.2 :** valider les parcours réseau des onglets avec GitLab, Mistral/LLM, Sonar et Xray simulés. Couvrir un parcours positif, les erreurs et refus ; conserver les adaptateurs réels, la vérification TLS/JWT et les contrôles de politique. Signaler séparément la qualification des instances réelles.
+
 ### DEVAI-136 — Tests de sécurité obligatoires
 
 **Origine :** PDF p. 12 ; Utilisateur. **Responsable :** QA sécurité.
@@ -1754,6 +1781,8 @@ La version applicative DOIT provenir d'une source de vérité du dépôt et alim
 `suiteInstall/`, `suiteInstall-*.zip`, sorties de build, VSIX/JAR de livraison et secrets DOIVENT être ignorés et vérifiés non suivis/non staged avant push. Les artefacts sont publiés dans une release ou mécanisme d'artefacts configuré, pas committés comme source. Un artefact précédemment suivi est retiré de l'index sans supprimer la copie locale utile ; l'historique distant n'est pas réécrit sans demande explicite.
 
 **Recette :** la liste des fichiers suivis et indexés ne contient aucun package généré interdit.
+
+**Exception explicite utilisateur 1.2 :** pour cette livraison, conserver également `suiteInstall` et sa configuration sur la branche `dev/toreprise`. Le package doit provenir de la release validée ; le commit d’instantané référence le commit source tagué et ne se substitue pas à lui. L’exception ne modifie pas les branches source. Seules les configurations fournies ou les valeurs de test/exemple existent à ce stade ; aucun secret réel d’organisation n’est inventé ni prélevé dans le poste.
 
 ### DEVAI-145 — Validation minimale de distribution
 
@@ -2792,3 +2821,7 @@ Les contrôles d'exemples isolés ne constituent pas un build Maven du futur pro
 ### 17.4. Évolution documentaire 1.1
 
 Ajout de DEVAI-161 à DEVAI-166 : prompt système global, profils Java/Angular/Python/.NET, fichiers génériques utiles dès V1, livraison ultérieure des vrais fichiers organisationnels, substitution contrôlée, composition et provenance. Ajout d’un diagramme de séquence et d’un manifeste YAML ; mise à jour du prompt autonome et de la recette. Les 160 identifiants précédents sont conservés. Les résultats de la section 17.3 décrivent la livraison 1.0 ; cette modification ne change pas les exemples de code et ne constitue pas un build applicatif. Une copie locale des documents précédents est conservée hors du dossier de livraison, sans la présenter comme un backup Git distant.
+
+### 17.5. Évolution documentaire 1.2
+
+Prise en compte de la maquette utilisateur des cinq onglets, de la saisie IA, des tests de services simulés, du profil de compilation et de l’instantané exceptionnel de livraison. Les identifiants des 166 exigences sont conservés. Les constats documentaires initiaux de 17.2/17.3 sont historiques ; l’état applicatif courant est publié dans `docs/CONFORMITE.md` et `docs/VALIDATION.md`.

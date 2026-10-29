@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([ValidateSet('Build','Vsix','Package')][string]$Task = 'Build')
+param([ValidateSet('Build','Vsix','Package')][string]$Task = 'Build', [string]$OrganisationProfile = '')
 # Builds and validates the deliverable from pinned dependencies. DEVAI-005, DEVAI-138, DEVAI-144, DEVAI-145.
 $ErrorActionPreference = 'Stop'
 $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -39,6 +39,7 @@ function Test-Delivery {
 
 try {
     Set-Location $projectRoot
+    if ($OrganisationProfile) { $OrganisationProfile = (Resolve-Path -LiteralPath $OrganisationProfile).Path; Invoke-Checked 'python' @('tools/organisation_profile.py','validate','--profile',$OrganisationProfile) }
     $java = (Get-Command java.exe -ErrorAction Stop).Source
     $jdk = Split-Path (Split-Path $java)
     if (-not (Test-Path (Join-Path $jdk 'bin/javac.exe'))) { throw 'A complete JDK 21 must be on PATH.' }
@@ -63,6 +64,8 @@ try {
     Invoke-Checked $npm @('run','compile')
     Invoke-Checked $npm @('run','lint')
     Invoke-Checked $npm @('test')
+    Invoke-Checked $npm @('run','browser:install')
+    Invoke-Checked $npm @('run','test:ui')
     Set-Location $projectRoot
     $engine = Join-Path $projectRoot "ods-java-core/target/ods-java-core-$version-engine.jar"
     $gateway = Join-Path $projectRoot "ods-gateway/target/ods-gateway-$version.jar"
@@ -72,26 +75,43 @@ try {
         New-Item -ItemType Directory -Path 'vscode-extension/engine' -Force | Out-Null
         Copy-Item -LiteralPath $engine -Destination 'vscode-extension/engine/ods-java-core.jar' -Force
         [IO.File]::WriteAllText((Join-Path $projectRoot 'vscode-extension/engine/ods-java-core.jar.sha256'), (Get-FileHash -LiteralPath $engine -Algorithm SHA256).Hash.ToLowerInvariant(), [Text.UTF8Encoding]::new($false))
-        Set-Location (Join-Path $projectRoot 'vscode-extension')
-        Invoke-Checked $npm @('run','package')
+        $stage = Join-Path $projectRoot ('.artifacts/vsix-stage-' + [guid]::NewGuid().ToString('N'))
+        $stageArgs = @('tools/organisation_profile.py','stage','--destination',$stage)
+        if ($OrganisationProfile) { $stageArgs += @('--profile',$OrganisationProfile) }
+        Invoke-Checked 'python' $stageArgs
+        $packManifest = Get-Content -LiteralPath (Join-Path $stage 'package.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+        $vsixName = "$($packManifest.name)-$version.vsix"
+        $vsix = Join-Path $projectRoot ".artifacts/$vsixName"
+        Set-Location $stage
+        Invoke-Checked (Join-Path $projectRoot 'vscode-extension/node_modules/.bin/vsce.cmd') @('package','--no-dependencies','--allow-missing-repository','--skip-license','--out',$vsix)
         Set-Location $projectRoot
-        $vsix = Join-Path $projectRoot ".artifacts/organisation-development-standard-$version.vsix"
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         $archive = [IO.Compression.ZipFile]::OpenRead($vsix)
         try { foreach ($entry in @('extension/package.json','extension/dist/extension.js','extension/engine/ods-java-core.jar','extension/engine/ods-java-core.jar.sha256','extension/media/view.js')) { if (-not $archive.GetEntry($entry)) { throw "VSIX entry missing: $entry" } } } finally { $archive.Dispose() }
-        Write-Host "VSIX verified: .artifacts/organisation-development-standard-$version.vsix"
+        Write-Host "VSIX verified: .artifacts/$vsixName"
     }
     if ($Task -eq 'Package') {
         $suite = Join-Path $projectRoot 'suiteInstall'
         # Keep previous generated deliveries without deleting user or source files. DEVAI-145.
-        if (Test-Path $suite) {
+        if ((Test-Path $suite) -and @(Get-ChildItem -LiteralPath $suite -Recurse -File -Force).Count -gt 0) {
             if ([IO.Path]::GetFullPath($suite) -ne (Join-Path $projectRoot 'suiteInstall')) { throw 'Unexpected delivery directory.' }
             $previous = Join-Path $projectRoot ('.artifacts/previous-suite-' + [guid]::NewGuid().ToString('N'))
-            Move-Item -LiteralPath $suite -Destination $previous
+            try { [IO.Directory]::Move($suite, $previous) }
+            catch {
+                # A terminal may hold an otherwise empty scripts directory open. Keep a full snapshot first.
+                Copy-Item -LiteralPath $suite -Destination $previous -Recurse -Force
+                foreach ($oldFile in Get-ChildItem -LiteralPath $suite -Recurse -File -Force) {
+                    $oldTarget = [IO.Path]::GetFullPath((Join-Path $previous $oldFile.FullName.Substring($suite.Length + 1)))
+                    if (-not $oldFile.FullName.StartsWith($suite + [IO.Path]::DirectorySeparatorChar) -or -not $oldTarget.StartsWith($previous + [IO.Path]::DirectorySeparatorChar)) { throw 'Unexpected backup file path.' }
+                    Move-Item -LiteralPath $oldFile.FullName -Destination $oldTarget -Force
+                }
+                if (@(Get-ChildItem -LiteralPath $suite -Recurse -File -Force).Count -gt 0) { throw 'Delivery files are locked; previous delivery snapshot preserved.' }
+            }
         }
         foreach ($part in @('bin','config','docs','scripts','examples')) { New-Item -ItemType Directory -Path (Join-Path $suite $part) -Force | Out-Null }
         Copy-Item -LiteralPath $engine,$gateway,$vsix -Destination (Join-Path $suite 'bin')
         Copy-Item -Path 'config/*.example' -Destination (Join-Path $suite 'config')
+        if ($OrganisationProfile) { Invoke-Checked 'python' @('tools/organisation_profile.py','deliver','--profile',$OrganisationProfile,'--destination',(Join-Path $suite 'config')) }
         Copy-Item -Path 'docs/*.md' -Destination (Join-Path $suite 'docs')
         Copy-Item -LiteralPath 'README.md','CHANGELOG.md','specification.md','prompt-developpement.md' -Destination (Join-Path $suite 'docs')
         Copy-Item -LiteralPath 'scripts/start-gateway.ps1','scripts/start-gateway.bat','scripts/install-extension.bat','scripts/prepare-prompt-bundle.ps1' -Destination (Join-Path $suite 'scripts')
@@ -109,9 +129,9 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Cannot identify the source commit.' }
         if ($sourceCommit -ne $buildSourceCommit) { throw 'The source commit changed during build; rebuild before delivery.' }
         $sourceState = (& git status --porcelain --untracked-files=normal | Out-String).Trim()
-        $buildIdentity = @{ version=$version; sourceCommit=$sourceCommit; sourceDirty=($buildSourceDirty -or [bool]$sourceState); builtAtUtc=[DateTime]::UtcNow.ToString('o') } | ConvertTo-Json
+        $buildIdentity = @{ version=$version; sourceCommit=$sourceCommit; sourceDirty=($buildSourceDirty -or [bool]$sourceState); builtAtUtc=[DateTime]::UtcNow.ToString('o'); profileId=$(if ($OrganisationProfile) { (Get-Content -LiteralPath $OrganisationProfile -Raw -Encoding UTF8 | ConvertFrom-Json).id } else { 'default' }) } | ConvertTo-Json
         [IO.File]::WriteAllText((Join-Path $suite 'BUILD.json'), $buildIdentity, [Text.UTF8Encoding]::new($false))
-        foreach ($deliveredText in Get-ChildItem -LiteralPath $suite -Recurse -File | Where-Object { $_.Extension -in @('.md','.py','.ps1','.bat','.json','.yml','.example') }) {
+        foreach ($deliveredText in Get-ChildItem -LiteralPath $suite -Recurse -File | Where-Object { $_.Extension -in @('.md','.py','.ps1','.bat','.json','.yml','.example','.env','.properties') }) {
             if ((Get-Content -LiteralPath $deliveredText.FullName -Raw -Encoding UTF8) -match '(?i)[A-Z]:\\Users\\|/home/[^<\s]+/|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----') { throw "Sensitive workstation data in delivery: $($deliveredText.Name)" }
         }
         $hashes = Get-ChildItem (Join-Path $suite 'bin') -File | ForEach-Object { '{0}  bin/{1}' -f (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.Name }

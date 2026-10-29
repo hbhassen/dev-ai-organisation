@@ -1,7 +1,7 @@
 name: Build and package
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, 'feat/**', 'fix/**']
   pull_request:
   workflow_dispatch:
 permissions:
@@ -27,7 +27,7 @@ jobs:
           python-version: '3.11'
       - name: Full validation and standalone delivery
         shell: cmd
-        run: package.bat
+        run: script.bat config\organisations\demo\organisation.json
       - name: Publish generated artifacts outside Git history
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -73,4 +73,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
         working-directory: vscode-extension
       - run: npm run compile && npm run lint && npm test
+        working-directory: vscode-extension
+      - run: npx playwright install --with-deps chromium
+        working-directory: vscode-extension
+      - run: npm run test:ui
         working-directory: vscode-extension

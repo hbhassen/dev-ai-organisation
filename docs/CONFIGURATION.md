@@ -1,10 +1,10 @@
 # Configuration et gouvernance
 
-Toutes les URL sont externes au code et au VSIX. Les exemples figurent dans `config/gateway.env.example`. La configuration machine `ods.gatewayUrl` pointe l'extension vers la gateway ; aucun secret Mistral, Sonar ou JFrog ne va dans la webview.
+Les URL des services sont configurées côté gateway ; son URL publique peut être intégrée comme valeur par défaut au VSIX via un profil d’organisation. Les exemples figurent dans `config/gateway.env.example`. La configuration machine `ods.gatewayUrl` pointe l'extension vers la gateway ; aucun secret Mistral, Sonar ou JFrog ne va dans la webview.
 
 ## Identité et projets
 
-Configurer un client OIDC public avec PKCE, sans secret client. Autoriser le callback `vscode://ods-internal.organisation-development-standard/callback` (adapter le schéma pour une distribution VS Code différente). Les access tokens doivent contenir l'audience `ods-gateway`, un sujet et le claim vérifié `gitlab_user_id`. Configurer l'émission de refresh tokens selon la politique du SSO. Les jetons utilisateur sont stockés dans SecretStorage, séparément pour chaque origine de gateway.
+Configurer un client OIDC public avec PKCE, sans secret client. Autoriser le callback `vscode://ods-internal.organisation-development-standard/callback` (ou `vscode://<publisher>.<name>/callback` pour une variante ; adapter le schéma pour une distribution VS Code différente). Les access tokens doivent contenir l'audience `ods-gateway`, un sujet et le claim vérifié `gitlab_user_id`. Configurer l'émission de refresh tokens selon la politique du SSO. Les jetons utilisateur sont stockés dans SecretStorage, séparément pour chaque origine de gateway.
 
 Le GitLab configuré dans `ODS_GITLAB_URL` est la seule instance autorisée. Le remote local doit correspondre à cette instance. Le développeur fournit son autorisation GitLab ; la gateway interroge `/user` et l'accès au projet. Le compte de gouvernance ne remplace jamais le compte utilisateur pour une MR.
 
@@ -64,3 +64,7 @@ Le flux SSE affiche les fragments de texte disponibles ; le job persistant fait 
 Le champ signé `models` contient les couples `alias`, `provider` (`MISTRAL` uniquement), `model` (identifiant exact approuvé) et `tools` (qualification des appels d’outils). `ODS_MISTRAL_MODEL` doit correspondre au modèle signé de `ODS_MODEL_ALIAS`. L’exemple utilise volontairement `REPLACE_WITH_APPROVED_MISTRAL_ID`, à remplacer après décision organisationnelle. `monthlyUserTokenQuota` borne chaque utilisateur en complément de `monthlyTokenQuota` ; absent, il reprend le plafond projet. Les deux réservations sont atomiques et la réconciliation est unique.
 
 Une valeur de clé publique peut être une clé DER Base64 seule ou un objet JSON administré de forme `{"keys":[{"keyId":"rotation-1","publicKey":"<DER_BASE64>","notBefore":"<INSTANT_UTC>","notAfter":"<INSTANT_UTC>","revoked":false}]}`. Au maximum huit clés sont acceptées. Les clés révoquées, expirées ou futures ne vérifient aucun document. Le trousseau est une configuration de confiance du déploiement : ne jamais le charger depuis le document à vérifier. Déployer un chevauchement, signer avec la nouvelle clé, puis révoquer l’ancienne après migration ; qualifier ce changement avec les caches et les sauvegardes.
+
+## Compilation par profil
+
+`script.bat <organisation.json>` valide le schéma et reconstruit le produit. Voir [PROFILS-ORGANISATION.md](PROFILS-ORGANISATION.md) pour l’ordre des surcharges, la séparation VSIX/configuration serveur et le chargement de `application-organisation.properties`.
