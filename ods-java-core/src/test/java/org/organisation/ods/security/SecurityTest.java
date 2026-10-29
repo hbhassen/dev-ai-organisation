@@ -55,7 +55,7 @@ class SecurityTest {
     /** Refuses traversal, credential and Git internals while accepting ordinary source files. Exigences : DEVAI-040. */
     @Test void protectedPaths() throws Exception {
         PathGuard guard=new PathGuard(root); Files.createDirectory(root.resolve("src"));
-        assertEquals(root.resolve("src/App.java"),guard.resolve("src/App.java"));
+        assertEquals(root.toRealPath().resolve("src/App.java"),guard.resolve("src/App.java"));
         for(String path:new String[]{"../escape",".env",".git/config","src/../../escape","private.key"}) assertThrows(OdsException.class,()->guard.resolve(path));
     }
     /** Keeps files belonging to a nested repository out of the selected project. Exigences : DEVAI-040. */

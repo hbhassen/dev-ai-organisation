@@ -26,7 +26,7 @@ Les validations de starters sont distinctes des tests de l'application ODS. Les 
 
 Les tests de gateway valident HTTP local, migrations, idempotence, quotas concurrents, propriété des jobs, chiffrement, reprises de baux, boucle d'outils, classement des remédiations et contrats Mistral/Sonar. Les services tiers y sont remplacés par des réponses de test explicites. Ces doubles ne sont pas activables comme faux mode de production.
 
-SSO, modèle Mistral approuvé, GitLab, SonarQube, JFrog Xray et runner de l'organisation : **NON VÉRIFIABLES dans cet environnement**, faute d'instances et d'identifiants réels. Les URL d'exemple restent remplaçables. PostgreSQL est visé par la CI Linux ; son résultat distant doit être lu avant de le déclarer réussi. Aucun test de charge, pentest complet, restauration de production ou qualification de lecteur d'écran n'est revendiqué.
+SSO, modèle Mistral approuvé, GitLab, SonarQube, JFrog Xray et runner de l'organisation : **NON VÉRIFIABLES dans cet environnement**, faute d'instances et d'identifiants réels. Les URL d'exemple restent remplaçables. La CI Linux a réellement réussi avec PostgreSQL 16.10, les 42 tests Java, les tests Python et TypeScript ; voir [l'exécution de référence](https://github.com/hbhassen/dev-ai-organisation/actions/runs/40797257318). Le premier job Windows a révélé une assertion comparant un chemin temporaire court à sa forme canonique ; l'assertion est corrigée pour comparer les chemins réels, sans supprimer les contrôles de traversal. Aucun test de charge, pentest complet, restauration de production ou qualification de lecteur d'écran n'est revendiqué.
 
 ## Reproduction et livraison
 

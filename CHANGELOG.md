@@ -13,5 +13,6 @@
 - Clone contrôlé, restauration de checkpoints, sélection de remédiations et préparation de descriptions de MR.
 - Connecteurs de rapports Sonar/Xray et orchestration de pipelines GitLab dédiés aux scans.
 - Scripts `.bat` de build, de VSIX et de livraison autonome ; contrôles des commentaires et tests.
+- Qualification Linux/PostgreSQL ; correction du test de chemins canoniques pour les noms courts Windows.
 
 La qualification des services organisationnels est distincte du build local. Consulter la matrice de conformité et le rapport de validation pour connaître les vérifications réellement exécutées et les limitations restantes.
