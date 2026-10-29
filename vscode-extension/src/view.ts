@@ -77,6 +77,16 @@ export class OdsView implements vscode.WebviewViewProvider, vscode.TextDocumentC
       this.post('tasks', { tasks: await this.gateway.request('/api/v1/prompts') });
     } catch (error) { this.capabilities = undefined; this.post('capabilities', { aiEnabled: false, reason: (error as Error).message }); }
   }
+  /** Revokes the closed root immediately and stops its local tools before selecting another folder. Exigences : DEVAI-017, DEVAI-024, DEVAI-158. */
+  public async workspaceChanged(): Promise<void> {
+    if (this.root && !vscode.workspace.workspaceFolders?.some(folder => folder.uri.toString() === this.root!.uri.toString())) {
+      const run = this.activeRun; this.stopped = true; this.root = undefined; this.project = undefined; this.conversation = undefined;
+      this.grants.clear(); this.reports.clear(); this.capabilities = undefined; this.engine.dispose();
+      this.post('capabilities', { aiEnabled: false, reason: 'Projet fermé ; contexte et permissions supprimés' });
+      if (run) { try { await this.gateway.request(`/api/v1/jobs/${run}/cancel`, 'POST', {}); } catch { this.post('info', { message: 'Outils locaux arrêtés ; annulation distante à vérifier après reconnexion.' }); } }
+    }
+    if (vscode.workspace.workspaceFolders?.length) await this.refresh();
+  }
   /** Dispatches only fixed UI actions and obtains native confirmations for sensitive effects. Exigences : DEVAI-018, DEVAI-010. */
   private async handle(input: unknown): Promise<void> {
     const m = validateMessage(input); this.post('status', { message: 'Traitement en cours…' });

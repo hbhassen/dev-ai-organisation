@@ -15,5 +15,6 @@
 - Scripts `.bat` de build, de VSIX et de livraison autonome ; contrôles des commentaires et tests.
 - Qualification Linux/PostgreSQL ; correction du test de chemins canoniques pour les noms courts Windows.
 - Identité Git capturée avant compilation ; refus de livraison si le commit change pendant le build et refus de release depuis des sources modifiées.
+- Révocation immédiate du contexte local et arrêt du moteur lorsqu'une racine de workspace est fermée.
 
 La qualification des services organisationnels est distincte du build local. Consulter la matrice de conformité et le rapport de validation pour connaître les vérifications réellement exécutées et les limitations restantes.

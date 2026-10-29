@@ -5,7 +5,7 @@ Date : 29 octobre 2026. Cette livraison est une version de développement. Les �
 ## Vérifications exécutées
 
 - Java 21 / Maven Wrapper 3.9.11 : compilation et **42 tests réussis** (4 contrats, 21 moteur, 17 gateway), aucun échec ni test ignoré. Les résultats détaillés figurent dans les rapports Surefire du build et de la CI du commit livré.
-- TypeScript 5.9.3 : compilation, contrôle des commentaires par AST et **4 tests Node réussis**.
+- TypeScript 5.9.3 : compilation, contrôle des commentaires par AST et **6 tests Node réussis**, dont révocation de racine fermée malgré une panne d'annulation distante.
 - Python 3.11 : contrôle des docstrings/exigences et **3 tests de sécurité du runner réussis** (archive, traversée et exclusion de secrets).
 - VSIX : génération réelle avec `vsce`, inspection des entrées, moteur embarqué. Un test dans un véritable extension host VS Code portable a activé l'extension, interrogé le moteur Java, inspecté le workspace et vérifié le refus d'un chemin sortant.
 - JAR : démarrage réel du moteur et de la gateway, réponse HTTP de santé et refus HTTP d'une API métier anonyme. Le packaging répète ce contrôle avec les JAR copiés dans `suiteInstall/bin`.
