@@ -46,13 +46,14 @@ public class AiService {
     }
     /** Lists approved tasks without exposing a privileged authoring operation to the developer. Exigences : DEVAI-066, DEVAI-166. */
     public List<Map<String,String>> tasks() { return catalog().tasks(); }
-    /** Creates a real asynchronous AI operation; initial provider/identity failures never return a fabricated answer. Exigences : DEVAI-063, DEVAI-077, DEVAI-119. */
+    /** Creates a real asynchronous AI operation; initial provider/identity failures never return a fabricated answer. Exigences : DEVAI-063, DEVAI-077, DEVAI-119, DEVAI-180, DEVAI-181. */
     public Map<String,Object> start(Jwt jwt,String gitToken,JsonNode body,String key,boolean agent) {
         Json.fields(body,Set.of("projectId","mode","task","message","context","stacks","action"));
         long project=body.path("projectId").asLong(); String mode=body.path("mode").asText("QUESTION");
         if(!Set.of("QUESTION","MODIFICATION","AGENT").contains(mode)) throw new OdsException("INVALID_REQUEST","Mode inconnu");
         if(agent!=mode.equals("AGENT")) throw new OdsException("INVALID_REQUEST","Mode et route incohérents");
         String task=body.path("task").asText(agent?"implement-requirement":"code-generation");
+        if(Set.of("git-changelog","git-release-notes").contains(task)&&!mode.equals("MODIFICATION")) throw new OdsException("INVALID_REQUEST","Les documents GitFlow nécessitent le mode Modification");
         String taskAction=catalog().action(task);
         if(taskAction.equals("AGENT_RUN")&&!agent) throw new OdsException("ACTION_DENIED","Ce prompt exige le mode Agent et son registre autorisé");
         String action=Set.of("code-generation","code-review").contains(task)?(mode.equals("QUESTION")?"CHAT":"CODE_GENERATION"):taskAction;

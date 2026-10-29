@@ -46,3 +46,7 @@ Le packaging fige `mistral-vibe==3.0.3` et embarque son code, ses dépendances d
 Les secrets embarqués sont extractibles par le propriétaire du poste, limite explicitement acceptée. L’interface verrouillée et le masquage des logs empêchent les modifications ordinaires et fuites accidentelles, pas l’extraction du VSIX. Distribuer les builds personnalisés dans un canal privé autorisé. La rotation demande un nouveau build et une réinstallation.
 
 Les opérations Git gardent le credential helper/agent SSH du développeur. Pour une MR, l’extension cherche un token GitLab utilisateur dans le fournisseur d’authentification IDE ou Git Credential Manager. Un accès Git SSH ne crée pas un token API ; la MR explique l’indisponibilité si aucun credential API n’est déjà présent. Aucun écran de saisie de secret technique n’existe.
+
+## Droits des documents GitFlow
+
+Ajouter `CHANGELOG` et/ou `RELEASE_NOTES` dans `projects[].allowedActions` de la politique de gouvernance, puis la signer et la déployer selon le mécanisme existant. Ces actions sont refusées par défaut et ne sont pas déduites d'un droit `CHAT`, `CODE_GENERATION` ou `MR_DESCRIPTION`. Les tâches sont `git-changelog` et `git-release-notes`, exécutées en mode `MODIFICATION` avec contexte `LOCAL_GOVERNED`. Les couches de prompts signées peuvent compléter leurs instructions en conservant ces actions fixes. Aucun nouveau secret ni fournisseur IA n'est ajouté.

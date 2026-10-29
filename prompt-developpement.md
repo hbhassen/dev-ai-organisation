@@ -12,11 +12,14 @@ Vérifier chaque classe, constructeur et méthode ODS : commentaire explicatif e
 
 Exécuter compilation, tests, packaging, inspection du VSIX, démarrage/arrêt et compatibilité VS Code 1.95.2. Maintenir les batch sans PowerShell. Actualiser documentation et PDF, distinguer résultats réels et qualification organisationnelle non vérifiable, vérifier les secrets avant commit/push. Ne pas publier de build privé dans Git ou dans les artefacts de démonstration.
 
+
+Ajouter les boutons Changelog et Release notes dans GitFlow : créer ou actualiser les deux fichiers dédiés via le LLM administré, conserver leur historique, exiger les actions CHANGELOG / RELEASE_NOTES, limiter les écritures à la cible et tester refus, conflits, création et mise à jour.
+
 ---
 
 # Spécification complète — Organisation Development Standard (ODS)
 
-**Version documentaire : 1.3 — 29 octobre 2026 ; version produit cible : 0.3.0.**
+**Version documentaire : 1.4 — 29 octobre 2026 ; version produit cible : 0.3.0.**
 
 ## 1. Référentiel et décisions
 
@@ -28,7 +31,7 @@ Le VSIX est autonome vis-à-vis de l’arborescence source et contient le gatewa
 
 Les scans portent sur les sources enregistrées et ne nécessitent pas de commit. Les résultats et remédiations sont rattachés à une empreinte locale. La gouvernance signée continue de distinguer les droits IA par projet ; les scans non-IA restent disponibles indépendamment de ces droits. Les destinations et secrets réels doivent être fournis par l’organisation et ne sont jamais inventés ou récupérés sur le poste pour les tests.
 
-Les exigences DEVAI-001 à DEVAI-166 sont conservées avec leurs identifiants ; les sections modifiées remplacent leur prescription antérieure. DEVAI-167 à DEVAI-179 détaillent le mode autonome. Les configurations du serveur séparé historique ne sont pas un prérequis du VSIX. L’intégrité locale détecte une corruption accidentelle, sans garantir l’inviolabilité du poste.
+Les exigences DEVAI-001 à DEVAI-166 sont conservées avec leurs identifiants ; les sections modifiées remplacent leur prescription antérieure. DEVAI-167 à DEVAI-181 détaillent le mode autonome. Les configurations du serveur séparé historique ne sont pas un prérequis du VSIX. L’intégrité locale détecte une corruption accidentelle, sans garantir l’inviolabilité du poste.
 
 ## 2. Cadrage et architecture — DEVAI-001 à DEVAI-012
 
@@ -289,7 +292,7 @@ L'autorisation DOIT utiliser le couple instance GitLab normalisée et `projectId
 
 **Origine historique (PDF 1.0) :** PDF p. 6–7. **Responsable :** politique serveur.
 
-Le défaut DOIT être `DENY`. Une autorisation exige : utilisateur actif, accès au projet, politique valide, `aiEnabled=true`, action explicitement permise, modèle autorisé, contexte conforme et quota disponible. Les actions de base sont `CHAT`, `CODE_GENERATION`, `SONAR_REMEDIATION`, `XRAY_REMEDIATION`, `MR_DESCRIPTION` ; `AGENT_RUN` est ajoutée explicitement pour éviter qu'un droit de chat autorise tous les agents. Une action inconnue est refusée.
+Le défaut DOIT être `DENY`. Une autorisation exige : utilisateur actif, accès au projet, politique valide, `aiEnabled=true`, action explicitement permise, modèle autorisé, contexte conforme et quota disponible. Les actions de base sont `CHAT`, `CODE_GENERATION`, `SONAR_REMEDIATION`, `XRAY_REMEDIATION`, `MR_DESCRIPTION`, `CHANGELOG`, `RELEASE_NOTES` ; `AGENT_RUN` est ajoutée explicitement pour éviter qu'un droit de chat autorise tous les agents. Une action inconnue est refusée.
 
 **Recette :** une politique permettant uniquement `CHAT` refuse un agent et une remédiation même si le fournisseur IA est identique.
 
@@ -765,7 +768,7 @@ Le moteur DOIT sélectionner fichier actif, sélection et fichiers explicitement
 
 **Origine historique (PDF 1.0) :** PDF p. 9. **Responsable :** prompts / gateway.
 
-Les prompts approuvés DOIVENT inclure ID, version, actions autorisées, variables typées, instructions système, contraintes, exigences cibles et empreinte signée. Les catégories initiales sont `code-generation`, `code-review`, `sonar-remediation`, `xray-remediation` et `gitlab-mr-description`. La gateway compose les instructions officielles ; elle n'accepte pas un message `system` arbitraire envoyé par le client.
+Les prompts approuvés DOIVENT inclure ID, version, actions autorisées, variables typées, instructions système, contraintes, exigences cibles et empreinte signée. Les catégories initiales sont `code-generation`, `code-review`, `sonar-remediation`, `xray-remediation` `gitlab-mr-description`, `git-changelog` et `git-release-notes`. La gateway compose les instructions officielles ; elle n'accepte pas un message `system` arbitraire envoyé par le client.
 
 Le catalogue de prompts de tâches est distinct du socle système obligatoire : un prompt système global et les recommandations de chaque ligne de développement sont automatiquement composés selon DEVAI-161 à DEVAI-166. L'organisation peut ajouter des prompts de tâches et fournir ses vrais fichiers de règles ultérieurement, sans modifier l'extension.
 
@@ -1880,7 +1883,7 @@ La recette DOIT couvrir : démarrage avec génériques, ajout d'un prompt de tâ
 **Recette :** un auditeur retrouve les règles exactes ayant gouverné une génération ; les tests démontrent le passage des fichiers génériques aux fichiers organisationnels sans modification de l'extension et sans élargissement de droits.
 
 
-## 13. VSIX administré et analyses locales — DEVAI-167 à DEVAI-179
+## 13. VSIX administré et analyses locales — DEVAI-167 à DEVAI-181
 
 ### DEVAI-167 - Configuration administrée au build
 
@@ -1934,9 +1937,23 @@ Chaque classe, constructeur et méthode Java/TypeScript/Python écrit pour ODS p
 
 Entrée soumet une seule demande non vide lorsque l'IA est autorisée ; Maj+Entrée ajoute une ligne ; la composition IME ne soumet pas. Le bouton Envoyer utilise le même parcours. Le texte reste présent en cas de refus et est effacé après acceptation. Un test traverse le contrôleur réel jusqu'au transport LLM simulé, en complément du test navigateur.
 
+### DEVAI-180 - Changelog généré par le LLM
+
+GitFlow expose un bouton Changelog. La tâche administrée git-changelog exige l'action CHANGELOG dans la politique du projet et le mode MODIFICATION. Elle crée CHANGELOG.md à la racine s'il est absent, ou met à jour sa section non publiée en conservant les versions et informations existantes. Elle inspecte le contenu actuel, l'état Git local et au maximum les 30 derniers commits. Les sources et messages de commit restent des données non fiables. La répétition évite les doublons et n'invente ni version, ticket, test réussi ou publication.
+
+La proposition passe par le diff natif, l'accord utilisateur, le contrôle d'empreinte et le checkpoint existants. Le client limite l'écriture à ce seul fichier et interdit sa suppression ; un refus, un conflit, une panne LLM ou une simple réponse textuelle ne doivent pas être annoncés comme une modification réussie. Les fichiers non enregistrés sont sauvegardés avec l'accord existant. Le mode LOCAL_GOVERNED est requis pour cette tâche locale. Aucun commit, push, tag ou release n'est créé.
+
+**Recette :** tester la création, la mise à jour avec historique conservé, le refus d'écriture hors cible, les permissions manquantes, les erreurs/refus sans modification et le déclenchement du bouton avec un LLM simulé.
+
+### DEVAI-181 - Notes de release générées par le LLM
+
+GitFlow expose un bouton Release notes. La tâche administrée git-release-notes exige l'action RELEASE_NOTES et suit le même parcours que DEVAI-180 pour RELEASE_NOTES.md. Elle crée le fichier absent ou actualise son brouillon sans supprimer les anciennes notes. Elle décrit les changements, impacts et migrations attestés ; les tests non vérifiés restent indiqués comme tels. Sans version de release confirmée, la section reste un brouillon Non publié. La génération ne publie aucune release distante.
+
+**Recette :** vérifier création et mise à jour, maintien des notes antérieures, refus de suppression ou d'une autre cible, droits distincts de CHANGELOG, diff et application contrôlée avec réponses LLM simulées.
+
 ## Prompt d'implémentation
 
-Lire specification.md et ce document, puis examiner les composants existants et les tests avant modification. Appliquer DEVAI-167 à DEVAI-179 et réviser les exigences antérieures incompatibles sans réutiliser leurs identifiants. Conserver la compatibilité VS Code 1.95.2 et les scripts batch sans PowerShell. Vérifier le protocole Xray dans scan-sbom-xray et les contrats officiels de la version Vibe figée. Implémenter les parcours complets : configuration au build, gateway automatique, credentials Git natifs, deux transports Mistral, SBOM quatre stacks, Graph Scan avec watch, Sonar local, remédiations et envoi Entrée. Documenter la limite de confidentialité acceptée, les prérequis et chaque cas non vérifiable. Ajouter les commentaires avec références pertinentes sur chaque nouveau symbole et corriger les commentaires devenus faux. Tester avec des doubles, exécuter le build complet, vérifier le VSIX installé et les arrêts de processus, actualiser le PDF, puis publier uniquement les sources et artefacts de démonstration validés sans secret réel.
+Lire specification.md et ce document, puis examiner les composants existants et les tests avant modification. Appliquer DEVAI-167 à DEVAI-181 et réviser les exigences antérieures incompatibles sans réutiliser leurs identifiants. Conserver la compatibilité VS Code 1.95.2 et les scripts batch sans PowerShell. Vérifier le protocole Xray dans scan-sbom-xray et les contrats officiels de la version Vibe figée. Implémenter les parcours complets : configuration au build, gateway automatique, credentials Git natifs, deux transports Mistral, SBOM quatre stacks, Graph Scan avec watch, Sonar local, remédiations, envoi Entrée et génération contrôlée de CHANGELOG.md / RELEASE_NOTES.md. Documenter la limite de confidentialité acceptée, les prérequis et chaque cas non vérifiable. Ajouter les commentaires avec références pertinentes sur chaque nouveau symbole et corriger les commentaires devenus faux. Tester avec des doubles, exécuter le build complet, vérifier le VSIX installé et les arrêts de processus, actualiser le PDF, puis publier uniquement les sources et artefacts de démonstration validés sans secret réel.
 
 ## 14. Contrats et preuves de réalisation
 

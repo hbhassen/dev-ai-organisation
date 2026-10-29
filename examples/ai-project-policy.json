@@ -10,7 +10,7 @@
   "projects": [{
     "projectId": 1042,
     "aiEnabled": true,
-    "allowedActions": ["CHAT", "CODE_GENERATION", "SONAR_REMEDIATION", "XRAY_REMEDIATION", "MR_DESCRIPTION", "AGENT_RUN"],
+    "allowedActions": ["CHAT", "CODE_GENERATION", "SONAR_REMEDIATION", "XRAY_REMEDIATION", "MR_DESCRIPTION", "AGENT_RUN", "CHANGELOG", "RELEASE_NOTES"],
     "modelAlias": "mistral-coding-approved",
     "monthlyTokenQuota": 1000000,
     "monthlyUserTokenQuota": 250000,

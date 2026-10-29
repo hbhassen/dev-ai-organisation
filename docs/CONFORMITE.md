@@ -1,4 +1,4 @@
-# Matrice de réalisation — 179 exigences
+# Matrice de réalisation — 181 exigences
 
 Version applicative **0.3.0**, état du 29 octobre 2026. Ce document ne prononce pas une conformité complète.
 
@@ -21,7 +21,7 @@ Les liens ci-dessous sont des points de traçabilité réellement présents, dé
 | DEVAI-009 — Administration gouvernée | P | Exigence transverse documentée ; preuve de couverture dédiée à compléter. | Référentiel et documentation de livraison |
 | DEVAI-010 — Responsabilité humaine | I | Mécanisme présent ; voir les sources et le périmètre de validation. | [EngineMain.java](../ods-java-core/src/main/java/org/organisation/ods/runtime/EngineMain.java) ; [view.ts](../vscode-extension/src/view.ts) |
 | DEVAI-011 — Terminologie et erreurs compréhensibles | I | Mécanisme présent ; voir les sources et le périmètre de validation. | [OdsException.java](../ods-contracts/src/main/java/org/organisation/ods/contracts/OdsException.java) ; [ErrorHandler.java](../ods-gateway/src/main/java/org/organisation/ods/api/ErrorHandler.java) |
-| DEVAI-012 — Définition de livraison complète | P | Livraison de développement ; recette intégrale des 179 exigences non acquise. | Référentiel et documentation de livraison |
+| DEVAI-012 — Définition de livraison complète | P | Livraison de développement ; recette intégrale des 181 exigences non acquise. | Référentiel et documentation de livraison |
 | DEVAI-013 — Bandeau et navigation | P | Bandeau, cinq onglets avec icônes, badges et quota mensuel ; synthèse exhaustive des droits encore à enrichir. | [extension.ts](../vscode-extension/src/extension.ts) ; [view.ts](../vscode-extension/src/view.ts) |
 | DEVAI-014 — Contrat JSON-RPC local | I | Mécanisme présent ; voir les sources et le périmètre de validation. | [Json.java](../ods-contracts/src/main/java/org/organisation/ods/contracts/Json.java) ; [JsonTest.java](../ods-contracts/src/test/java/org/organisation/ods/contracts/JsonTest.java) ; [EngineMain.java](../ods-java-core/src/main/java/org/organisation/ods/runtime/EngineMain.java) |
 | DEVAI-015 — Cycle de vie du moteur | I | Mécanisme présent ; voir les sources et le périmètre de validation. | [EngineMain.java](../ods-java-core/src/main/java/org/organisation/ods/runtime/EngineMain.java) ; [ProcessRunner.java](../ods-java-core/src/main/java/org/organisation/ods/runtime/ProcessRunner.java) ; [engine.ts](../vscode-extension/src/engine.ts) |
@@ -196,5 +196,8 @@ La version 0.2.1 corrige la compatibilité d'installation VS Code et conserve le
 | DEVAI-177 — Doubles de tous les services | I | Code et tests par doubles ; preuves et limites dans [VALIDATION](VALIDATION.md). |
 | DEVAI-178 — Traçabilité des commentaires | I | Code et tests par doubles ; preuves et limites dans [VALIDATION](VALIDATION.md). |
 | DEVAI-179 — Envoi effectif depuis IA | I | Code et tests par doubles ; preuves et limites dans [VALIDATION](VALIDATION.md). |
+| DEVAI-180 — Changelog via LLM | I | Création/mise à jour ciblée, permissions et diff ; tests dans VALIDATION. |
+| DEVAI-181 — Release notes via LLM | I | Brouillon local, conservation de l’historique, aucune publication automatique. |
+
 
 Le contrôle syntaxique des commentaires Java, TypeScript et Python vérifie les références connues. La revue de responsabilités de cette évolution porte sur la configuration, le contrôle Git, les processus, les transports et les analyses. Elle ne convertit pas les écarts historiques P en conformité acquise. Le code tiers conserve sa documentation originale.

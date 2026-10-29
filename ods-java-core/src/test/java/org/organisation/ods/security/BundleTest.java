@@ -15,6 +15,16 @@ import static org.junit.jupiter.api.Assertions.*;
 /** Qualifies organizational prompts and starter overlays with genuine signatures and collision checks. Exigences : DEVAI-052, DEVAI-164, DEVAI-165. */
 class BundleTest {
     @TempDir Path root;
+    /** Verifies the shipped document prompts bind distinct actions and preserve the reviewed patch workflow. Exigences : DEVAI-180, DEVAI-181. */
+    @Test void documentPromptsArePackagedAndGoverned() throws Exception {
+        var catalog=new PromptCatalog(null,"");
+        assertEquals("CHANGELOG",catalog.action("git-changelog"));
+        assertEquals("RELEASE_NOTES",catalog.action("git-release-notes"));
+        for(var task:Map.of("git-changelog","CHANGELOG.md","git-release-notes","RELEASE_NOTES.md").entrySet()) {
+            String system=catalog.compose(List.of("JAVA"),task.getKey()).get("system").toString();
+            assertTrue(system.contains(task.getValue())); assertTrue(system.contains("changes_propose")); assertTrue(system.contains("MISSING"));
+        }
+    }
     /** Signs exact UTF-8 fixture bytes with a fresh ephemeral test key and returns only the public key. Exigences : DEVAI-029. */
     private String sign(String name,Object manifest) throws Exception {
         byte[] bytes=Json.write(manifest).getBytes(java.nio.charset.StandardCharsets.UTF_8); Files.write(root.resolve(name+".json"),bytes);

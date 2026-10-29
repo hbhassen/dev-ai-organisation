@@ -3,6 +3,8 @@
 
 ## 0.3.0 — 2026-10-29
 
+- GitFlow : boutons Changelog et Release notes pour créer ou mettre à jour les documents dédiés via le LLM, avec droits distincts, contrôle de cible et validation du diff.
+
 - Connexion du VSIX sans SSO : contrôle Git réel avant démarrage du gateway embarqué, session privée loopback et arrêt possédé, y compris si la fermeture intervient pendant une connexion en cours.
 - Configuration organisationnelle et credentials embarqués au build, interface verrouillée et masquage ; extractibilité des secrets explicitement acceptée.
 - Choix Mistral API ou adaptateur CLI utilisant le backend officiel Vibe 3.0.3 embarqué, Vibe par défaut.

@@ -1,6 +1,7 @@
 /* Presentation only. All filesystem, process and network effects use the native host. Exigences : DEVAI-002, DEVAI-018. */
 const vscode = acquireVsCodeApi();
 let busy = false, allowed = false, sonarPage = 1;
+let documentActions = new Set();
 /** Resolves a static DOM element without evaluating external selectors. Exigences : DEVAI-018. */
 function element(id) { return document.getElementById(id); }
 /** Posts a typed UI action without tokens, paths or native permissions. Exigences : DEVAI-018. */
@@ -13,8 +14,8 @@ function entry(role, text) {
   const content = document.createElement('pre'); content.textContent = text;
   article.append(label, content); element('conversation').append(article); article.scrollIntoView({ block: 'nearest' });
 }
-/** Keeps send, mode and stop controls consistent with the actual host task state. Exigences : DEVAI-019, DEVAI-151. */
-function composerState() { element('send').disabled = busy || !allowed || !element('message').value.trim(); element('stop').hidden = !busy; element('mode').disabled = busy; element('task').disabled = busy; element('attach').disabled = busy; }
+/** Keeps send, mode and stop controls consistent with the actual host task state. Exigences : DEVAI-019, DEVAI-151, DEVAI-180, DEVAI-181. */
+function composerState() { element('send').disabled = busy || !allowed || !element('message').value.trim(); element('stop').hidden = !busy; element('mode').disabled = busy; element('task').disabled = busy; element('attach').disabled = busy; document.querySelectorAll('[data-policy-action]').forEach(button => { button.disabled = busy || !allowed || !documentActions.has(button.dataset.policyAction); }); }
 /** Submits one draft while retaining its text until the native host acknowledges acceptance. Exigences : DEVAI-063, DEVAI-077. */
 function submit() { if (busy || element('send').disabled) return; busy = true; composerState(); send({ type: 'chat', mode: element('mode').value, task: element('task').value, message: element('message').value, includeActive: element('includeActive').checked }); }
 /** Uses one roving tab stop and standard arrow navigation for the five panels. Exigences : DEVAI-013, DEVAI-019. */
@@ -49,7 +50,7 @@ window.addEventListener('message', event => {
   const m = event.data;
   switch (m.type) {
     case 'context': element('project-name').textContent = `Projet : ${m.name || 'Aucun'}`; element('context').textContent = `${m.branch || 'Sans branche'} · ${(m.stacks || []).join(' / ') || 'Stack à détecter'}`; element('context-chips').replaceChildren(); for (const stack of m.stacks || []) { const chip = document.createElement('span'); chip.className = 'chip'; chip.textContent = stack; element('context-chips').append(chip); } break;
-    case 'capabilities': allowed = !!m.rule?.aiEnabled; element('capabilities').textContent = allowed ? 'IA autorisée' : 'IA indisponible'; element('capabilities').classList.toggle('neutral', !allowed); element('connection').textContent = m.projectId ? 'Connecté' : 'Non connecté'; element('connection').classList.toggle('neutral', !m.projectId); element('connection-detail').textContent = m.reason || `Politique ${m.policyVersion} · ${m.rule?.modelAlias || 'Aucun modèle'}`; quota(m.usage, m.rule?.monthlyTokenQuota); composerState(); break;
+    case 'capabilities': allowed = !!m.rule?.aiEnabled; documentActions = new Set(m.rule?.allowedActions || []); element('capabilities').textContent = allowed ? 'IA autorisée' : 'IA indisponible'; element('capabilities').classList.toggle('neutral', !allowed); element('connection').textContent = m.projectId ? 'Connecté' : 'Non connecté'; element('connection').classList.toggle('neutral', !m.projectId); element('connection-detail').textContent = m.reason || `Politique ${m.policyVersion} · ${m.rule?.modelAlias || 'Aucun modèle'}`; quota(m.usage, m.rule?.monthlyTokenQuota); composerState(); break;
     case 'busy': busy = m.value; composerState(); break;
     case 'accepted': if (element('message').value === m.text) element('message').value = ''; composerState(); break;
     case 'attachments': element('attachments').replaceChildren(); for (const path of m.paths) { const chip = document.createElement('button'); chip.className = 'chip'; chip.textContent = `${path} ×`; chip.setAttribute('aria-label', `Retirer ${path}`); chip.addEventListener('click', () => send({ type: 'detach', path })); element('attachments').append(chip); } break;

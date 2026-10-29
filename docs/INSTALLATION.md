@@ -28,3 +28,13 @@ Installer les versions de scanners qualifiées pour le serveur organisationnel. 
 « Accès Git refusé » : vérifier l’identité déjà configurée dans Git/IDE et la lecture du remote ; Actualiser renouvelle le contrôle. « Configuration requise » : faire corriger le profil par l’administrateur puis réinstaller le VSIX. Les exemples `*.organisation.example` sont inopérants.
 
 Les identifiants embarqués restent extractibles malgré les champs verrouillés et logs masqués, conformément au choix accepté. Les instances métier et les licences doivent être qualifiées séparément ; les mocks de test ne prouvent pas leur disponibilité. Le démarrage manuel du JAR concerne uniquement le serveur séparé historique, pas l’installation normale du VSIX.
+
+## Changelog et notes de release dans GitFlow
+
+Le bouton **Changelog** crée `CHANGELOG.md` à la racine s'il est absent, ou demande au LLM de mettre à jour son contenu en préservant l'historique. **Release notes** suit le même parcours pour `RELEASE_NOTES.md`. La version sans publication confirmée reste un brouillon « Non publié ».
+
+La politique signée doit autoriser respectivement `CHANGELOG` et `RELEASE_NOTES`, avec `aiEnabled: true` et `contextMode: LOCAL_GOVERNED`. Ces droits sont distincts ; un ancien profil ne les accorde pas automatiquement. Le mode Modification est sélectionné par le bouton. Les URL et identifiants LLM restent ceux du VSIX administré.
+
+Enregistrer les fichiers modifiés lorsque l'extension le propose, puis autoriser la lecture Git et le contexte selon les dialogues natifs. La tâche utilise l'état local et les 30 derniers commits au maximum ; ce périmètre ne représente pas automatiquement toutes les modifications depuis le dernier tag. Le LLM peut inspecter les fichiers utiles. Relire le diff proposé avant d'accepter : une empreinte devenue obsolète bloque l'application. Les notes anciennes doivent être conservées et les doublons évités.
+
+Une génération ne crée aucun commit, push, tag ou publication GitHub/GitLab. Une panne LLM, un refus du diff ou une réponse sans proposition laisse le document inchangé ; consulter alors la conversation IA. Seul le document sélectionné peut être créé ou modifié par cette tâche, jamais supprimé. Les autres noms et emplacements de changelog ne sont pas détectés automatiquement.

@@ -1,18 +1,19 @@
 # Validation de la version 0.3.0
 
-Date : 29 octobre 2026. Livraison de développement, profil de démonstration sans identifiants réels. La révision 1.3 des spécifications supprime le SSO du VSIX administré. Les paragraphes 0.2.1 ci-dessous sont conservés comme historique et ne décrivent pas son nouveau parcours de connexion.
+Date : 29 octobre 2026. Livraison de développement, profil de démonstration sans identifiants réels. La révision 1.4 des spécifications supprime le SSO du VSIX administré. Les paragraphes 0.2.1 ci-dessous sont conservés comme historique et ne décrivent pas son nouveau parcours de connexion.
 
 ## Contrôles exécutés pour cette évolution
 
-- Java 21 / Maven : `verify`, **54 tests réussis**, aucun échec ni test ignoré (4 contrats, 21 moteur, 29 gateway). Les nouveaux tests couvrent l'accès local, le Graph Scan Xray, Sonar, les transports Vibe et le masquage des erreurs. Le packaging complet utilise `clean verify` et conserve ses rapports Surefire.
+- Java 21 / Maven : `verify`, **56 tests réussis**, aucun échec ni test ignoré (4 contrats, 23 moteur, 29 gateway). Les nouveaux tests couvrent l'accès local, le Graph Scan Xray, Sonar, les transports Vibe et le masquage des erreurs. Le packaging complet utilise `clean verify` et conserve ses rapports Surefire.
 - Python : **24 tests réussis**, dont l'empreinte des sources non commitées, les commandes CycloneDX/Sonar des quatre stacks avec processus simulés, l'arrêt des descendants, les paramètres du runtime, les chemins longs Windows et le refus des fichiers dotenv accidentels.
-- TypeScript compilé avec les API VS Code 1.95.0 ; **18 tests Node réussis** : contrôle Git avant connexion, refus d'accès, configuration administrée et masquage des valeurs sensibles, en plus des fonctionnalités antérieures.
-- Interface Chromium : **7 scénarios réussis**. Le scénario Entrée utilise le vrai contrôleur natif et le client HTTP avec un LLM simulé ; Maj+Entrée, composition IME, double soumission, refus, sécurité de rendu et navigation sont également vérifiés.
+- TypeScript compilé avec les API VS Code 1.95.0 ; **26 tests Node réussis** : contrôle Git avant connexion, refus d'accès, configuration administrée et masquage des valeurs sensibles, en plus des fonctionnalités antérieures.
+- Interface Chromium : **9 scénarios réussis**. Le scénario Entrée utilise le vrai contrôleur natif et le client HTTP avec un LLM simulé ; Maj+Entrée, composition IME, double soumission, refus, sécurité de rendu et navigation sont également vérifiés.
+- GitFlow : huit nouveaux tests Node traversent le vrai contrôleur, les réponses LLM simulées et le parcours de diff pour créer/mettre à jour les deux documents ; refus, panne fournisseur, cible interdite et suppression sont vérifiés. Deux scénarios Chromium supplémentaires vérifient les boutons, les droits distincts, le blocage pendant une tâche et le rendu aux largeurs 330/900 px. Les prompts embarqués et les deux actions de politique ont aussi leurs tests Java.
 - Runtime : démarrage du véritable JAR de gateway avec le client natif, après une vérification Git simulée. Accès refusé avant création du processus, API locale refusée sans jeton de lancement, appel autorisé avec ce jeton, stockage natif de la clé persistante et arrêt du processus après révocation Git : **SUCCESS**.
 - Vibe 3.0.3 : contrat exécuté avec la distribution et le SDK effectivement embarqués, en simulant uniquement le transport HTTP. Réponse texte, appels d'outils typés, modèle/URL/clé et usage mesuré : **SUCCESS**. Deux tests supplémentaires exécutent réellement le sous-processus Python depuis Java pour les modes API_KEY et CLI_TOKEN, sans fournisseur externe.
 - Commentaires : contrôle des classes/méthodes Java, fonctions/classes Python et symboles TypeScript, avec références DEVAI connues. **49 fichiers Java et 16 fichiers Python** vérifiés ; contrôle TypeScript inclus dans `npm run lint`.
 - VS Code **1.95.2 Windows x64** : installation réelle du VSIX 0.3.0 réussie dans un profil isolé ; activation dans le véritable extension host, commandes, IPC du moteur embarqué, lecture de fichier et refus de sortie du workspace vérifiés, code de sortie 0. Les tests natifs ne modifient pas l’installation habituelle.
-- PDF : document d'architecture de **13 pages**, révision 1.3, régénéré et rendu page par page pour inspection visuelle. Schéma Git → gateway, interface réelle et exigences DEVAI-167 à DEVAI-179 présents.
+- PDF : document d'architecture de **14 pages**, révision 1.4, régénéré et rendu page par page pour inspection visuelle. Schéma Git → gateway, interface réelle et exigences DEVAI-167 à DEVAI-181 présents.
 - Batch : aucun appel PowerShell dans les `.bat`/`.cmd` du produit. Le commentaire historique du wrapper mentionne uniquement son absence.
 
 ## Portée de la recette

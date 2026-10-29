@@ -9,7 +9,7 @@ import java.util.*;
 
 /** Verifies immutable signed bytes and strict policy semantics before any IA decision. Exigences : DEVAI-026, DEVAI-029, DEVAI-030, DEVAI-031. */
 public final class SignedDocuments {
-    private static final Set<String> ACTIONS = Set.of("CHAT", "CODE_GENERATION", "SONAR_REMEDIATION", "XRAY_REMEDIATION", "MR_DESCRIPTION", "AGENT_RUN");
+    private static final Set<String> ACTIONS = Set.of("CHAT", "CODE_GENERATION", "SONAR_REMEDIATION", "XRAY_REMEDIATION", "MR_DESCRIPTION", "AGENT_RUN", "CHANGELOG", "RELEASE_NOTES");
     /** Prevents construction of the security utility. Exigences : DEVAI-029. */
     private SignedDocuments() { }
     /** Rejects malformed, future or expired signed recommendation intervals before their contents are used. Exigences : DEVAI-030, DEVAI-164. */

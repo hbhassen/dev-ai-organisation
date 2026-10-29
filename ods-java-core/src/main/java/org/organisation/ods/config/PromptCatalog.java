@@ -13,7 +13,7 @@ public final class PromptCatalog {
     private final Path organizationDirectory;
     private final JsonNode organization;
     private static final Set<String> STACKS = Set.of("JAVA", "ANGULAR", "PYTHON", "DOTNET");
-    private static final Map<String,String> TASKS=Map.of("code-generation","CODE_GENERATION","code-review","CHAT","sonar-remediation","SONAR_REMEDIATION","xray-remediation","XRAY_REMEDIATION","gitlab-mr-description","MR_DESCRIPTION","implement-requirement","AGENT_RUN");
+    private static final Map<String,String> TASKS=Map.of("code-generation","CODE_GENERATION","code-review","CHAT","sonar-remediation","SONAR_REMEDIATION","xray-remediation","XRAY_REMEDIATION","gitlab-mr-description","MR_DESCRIPTION","implement-requirement","AGENT_RUN","git-changelog","CHANGELOG","git-release-notes","RELEASE_NOTES");
     /** Loads and verifies the optional organizational bundle before it can replace generic rules. Exigences : DEVAI-164. */
     public PromptCatalog(Path directory, String trustedPublicKey) throws IOException {
         organizationDirectory = directory == null ? null : directory.toRealPath();
@@ -62,7 +62,7 @@ public final class PromptCatalog {
     }
     /** Exposes the immutable signed bundle identity for durable server anti-replay checks. Exigences : DEVAI-031, DEVAI-164. */
     public Map<String,Object> identity() { return organization==null?Map.of():Map.of("id",Json.text(organization,"bundleId"),"version",organization.path("bundleVersion").asLong(),"hash",SignedDocuments.sha256(Json.write(organization).getBytes(StandardCharsets.UTF_8))); }
-    /** Returns the governed task registry including administrator-delivered task prompts. Exigences : DEVAI-066, DEVAI-166. */
+    /** Returns governed tasks, including distinct changelog and release-note permissions. Exigences : DEVAI-066, DEVAI-166, DEVAI-180, DEVAI-181. */
     public List<Map<String,String>> tasks() {
         Map<String,String> actions=new TreeMap<>(TASKS);
         if(organization!=null) organization.path("tasks").fields().forEachRemaining(e->actions.put(e.getKey(),e.getValue().path("action").asText()));

@@ -45,6 +45,16 @@ class SecurityTest {
         assertThrows(OdsException.class,()->SignedDocuments.allow(p,1042,"AGENT_RUN"));
         assertEquals("POLICY_EXPIRED",assertThrows(OdsException.class,()->SignedDocuments.policy(p,Instant.parse("2026-01-02T00:00:00Z"),"https://gitlab.example")).code());
     }
+    /** Requires separate signed permissions for each GitFlow document rather than inferring rights from chat. Exigences : DEVAI-180, DEVAI-181. */
+    @Test void documentActionsRequireExplicitPermission() {
+        var original=Json.parse(policy());
+        for(String action:java.util.List.of("CHANGELOG","RELEASE_NOTES")) {
+            assertThrows(OdsException.class,()->SignedDocuments.allow(original,1042,action));
+            var granted=Json.parse(policy().replace("[\"CHAT\"]","[\""+action+"\"]"));
+            SignedDocuments.policy(granted,Instant.parse("2026-01-01T12:00:00Z"),"https://gitlab.example");
+            assertEquals(1042,SignedDocuments.allow(granted,1042,action).path("projectId").asInt());
+        }
+    }
     /** Rejects a different GitLab instance and a non-Mistral provider. Exigences : DEVAI-030, DEVAI-064. */
     @Test void providerAndInstanceBoundaries() {
         Instant now=Instant.parse("2026-01-01T12:00:00Z");

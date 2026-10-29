@@ -3,6 +3,7 @@ from pathlib import Path
 from xml.sax.saxutils import escape
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
+from reportlab.lib.utils import ImageReader
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
 from reportlab.graphics.shapes import Drawing, Rect, String, Line, Polygon
@@ -43,7 +44,7 @@ def footer(canvas, document):
     canvas.line(60, 45, 535, 45)
     canvas.setFillColor(NAVY)
     canvas.setFont("Helvetica", 8)
-    canvas.drawString(60, 30, "Version documentaire 1.3  |  Produit 0.3.0  |  29 octobre 2026")
+    canvas.drawString(60, 30, "Version documentaire 1.4  |  Produit 0.3.0  |  29 octobre 2026")
     canvas.drawRightString(535, 30, str(document.page))
     canvas.restoreState()
 
@@ -66,7 +67,7 @@ def architecture():
 
 
 def build():
-    """Produce thirteen coherent architecture pages from the revised requirements, preserving a reproducible source. Exigences : DEVAI-133, DEVAI-167, DEVAI-178."""
+    """Produce fourteen coherent architecture pages from the revised requirements, preserving a reproducible source. Exigences : DEVAI-133, DEVAI-167, DEVAI-178."""
     story = []
 
     def page(title, reference):
@@ -86,7 +87,7 @@ def build():
     story.append(table([["Décision", "Comportement cible"], ["Sans SSO", "Le développeur utilise l’accès Git déjà disponible dans son IDE. Un refus Git interdit la connexion au gateway."], ["Configuration au build", "L’organisation fournit URL, comptes de service, transport Mistral, watch Xray et mappings Sonar. L’interface utilisateur ne les modifie pas."], ["Analyses locales", "SBOM CycloneDX, Graph Scan Xray et scanner Sonar fonctionnent sans attendre un commit."], ["Cycle de vie", "Le gateway embarqué démarre après le contrôle Git et s’arrête avec l’extension ou la fermeture du canal parent."]]))
     story.append(Spacer(1, 20))
     text("Limite acceptée : les secrets distribués dans un VSIX autonome restent extractibles par le propriétaire du poste. Le verrouillage de l’interface, les empreintes et le masquage des logs ne garantissent pas leur confidentialité contre lui.")
-    text("Référentiel : specification.md, exigences DEVAI-001 à DEVAI-179. Les résultats réellement exécutés sont séparés des objectifs de recette dans docs/VALIDATION.md.")
+    text("Référentiel : specification.md, exigences DEVAI-001 à DEVAI-181. Les résultats réellement exécutés sont séparés des objectifs de recette dans docs/VALIDATION.md.")
 
     page("1. Architecture et responsabilités", "DEVAI-002, 003, 168, 169")
     story.append(architecture())
@@ -154,8 +155,17 @@ def build():
     text("suiteInstall contient les binaires du build courant, configuration exemple, scripts et documentation. Il reste un artefact hors Git. Une release exige la correspondance version / commit / tag / package et ne doit pas être annoncée avant publication vérifiée.")
     text("Les tests réels avec les comptes, modèles, permissions, scanners et licences de l’organisation restent une qualification séparée. Un mock réussi ne remplace pas cette validation.")
 
-    page("12. Traçabilité de l’évolution", "Référentiel de mise en œuvre et de revue")
-    story.append(table([["Exigence", "Évolution"], ["DEVAI-167", "Configuration et secrets administrés au build."], ["DEVAI-168", "Gateway embarqué, jeton privé et durée de vie possédée."], ["DEVAI-169", "Accès Git existant avant connexion, aucun SSO dans le VSIX."], ["DEVAI-170 / 171", "Mistral API ou Vibe, code et dépendances embarqués."], ["DEVAI-172 / 173", "SBOM quatre stacks et Graph Scan Xray avec watch."], ["DEVAI-174 / 175", "Qualité locale, provenance et correction liée au rapport."], ["DEVAI-176", "Masquage, isolation des credentials et limite d’extractabilité."], ["DEVAI-177", "Doubles de toutes les intégrations métier."], ["DEVAI-178", "Commentaires explicatifs et numéros d’exigence vérifiés."], ["DEVAI-179", "Envoi effectif du compositeur jusqu’au transport LLM simulé."]]))
+    page("12. GitFlow : Changelog et Release notes", "DEVAI-180, 181, 068, 069")
+    text("Deux boutons utilisent le LLM administré pour créer un document absent ou actualiser un document existant. Ils ne publient pas de release et ne créent aucun commit ou tag.")
+    git_capture = ROOT / ".artifacts/gitflow-panel-900.png"
+    width, height = ImageReader(str(git_capture)).getSize()
+    story.append(Image(str(git_capture), width=440, height=440 * height / width, hAlign="CENTER"))
+    story.append(Spacer(1, 12))
+    story.append(table([["Bouton", "Contrat"], ["Changelog", "CHANGELOG.md ; tâche git-changelog ; droit CHANGELOG."], ["Release notes", "RELEASE_NOTES.md ; tâche git-release-notes ; droit RELEASE_NOTES."], ["Contexte", "Mode Modification, gouvernance LOCAL_GOVERNED, contenu existant, état local et 30 derniers commits au maximum."], ["Mise à jour", "Conserver les anciennes sections, éviter les doublons et maintenir un brouillon Non publié sans release confirmée."], ["Application", "Une seule cible autorisée, jamais de suppression ; diff natif, accord utilisateur, empreinte et checkpoint."], ["Refus ou panne", "Aucune modification annoncée sans application effective. Consulter la conversation IA."]]))
+    text("Les anciens profils doivent accorder ces droits explicitement. Les fichiers du dépôt et les messages Git restent des données non fiables. Un test avec LLM simulé couvre création, mise à jour, refus, erreur fournisseur et tentative de modification hors cible.")
+
+    page("13. Traçabilité de l’évolution", "Référentiel de mise en œuvre et de revue")
+    story.append(table([["Exigence", "Évolution"], ["DEVAI-167", "Configuration et secrets administrés au build."], ["DEVAI-168", "Gateway embarqué, jeton privé et durée de vie possédée."], ["DEVAI-169", "Accès Git existant avant connexion, aucun SSO dans le VSIX."], ["DEVAI-170 / 171", "Mistral API ou Vibe, code et dépendances embarqués."], ["DEVAI-172 / 173", "SBOM quatre stacks et Graph Scan Xray avec watch."], ["DEVAI-174 / 175", "Qualité locale, provenance et correction liée au rapport."], ["DEVAI-176", "Masquage, isolation des credentials et limite d’extractabilité."], ["DEVAI-177", "Doubles de toutes les intégrations métier."], ["DEVAI-178", "Commentaires explicatifs et numéros d’exigence vérifiés."], ["DEVAI-179", "Envoi effectif du compositeur jusqu’au transport LLM simulé."], ["DEVAI-180 / 181", "Changelog et notes de release créés ou actualisés via le LLM."]]))
     text("Documents associés : specification.md ; prompt-developpement.md ; docs/CONFIGURATION.md ; docs/INSTALLATION.md ; docs/API.md ; docs/VALIDATION.md. Le prompt demande d’examiner le code existant, de maintenir les commentaires, d’implémenter les parcours complets et de distinguer les validations exécutées des éléments non vérifiables.")
     text("Les capacités du serveur séparé historique sont conservées pour non-régression. Son authentification OIDC et ses runners ne constituent pas un prérequis du parcours autonome décrit ici.")
     destination = ROOT / "Organisation_Development_Standard_Architecture_avec_Interface.pdf"

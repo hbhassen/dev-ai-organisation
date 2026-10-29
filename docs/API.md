@@ -78,3 +78,5 @@ Les erreurs portent un code stable et un message filtré : `ACTION_DENIED`, `MOD
 ## Présentation des rapports en 0.2.0
 
 `GET /api/v1/quality/reports` accepte `page` entre 1 et 10000 et retourne `paging` avec les résultats normalisés. La vue utilise Précédent/Suivant. `GET /api/v1/security/reports` expose `issues` normalisées (`key`, `message`, `severity`, `components`, `cves`, `providerEvidence`) et conserve `report`. `commitVerified: false` indique explicitement que le build summary ne prouve pas sa correspondance avec le commit du workspace.
+
+Les boutons de documents GitFlow utilisent le contrat existant `POST /api/v1/ai/chat` avec `mode: MODIFICATION` et `task: git-changelog` ou `git-release-notes`. Les actions de politique correspondantes sont `CHANGELOG` et `RELEASE_NOTES`. Le LLM propose via `changes_propose` ; le client limite la cible à `CHANGELOG.md` ou `RELEASE_NOTES.md` et applique le diff uniquement après validation. Il n'existe pas de nouvel endpoint de publication de release.
