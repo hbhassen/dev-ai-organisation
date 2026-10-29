@@ -13,6 +13,12 @@ public final class RemoteHttp {
     private final HttpClient client=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).followRedirects(HttpClient.Redirect.NEVER).build();
     /** Sends a bounded response request without including provider bodies in public error messages. Exigences : DEVAI-118, DEVAI-125. */
     public JsonNode json(String method,URI uri,Map<String,String> headers,Object body) {
+        return exchange(method,uri,headers,body).body();
+    }
+    /** Retains accepted/pending status so asynchronous providers are not mistaken for completed scans. Exigences : DEVAI-173. */
+    public record Response(int status,JsonNode body) {}
+    /** Sends an authenticated request with a bounded body while preserving HTTP 202 for polling. Exigences : DEVAI-173, DEVAI-176. */
+    public Response exchange(String method,URI uri,Map<String,String> headers,Object body) {
         if(!"https".equals(uri.getScheme())) throw new OdsException("CONFIGURATION_INVALID","HTTPS obligatoire");
         try {
             HttpRequest.Builder request=HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(120)).header("Accept","application/json"); headers.forEach(request::header);
@@ -23,7 +29,7 @@ public final class RemoteHttp {
                 byte[] data=stream.readNBytes(8_388_609);
                 if(response.statusCode()<200||response.statusCode()>=300) throw new OdsException(response.statusCode()==403||response.statusCode()==401?"PROJECT_ACCESS_DENIED":"DEPENDENCY_UNAVAILABLE","Le service distant a refusé l'opération ("+response.statusCode()+")");
                 if(data.length>8_388_608) throw new OdsException("RESPONSE_TOO_LARGE","Réponse distante trop volumineuse");
-                return Json.parse(new String(data,java.nio.charset.StandardCharsets.UTF_8));
+                return new Response(response.statusCode(),data.length==0?Json.MAPPER.createObjectNode():Json.parse(new String(data,java.nio.charset.StandardCharsets.UTF_8)));
             }
         } catch(OdsException e) { throw e; } catch(InterruptedException e) { Thread.currentThread().interrupt(); throw new OdsException("CANCELLED","Opération interrompue"); } catch(Exception e) { throw new OdsException("DEPENDENCY_UNAVAILABLE","Service distant indisponible"); }
     }

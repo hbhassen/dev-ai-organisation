@@ -1,4 +1,37 @@
-# Validation de la version 0.2.1
+# Validation de la version 0.3.0
+
+Date : 29 octobre 2026. Livraison de développement, profil de démonstration sans identifiants réels. La révision 1.3 des spécifications supprime le SSO du VSIX administré. Les paragraphes 0.2.1 ci-dessous sont conservés comme historique et ne décrivent pas son nouveau parcours de connexion.
+
+## Contrôles exécutés pour cette évolution
+
+- Java 21 / Maven : `verify`, **54 tests réussis**, aucun échec ni test ignoré (4 contrats, 21 moteur, 29 gateway). Les nouveaux tests couvrent l'accès local, le Graph Scan Xray, Sonar, les transports Vibe et le masquage des erreurs. Le packaging complet utilise `clean verify` et conserve ses rapports Surefire.
+- Python : **24 tests réussis**, dont l'empreinte des sources non commitées, les commandes CycloneDX/Sonar des quatre stacks avec processus simulés, l'arrêt des descendants, les paramètres du runtime, les chemins longs Windows et le refus des fichiers dotenv accidentels.
+- TypeScript compilé avec les API VS Code 1.95.0 ; **16 tests Node réussis** : contrôle Git avant connexion, refus d'accès, configuration administrée et masquage des valeurs sensibles, en plus des fonctionnalités antérieures.
+- Interface Chromium : **7 scénarios réussis**. Le scénario Entrée utilise le vrai contrôleur natif et le client HTTP avec un LLM simulé ; Maj+Entrée, composition IME, double soumission, refus, sécurité de rendu et navigation sont également vérifiés.
+- Runtime : démarrage du véritable JAR de gateway avec le client natif, après une vérification Git simulée. Accès refusé avant création du processus, API locale refusée sans jeton de lancement, appel autorisé avec ce jeton, stockage natif de la clé persistante et arrêt du processus après révocation Git : **SUCCESS**.
+- Vibe 3.0.3 : contrat exécuté avec la distribution et le SDK effectivement embarqués, en simulant uniquement le transport HTTP. Réponse texte, appels d'outils typés, modèle/URL/clé et usage mesuré : **SUCCESS**. Deux tests supplémentaires exécutent réellement le sous-processus Python depuis Java pour les modes API_KEY et CLI_TOKEN, sans fournisseur externe.
+- Commentaires : contrôle des classes/méthodes Java, fonctions/classes Python et symboles TypeScript, avec références DEVAI connues. **49 fichiers Java et 16 fichiers Python** vérifiés ; contrôle TypeScript inclus dans `npm run lint`.
+- VS Code **1.95.2 Windows x64** : installation réelle du VSIX 0.3.0 réussie dans un profil isolé ; activation dans le véritable extension host, commandes, IPC du moteur embarqué, lecture de fichier et refus de sortie du workspace vérifiés, code de sortie 0. Les tests natifs ne modifient pas l’installation habituelle.
+- PDF : document d'architecture de **13 pages**, révision 1.3, régénéré et rendu page par page pour inspection visuelle. Schéma Git → gateway, interface réelle et exigences DEVAI-167 à DEVAI-179 présents.
+- Batch : aucun appel PowerShell dans les `.bat`/`.cmd` du produit. Le commentaire historique du wrapper mentionne uniquement son absence.
+
+## Portée de la recette
+
+Les échanges métier sortants sont simulés aux frontières HTTP, Git et scanners. Les tests Java historiques des intégrations distantes et du mode OIDC autonome restent exécutés ; ce mode ne sert pas à la connexion du VSIX. La génération et les appels de scanners sont testés sur fixtures, sans prétendre avoir analysé quatre applications réelles avec les comptes de l'organisation.
+
+GitLab privé, gouvernance signée de l'organisation, modèle et token Vibe réels, watch Xray et SonarQube réels : **NON VÉRIFIABLES**, faute de paramètres fournis. Un jeton CLI doit être accepté par l'URL Vibe compilée ; aucun flux de connexion ou rafraîchissement interactif n'est embarqué. La distribution Vibe est utilisée par l'adaptateur CLI ODS ; l'agent interactif `vibe --prompt` et ses outils autonomes ne sont pas exécutés.
+
+Le package reste spécifique à sa plateforme et nécessite Java 21, Python 3.12 et les outils des stacks analysées. Les secrets embarqués sont masqués dans l'interface et les diagnostics, mais restent extractibles, conformément au choix explicite de distribution autonome. Les profils d'exemple ne contiennent que des placeholders.
+
+## Reproduction
+
+`script.bat config\organisations\demo\organisation.json` reconstruit la validation complète, le VSIX, les JAR et l'archive `suiteInstall-0.3.0.zip`. Le packaging vérifie l'inventaire et les empreintes du runtime, puis démarre aussi les JAR copiés dans la livraison. `suiteInstall/BUILD.json` indique le commit source exact ; `sourceDirty: true` désigne uniquement un essai local. La livraison définitive doit être reconstruite après le commit avec `sourceDirty: false`.
+
+Les artefacts restent ignorés par Git. La CI Windows construit la suite ; la CI Linux qualifie son runtime Vibe et exécute les tests avec PostgreSQL. Consulter le résultat de la CI du commit livré avant toute promotion. Un build local ne vaut pas preuve de succès de CI ou de publication d'une release.
+
+---
+
+# Historique de validation 0.2.1
 
 Date : 29 octobre 2026. Cette livraison est une version de développement. Les écarts fonctionnels du référentiel sont listés dans [CONFORMITE.md](CONFORMITE.md), sans assimilation d'un build réussi à une recette complète.
 

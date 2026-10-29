@@ -9,3 +9,6 @@ mvnw text eol=lf
 *.cmd text eol=crlf
 # Requested delivery snapshot on script/vsix: preserve exact packaged bytes and hashes.
 suiteInstall/** -text
+
+# PDF assets must retain exact bytes across checkouts.
+*.pdf binary

@@ -6,6 +6,7 @@ const Module = require('node:module');
 function uri(value) { return { fsPath: value, toString: () => value }; }
 /** Loads the actual controller against explicit native API test doubles. Exigences : DEVAI-042, DEVAI-068, DEVAI-135. */
 function createView(api, engine, gateway = {}) {
+  gateway.dispose ??= () => {};
   const original = Module._load;
   Module._load = /** Injects only the VS Code API; application methods remain unchanged. Exigences : DEVAI-135. */ function load(request, parent, main) { return request === 'vscode' ? api : original.call(this, request, parent, main); };
   let View; try { delete require.cache[require.resolve('../dist/view')]; View = require('../dist/view').OdsView; } finally { Module._load = original; }

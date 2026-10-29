@@ -1,10 +1,27 @@
+# API du VSIX autonome 0.3.0
+
+Le gateway local écoute sur loopback, port attribué au lancement. Chaque route métier exige `X-ODS-Local-Token`, jeton aléatoire privé créé par le client natif après le contrôle Git. Aucun SSO n’est requis. Les routes de projet sont limitées au dépôt validé au lancement. `X-ODS-GitLab-Token` est utilisé uniquement pour la MR avec le credential utilisateur existant. Les POST exigent `Idempotency-Key`.
+
+| Route | Corps / résultat |
+|---|---|
+| POST `/api/v1/security/sbom` | `projectId`, `profile` (JAVA, ANGULAR, PYTHON, DOTNET) ; job LOCAL_SBOM dont le résultat contient `sbom`, `fingerprint`, `profile`. |
+| POST `/api/v1/security/scans` | `projectId`, `profile`, `sbomJobId` ; vérifie le propriétaire, la stack et l’empreinte du SBOM avant Graph Scan. |
+| POST `/api/v1/quality/scans` | `projectId`, `profile` ; exécution locale et résultat lié à `ceTaskId`, `analysisId`, `fingerprint`, issues et gate. |
+| GET `/api/v1/workspace/fingerprint?projectId=...` | Empreinte des sources enregistrées ; utilisée avant remédiation. |
+| GET `/api/v1/jobs/{id}` | Résultat appartenant à la session locale ; aucun credential dans le DTO. |
+| POST `/api/v1/jobs/{id}/cancel` | Annulation de la tâche possédée. Un appel déjà soumis au fournisseur peut continuer côté service. |
+
+Les anciens endpoints GET de rapports de build ne sont pas utilisés par l’interface autonome. Le contrat IA, les outils typés, les prompts et les MR ci-dessous restent disponibles. Les détails OIDC et runners qui suivent concernent uniquement le serveur séparé historique.
+
+---
+
 # Contrats exécutables — version 1
 
 Références : DEVAI-014, DEVAI-117, DEVAI-118, DEVAI-119, DEVAI-151 à DEVAI-166. La source normative du comportement livré est `GatewayController`, `EngineMain`, `ToolCatalog` et leurs validations.
 
 ## REST
 
-Toutes les routes métier nécessitent un bearer OIDC valide pour l'audience configurée. Les routes liées à GitLab demandent également `X-ODS-GitLab-Token` ; la gateway vérifie son propriétaire. Les créations de tâche et nouveaux tours demandent `Idempotency-Key` (8 à 128 caractères alphanumériques, `_` ou `-`). Une clé ne doit pas être réutilisée avec un autre corps.
+Dans le serveur séparé historique, les routes métier nécessitent un bearer OIDC valide pour l’audience configurée. Les routes liées à GitLab demandent également `X-ODS-GitLab-Token` ; la gateway vérifie son propriétaire. Les créations de tâche et nouveaux tours demandent `Idempotency-Key` (8 à 128 caractères alphanumériques, `_` ou `-`). Une clé ne doit pas être réutilisée avec un autre corps.
 
 | Méthode et chemin | Fonction |
 |---|---|

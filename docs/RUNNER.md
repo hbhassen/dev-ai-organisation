@@ -1,3 +1,5 @@
+> Mode serveur séparé historique. Le VSIX 0.3.0 utilise un gateway possédé sans SSO et des scanners locaux ; voir INSTALLATION.md et CONFIGURATION.md.
+
 # Runner Sonar et Xray
 
 Le connecteur lance les API officielles de pipelines GitLab, les suit et demande leur annulation. Il ne soumet pas le `pom.xml` d'un projet à l'exécution dans la gateway. Le résultat distingue le statut du pipeline et le rapport du fournisseur.

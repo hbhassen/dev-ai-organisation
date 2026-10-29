@@ -28,6 +28,21 @@ class BuildTest(unittest.TestCase):
             build.run([sys.executable, "-c", "raise SystemExit(7)"])
         self.assertEqual(7, failure.exception.returncode)
 
+    def test_private_package_rejects_accidental_dotenv(self):
+        """Permit the intentional deployment document but reject any additional hidden dotenv file. Exigences : DEVAI-167, DEVAI-176."""
+        with tempfile.TemporaryDirectory() as directory:
+            stage = Path(directory)
+            runtime = stage / "runtime"
+            runtime.mkdir()
+            (runtime / "deployment.json").write_text('{"ODS_TOKEN":"synthetic-only"}')
+            build.validate_private_package(stage)
+            for name in (".env", ".env.local"):
+                hidden = runtime / name
+                hidden.write_text("UNRELATED_SECRET=synthetic-only")
+                with self.assertRaisesRegex(ValueError, "dotenv"):
+                    build.validate_private_package(stage)
+                hidden.unlink()
+
     def test_source_identity_changes_cannot_be_released(self):
         """Reject a changed commit and retain dirty state even if files become clean during the build. Exigences : DEVAI-144, DEVAI-145."""
         source = {"sourceCommit": "a" * 40, "sourceDirty": True}
@@ -91,6 +106,10 @@ class BuildTest(unittest.TestCase):
                 archive.writestr("extension/media/view.js", "// view")
                 archive.writestr("extension/engine/ods-java-core.jar", engine.read_bytes())
                 archive.writestr("extension/engine/ods-java-core.jar.sha256", build.digest(engine))
+                runtime = {name: b"synthetic runtime file" for name in ("ods-gateway.jar", "deployment.json", "vibe_bridge.py", "local_analysis.py")}
+                for name, content in runtime.items():
+                    archive.writestr("extension/runtime/" + name, content)
+                archive.writestr("extension/runtime/INTEGRITY.json", json.dumps({name: hashlib.sha256(content).hexdigest() for name, content in runtime.items()}))
             build.verify_vsix(vsix, "0.2.1", engine)
             with self.assertRaisesRegex(ValueError, "version mismatch"):
                 build.verify_vsix(vsix, "0.2.2", engine)

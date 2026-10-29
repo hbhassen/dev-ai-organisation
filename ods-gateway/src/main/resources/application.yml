@@ -16,6 +16,16 @@ server:
     include-message: never
     include-stacktrace: never
 ods:
+  workspace: ${ODS_WORKSPACE:}
+  repository: ${ODS_REPOSITORY:}
+  embedded: ${ODS_EMBEDDED:false}
+  local-token: ${ODS_LOCAL_TOKEN:}
+  runtime-directory: ${ODS_RUNTIME_DIRECTORY:}
+  python-command: ${ODS_PYTHON_COMMAND:python3.12}
+  llm-transport: ${ODS_LLM_TRANSPORT:API}
+  vibe-url: ${ODS_VIBE_URL:https://api.mistral.ai/v1}
+  vibe-auth: ${ODS_VIBE_AUTH:API_KEY}
+  vibe-token: ${ODS_VIBE_TOKEN:}
   data-key: ${ODS_DATA_KEY_BASE64:}
   oidc-issuer: ${ODS_OIDC_ISSUER:}
   oidc-audience: ${ODS_API_AUDIENCE:ods-gateway}
@@ -33,8 +43,14 @@ ods:
   prompt-key: ${ODS_PROMPT_PUBLIC_KEY:}
   sonar-url: ${ODS_SONAR_URL:https://sonar.organisation.example}
   sonar-token: ${ODS_SONAR_TOKEN:}
+  sonar-username: ${ODS_SONAR_USERNAME:}
   jfrog-url: ${ODS_JFROG_URL:https://jfrog.organisation.example}
   jfrog-token: ${ODS_JFROG_TOKEN:}
+  jfrog-username: ${ODS_JFROG_USERNAME:}
+  jfrog-password: ${ODS_JFROG_PASSWORD:}
+  jfrog-auth: ${ODS_JFROG_AUTH:TOKEN}
+  jfrog-watch: ${ODS_JFROG_WATCH:}
+  jfrog-project-key: ${ODS_JFROG_PROJECT_KEY:}
   runner-project-id: ${ODS_RUNNER_PROJECT_ID:}
   runner-ref: ${ODS_RUNNER_REF:main}
   runner-token: ${ODS_RUNNER_TOKEN:}

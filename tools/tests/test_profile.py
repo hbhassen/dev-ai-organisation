@@ -23,7 +23,7 @@ class ProfileTest(unittest.TestCase):
         return path, data
 
     def test_branding_and_server_secret_separation(self):
-        """Prove overrides affect installed branding while server credentials never enter the VSIX staging tree. Exigences : DEVAI-035, DEVAI-144."""
+        """Keep public branding and delivery examples separate from credentials embedded later by the runtime assembler. Exigences : DEVAI-035, DEVAI-144, DEVAI-167, DEVAI-176."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             config, _ = self.fixture(root)
@@ -41,7 +41,8 @@ class ProfileTest(unittest.TestCase):
             self.assertNotIn("synthetic-integration-only", "".join(p.read_text(encoding="utf8") for p in (root / "staged").rglob("*") if p.is_file()))
             profile.deliver(config, root / "delivery")
             self.assertIn("ODS_MODEL_ALIAS=approved", (root / "delivery/gateway.env").read_text())
-            self.assertIn("synthetic-integration-only", (root / "delivery/gateway.env").read_text())
+            self.assertNotIn("synthetic-integration-only", (root / "delivery/gateway.env").read_text())
+            self.assertIn("ODS_MISTRAL_API_KEY=<ODS_MISTRAL_API_KEY>", (root / "delivery/gateway.env").read_text())
             self.assertTrue((root / "delivery/application-organisation.properties").exists())
 
     def test_reject_escaping_files_unknown_fields_and_unsafe_urls(self):

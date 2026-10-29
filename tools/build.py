@@ -18,6 +18,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 
 import organisation_profile
+import runtime_bundle
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -128,6 +129,18 @@ def verify_vsix(vsix, version, engine):
         expected = digest(engine)
         if hashlib.sha256(archive.read("extension/engine/ods-java-core.jar")).hexdigest() != expected or archive.read("extension/engine/ods-java-core.jar.sha256").decode().strip() != expected:
             raise ValueError("VSIX engine digest mismatch")
+        inventory = json.loads(archive.read("extension/runtime/INTEGRITY.json"))
+        if not {"ods-gateway.jar", "deployment.json", "vibe_bridge.py", "local_analysis.py"}.issubset(inventory):
+            raise ValueError("Incomplete packaged runtime inventory")
+        for name, expected_hash in inventory.items():
+            if hashlib.sha256(archive.read("extension/runtime/" + name)).hexdigest() != expected_hash:
+                raise ValueError("VSIX runtime digest mismatch")
+
+
+def validate_private_package(stage):
+    """Forbid accidental dotenv files before packaging explicitly authorized embedded credentials. Exigences : DEVAI-167, DEVAI-176."""
+    if any(path.is_file() and (path.name == ".env" or path.name.startswith(".env.")) for path in runtime_bundle.extended(stage).rglob("*")):
+        raise ValueError("Unexpected dotenv file in private VSIX staging")
 
 
 def package(root, version, java, engine, gateway, vsix, profile, source):
@@ -141,7 +154,7 @@ def package(root, version, java, engine, gateway, vsix, profile, source):
         shutil.copy2(config, suite / "config")
     if profile:
         organisation_profile.deliver(profile, suite / "config")
-    for document in [*(root / "docs").glob("*.md"), *[root / name for name in ("README.md", "CHANGELOG.md", "specification.md", "prompt-developpement.md")]]:
+    for document in [*(root / "docs").glob("*.md"), *[root / name for name in ("README.md", "CHANGELOG.md", "specification.md", "prompt-developpement.md", "Organisation_Development_Standard_Architecture_avec_Interface.pdf")]]:
         shutil.copy2(document, suite / "docs")
     for name in ("start_gateway.py", "start-gateway.ps1", "start-gateway.bat", "install-extension.bat", "prepare-prompt-bundle.ps1"):
         shutil.copy2(root / "scripts" / name, suite / "scripts")
@@ -150,7 +163,7 @@ def package(root, version, java, engine, gateway, vsix, profile, source):
             target = suite / "examples" / example.relative_to(root / "examples")
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(example, target)
-    (suite / "README.md").write_text(f"# ODS {version}\n\nStart with [installation](docs/INSTALLATION.md), [configuration](docs/CONFIGURATION.md), [validation](docs/VALIDATION.md) and [requirement coverage](docs/CONFORMITE.md).\n\nInstall the VSIX with scripts/install-extension.bat. Start the local gateway with scripts/start-gateway.bat (Java 21 and Python 3.11+ required). External services require organizational configuration.\n\nThis is a development delivery; consult BUILD.json for its exact source identity and SHA256SUMS for artifact digests.\n", encoding="utf8")
+    (suite / "README.md").write_text(f"# ODS {version}\n\nStart with [installation](docs/INSTALLATION.md), [configuration](docs/CONFIGURATION.md), [validation](docs/VALIDATION.md) and [requirement coverage](docs/CONFORMITE.md).\n\nInstall the VSIX with scripts/install-extension.bat. Open a trusted Git workspace; the packaged gateway starts after the Git access check (Java 21 and Python 3.12 required). External services require organizational configuration.\n\nThis is a development delivery; consult BUILD.json for its exact source identity and SHA256SUMS for artifact digests.\n", encoding="utf8")
     (suite / "VERSION").write_text(version + "\n", encoding="utf8")
     build_identity = delivery_identity(source, identity(root)) | {"version": version, "builtAtUtc": datetime.now(timezone.utc).isoformat(), "profileId": json.loads(profile.read_text(encoding="utf8"))["id"] if profile else "default"}
     (suite / "BUILD.json").write_text(json.dumps(build_identity, indent=2), encoding="utf8")
@@ -210,11 +223,25 @@ def build(task, profile, root=ROOT):
         (extension / "engine").mkdir(exist_ok=True)
         shutil.copy2(engine, extension / "engine/ods-java-core.jar")
         (extension / "engine/ods-java-core.jar.sha256").write_text(digest(engine), encoding="utf8")
-        stage = root / ".artifacts" / ("vsix-stage-" + uuid.uuid4().hex)
+        stage = root / ".artifacts" / ("vs-" + uuid.uuid4().hex[:12])
         organisation_profile.stage(root, stage, profile)
+        runtime_profile = profile or root / "config/organisations/demo/organisation.json"
+        profile_data, environment = organisation_profile.load(runtime_profile)
+        runtime_bundle.prepare(root, stage / "runtime", gateway, environment, profile_data["id"])
+        for item in profile_data.get("files", []):
+            target = stage / "runtime" / "config" / item["target"]
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(organisation_profile.contained(runtime_profile.parent, item["source"]), target)
+        runtime_bundle.inventory(stage / "runtime")
+        run(["node", extension / "test/runtime-smoke.cjs", stage])
+        if environment.get("ODS_LLM_TRANSPORT", "VIBE_CLI") == "VIBE_CLI":
+            run([*runtime_bundle.python_command(), "-B", root / "tools/vibe_contract.py", stage / "runtime"])
         pack_manifest = json.loads((stage / "package.json").read_text(encoding="utf8"))
         vsix = root / ".artifacts" / f"{pack_manifest['name']}-{version}.vsix"
-        run([extension / "node_modules/.bin" / ("vsce.cmd" if os.name == "nt" else "vsce"), "package", "--no-dependencies", "--allow-missing-repository", "--skip-license", "--out", vsix], cwd=stage)
+        validate_private_package(stage)
+        # DEVAI-167, DEVAI-176: credentials are explicitly authorized in this private package.
+        # Check dotenv names above; avoid generic diagnostics that can echo embedded credentials.
+        run([extension / "node_modules/.bin" / ("vsce.cmd" if os.name == "nt" else "vsce"), "package", "--target", runtime_bundle.target(), "--no-dependencies", "--allow-package-all-secrets", "--allow-package-env-file", "--allow-missing-repository", "--skip-license", "--out", vsix], cwd=stage)
         verify_vsix(vsix, version, engine)
         print(f"VSIX verified: .artifacts/{vsix.name}", flush=True)
         if task == "Package":

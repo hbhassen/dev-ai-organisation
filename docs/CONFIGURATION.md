@@ -1,70 +1,48 @@
-# Configuration et gouvernance
+# Configuration administrée au build — 0.3.0
 
-Les URL des services sont configurées côté gateway ; son URL publique peut être intégrée comme valeur par défaut au VSIX via un profil d’organisation. Les exemples figurent dans `config/gateway.env.example`. La configuration machine `ods.gatewayUrl` pointe l'extension vers la gateway ; aucun secret Mistral, Sonar ou JFrog ne va dans la webview.
+Le VSIX autonome ne demande aucune connexion SSO. L’extension vérifie le remote et exécute `git ls-remote` avec l’identité Git existante avant de démarrer le gateway. Un accès refusé ou un dossier non approuvé interdit la connexion. Le compte technique de gouvernance lit ensuite les métadonnées du dépôt vérifié et les politiques privées.
 
-## Identité et projets
+Les paramètres ci-dessous sont fournis par l’administrateur dans le profil de build, jamais saisis dans les onglets du développeur. Les exemples utilisent des placeholders. Pour injecter une valeur externe, écrire `${VARIABLE_BUILD}` comme valeur complète dans le fichier env du profil ; le packaging résout uniquement les références explicites et échoue si elles sont absentes. Aucun secret réel ne doit être commité.
 
-Configurer un client OIDC public avec PKCE, sans secret client. Autoriser le callback `vscode://ods-internal.organisation-development-standard/callback` (ou `vscode://<publisher>.<name>/callback` pour une variante ; adapter le schéma pour une distribution VS Code différente). Les access tokens doivent contenir l'audience `ods-gateway`, un sujet et le claim vérifié `gitlab_user_id`. Configurer l'émission de refresh tokens selon la politique du SSO. Les jetons utilisateur sont stockés dans SecretStorage, séparément pour chaque origine de gateway.
+| Variable | Utilisation exacte |
+|---|---|
+| `ODS_GITLAB_URL` | Origine HTTPS de GitLab ; le host doit correspondre au remote Git vérifié. |
+| `ODS_GOVERNANCE_PROJECT_ID` | ID numérique du dépôt privé contenant la politique signée. |
+| `ODS_GOVERNANCE_REF` | Référence protégée résolue en SHA immuable pour charger la politique. |
+| `ODS_GOVERNANCE_TOKEN` | Token de service de lecture GitLab. Il lit aussi les métadonnées/fichiers des projets autorisés ; il ne publie jamais leurs commits ou MR. |
+| `ODS_POLICY_PUBLIC_KEY` | Clé publique Ed25519 DER encodée Base64, utilisée pour vérifier les signatures de gouvernance. Ce n’est pas la clé privée de signature. |
+| `ODS_LLM_TRANSPORT` | `VIBE_CLI` par défaut ; `API` sélectionne l’adaptateur HTTP Mistral direct. |
+| `ODS_MISTRAL_URL` | Base HTTPS de l’API directe Mistral, sans suffixe `/v1/chat/completions`. |
+| `ODS_MISTRAL_MODEL` | Identifiant réel du modèle approuvé ; la politique IA doit autoriser le même modèle et alias. |
+| `ODS_MODEL_ALIAS` | Alias organisationnel contrôlé par la politique signée. |
+| `ODS_MISTRAL_API_KEY` | Clé utilisée en mode API et en mode Vibe avec `ODS_VIBE_AUTH=API_KEY`. |
+| `ODS_VIBE_URL` | Base HTTPS du fournisseur Vibe, généralement `https://api.mistral.ai/v1`. Il ne s’agit pas d’un téléchargement de CLI. |
+| `ODS_VIBE_AUTH` | `API_KEY` ou `CLI_TOKEN`. |
+| `ODS_VIBE_TOKEN` | Credential Mistral accepté par le backend Vibe, fourni par l’organisation lorsque `CLI_TOKEN` est choisi. Un token de navigateur ou un cookie SSO arbitraire n’est pas assimilé à une clé Mistral. |
+| `ODS_SONAR_URL` | Base HTTPS du serveur SonarQube utilisé par le scanner et la Web API. |
+| `ODS_SONAR_USERNAME` | Nom administratif du compte de service associé au token ; information de configuration, sans substitution au token. Sonar s’authentifie avec son token, pas avec `username:token` comme mot de passe. |
+| `ODS_SONAR_TOKEN` | Token du compte de service avec droit d’analyse et de lecture des résultats, pas un simple token de lecture. Transmis seulement au scanner Sonar et à sa Web API. |
+| `ODS_JFROG_URL` | Base HTTPS de la plateforme JFrog ; les suffixes `/xray` ou `/xray/api` sont aussi reconnus par Graph Scan. |
+| `ODS_JFROG_AUTH` | `BASIC` pour username/password ; `TOKEN` pour un Bearer token JFrog. |
+| `ODS_JFROG_USERNAME` | Compte de service, obligatoire dans les deux modes. En mode TOKEN, l’identité est portée par le token ; le nom n’est pas ajouté artificiellement à l’en-tête Bearer. |
+| `ODS_JFROG_PASSWORD` | Mot de passe de service utilisé uniquement en mode BASIC. |
+| `ODS_JFROG_TOKEN` | Access token JFrog du compte de service utilisé uniquement en mode TOKEN. |
+| `ODS_JFROG_WATCH` | Nom exact du watch appliqué au Graph Scan ; non modifiable dans Security. |
+| `ODS_JFROG_PROJECT_KEY` | Clé projet JFrog facultative, transmise en paramètre `projectKey`. |
+| `ODS_DATA_KEY_BASE64` | Clé AES de 32 octets encodée Base64 pour les données persistées. Si vide en mode embarqué, une clé stable est générée dans SecretStorage. Une perte de clé rend les anciennes sessions illisibles. |
+| `ODS_PROMPT_DIRECTORY` | Répertoire facultatif des prompts organisationnels signés. Pour un VSIX autonome, préférer des fichiers livrés sous `runtime/config` et une configuration administrée adaptée ; aucun chemin propre au poste de build. |
+| `ODS_PROMPT_PUBLIC_KEY` | Clé publique de vérification du bundle de prompts organisationnels. |
 
-Le GitLab configuré dans `ODS_GITLAB_URL` est la seule instance autorisée. Le remote local doit correspondre à cette instance. Le développeur fournit son autorisation GitLab ; la gateway interroge `/user` et l'accès au projet. Le compte de gouvernance ne remplace jamais le compte utilisateur pour une MR.
+`application-organisation.properties`, déclaré dans `files`, contient les mappings `ods.sonar-project-<ID_GITLAB>=<CLE_SONAR>`. Il est copié dans `runtime/config` et chargé automatiquement. Le Graph Scan n’utilise plus `ods.jfrog-build-*` ni un numéro de build publié.
 
-## Politique IA signée
+Les valeurs `ODS_GATEWAY_PORT`, `ODS_BIND_ADDRESS`, `SPRING_PROFILES_ACTIVE` et `ODS_DATABASE_URL` du mode serveur séparé ne pilotent pas le lancement du VSIX : l’extension impose loopback, port dynamique, profil local et stockage H2 local par workspace. `ODS_LOCAL_TOKEN`, `ODS_WORKSPACE`, `ODS_REPOSITORY`, `ODS_EMBEDDED`, `ODS_RUNTIME_DIRECTORY` et `ODS_PYTHON_COMMAND` appartiennent au lancement natif et sont interdits dans un profil. Les anciennes variables OIDC et runner ne sont pas nécessaires au VSIX. PostgreSQL et le lancement manuel restent des capacités du serveur séparé historique.
 
-Adapter `examples/ai-project-policy.json` : instance, IDs réels, actions, alias, quotas et dates. Les dates de cet exemple ne constituent pas une politique active ; renouveler les dates avec une validité maximale de 24 heures. Publier `ai-project-policy.json` et sa signature `ai-project-policy.sig` dans le projet GitLab de gouvernance, au même commit. L'extension ne décide jamais du droit IA.
+## Vibe embarqué
 
-La clé publique DER Ed25519 encodée Base64 est fournie par `ODS_POLICY_PUBLIC_KEY`. La clé privée reste hors Git et hors de l'application. Les versions sont monotones en base ; un rollback se publie sous un numéro supérieur. La politique est relue au maximum toutes les 60 secondes et son expiration est vérifiée à chaque usage.
+Le packaging fige `mistral-vibe==3.0.3` et embarque son code, ses dépendances de plateforme et leurs licences. Java lance un adaptateur CLI Python isolé (`vibe_bridge.py`) qui utilise le backend Mistral officiel de Vibe et conserve les messages/outils typés ODS. Il ne lance pas l’interface interactive `vibe` et n’active pas ses outils de terminal, MCP ou hooks de projet. Cette séparation maintient les approbations, diff et quotas ODS. Les configurations personnelles `~/.vibe` ne sont pas importées. Python 3.12 est requis sur le poste cible ; le VSIX doit être construit pour la plateforme cible.
 
-```text
-java -cp <ENGINE_JAR> org.organisation.ods.security.GovernanceMain keygen <PRIVATE_DIRECTORY>
-java -cp <ENGINE_JAR> org.organisation.ods.security.GovernanceMain sign <POLICY_JSON> <PRIVATE_DIRECTORY>/signing.key
-```
+## Secrets, rotation et Git utilisateur
 
-## Prompts organisationnels
+Les secrets embarqués sont extractibles par le propriétaire du poste, limite explicitement acceptée. L’interface verrouillée et le masquage des logs empêchent les modifications ordinaires et fuites accidentelles, pas l’extraction du VSIX. Distribuer les builds personnalisés dans un canal privé autorisé. La rotation demande un nouveau build et une réinstallation.
 
-Les fichiers génériques de `prompt-content/` fonctionnent immédiatement. Pour préparer un exemple organisationnel depuis le checkout :
-
-```powershell
-.\scripts\prepare-prompt-bundle.ps1 -Destination .ods-local\prompt-bundle -Version 1
-```
-
-Réviser les vrais fichiers avant signature. Signer `bundle.json`, puis exécuter :
-
-```text
-java -cp <ENGINE_JAR> org.organisation.ods.security.GovernanceMain verify-prompts <BUNDLE_DIRECTORY> <PUBLIC_KEY_FILE>
-```
-
-La CI de gouvernance publie et déploie atomiquement le répertoire vérifié depuis un commit immuable. Configurer `ODS_PROMPT_DIRECTORY` et `ODS_PROMPT_PUBLIC_KEY` côté gateway. Le contenu est rechargé à chaque tour, sans rebuild du VSIX. Les tâches supplémentaires apparaissent après Actualiser. `REPLACE` remplace une portée et `APPEND` ajoute les fichiers dans l'ordre déclaré. `unconfiguredStacks.useApprovedGeneric` contrôle explicitement le maintien des génériques. Les contraintes obligatoires structurées `constraints` sont comparées par clé/valeur ; les contradictions en prose nécessitent la revue de publication.
-
-Chaque tâche déclarée porte une action serveur parmi `CHAT`, `CODE_GENERATION`, `SONAR_REMEDIATION`, `XRAY_REMEDIATION`, `MR_DESCRIPTION`, `AGENT_RUN`. Le changement de tâche ne confère aucun droit. Les profils sont détectés sur l'arbre GitLab ; les profils locaux peuvent ajouter une nouvelle stack, jamais supprimer les profils serveur.
-
-## Starters organisationnels
-
-Configurer dans l'environnement du processus VS Code `ODS_STARTER_DIRECTORY` et `ODS_STARTER_PUBLIC_KEY`. Le répertoire contient `starters.json`, `starters.sig` et les archives ZIP référencées. Le manifeste version 1 contient `version`, `issuedAt`, `expiresAt`, `profiles`. Chaque profil `JAVA`, `ANGULAR`, `PYTHON` ou `DOTNET` contient `mode` (`REPLACE` ou `OVERLAY`), `archive`, `sha256`, `replacePaths`. Toute collision non déclarée est refusée. Les variables textuelles `{{projectName}}` et `{{pythonModule}}` sont remplacées sans évaluation de code. Les projets existants ne sont jamais régénérés automatiquement.
-
-## Qualité, sécurité et exploitation
-
-Les mappings `ods.sonar-project-<ID>` et `ods.jfrog-build-<ID>` sont administratifs ; voir le YAML d'exemple. Le connecteur Xray utilise la lecture v2 de synthèse d'un build. Vérifier la compatibilité et les licences des instances cibles. Un rapport historique ne prouve pas la qualité du commit local.
-
-Le runner est un projet GitLab dédié (`ODS_RUNNER_PROJECT_ID`, `ODS_RUNNER_REF`, `ODS_RUNNER_TOKEN`) : la gateway lance et suit un pipeline réel avec une révision cible immuable. Son isolation, ses images et ses droits sont configurés par l'organisation ; voir [RUNNER.md](RUNNER.md).
-
-En production, activer le profil `production`, configurer PostgreSQL et TLS, sauvegarder la base ainsi que les clés publiques approuvées et les bundles. Ne jamais exposer H2 ou une console d'administration. Restaurer la base avant de réactiver l'IA pour conserver les quotas et watermarks anti-rejeu.
-
-## Sessions, quotas et reprise
-
-Configurer `ODS_DATA_KEY_BASE64` avec 32 octets aléatoires encodés Base64, conservés dans le coffre du déploiement. Les contenus de jobs et checkpoints sont chiffrés en AES-GCM, liés à leur identité, avec nonce neuf. La clé est obligatoire en production. Sans clé explicite en local, une clé éphémère est utilisée : les anciens contenus deviennent illisibles après redémarrage. Sauvegarder et restaurer la clé avec la base via le coffre ; ne jamais la joindre au package.
-
-Les checkpoints conversationnels expirent après 30 minutes ; les résultats détaillés après un jour ; les événements d'audit après 90 jours. `DELETE /api/v1/ai/sessions/{id}` permet au propriétaire de supprimer sa conversation. Les réservations de quota dont la consommation reste incertaine ne sont pas libérées automatiquement.
-
-Un bail de cinq minutes protège les jobs. Un worker abandonné passe à `SUSPENDED`, sans réexécuter d'effet. Le bouton **Reprendre** revalide les droits et recharge le checkpoint chiffré ; les résultats d'outils interrompus sont marqués incertains et doivent être réinspectés. Les mises à jour utilisent une révision optimiste et les nouveaux tours une revendication atomique en base. Le plafond commun est de deux tâches actives et soixante tours par minute et par sujet.
-
-Le flux SSE affiche les fragments de texte disponibles ; le job persistant fait autorité pour les outils, l'état final et l'usage mesuré. Après une coupure du flux de présentation, le client continue à suivre le résultat du job.
-
-## Catalogue Mistral et rotation de confiance
-
-Le champ signé `models` contient les couples `alias`, `provider` (`MISTRAL` uniquement), `model` (identifiant exact approuvé) et `tools` (qualification des appels d’outils). `ODS_MISTRAL_MODEL` doit correspondre au modèle signé de `ODS_MODEL_ALIAS`. L’exemple utilise volontairement `REPLACE_WITH_APPROVED_MISTRAL_ID`, à remplacer après décision organisationnelle. `monthlyUserTokenQuota` borne chaque utilisateur en complément de `monthlyTokenQuota` ; absent, il reprend le plafond projet. Les deux réservations sont atomiques et la réconciliation est unique.
-
-Une valeur de clé publique peut être une clé DER Base64 seule ou un objet JSON administré de forme `{"keys":[{"keyId":"rotation-1","publicKey":"<DER_BASE64>","notBefore":"<INSTANT_UTC>","notAfter":"<INSTANT_UTC>","revoked":false}]}`. Au maximum huit clés sont acceptées. Les clés révoquées, expirées ou futures ne vérifient aucun document. Le trousseau est une configuration de confiance du déploiement : ne jamais le charger depuis le document à vérifier. Déployer un chevauchement, signer avec la nouvelle clé, puis révoquer l’ancienne après migration ; qualifier ce changement avec les caches et les sauvegardes.
-
-## Compilation par profil
-
-`script.bat <organisation.json>` valide le schéma et reconstruit le produit. Voir [PROFILS-ORGANISATION.md](PROFILS-ORGANISATION.md) pour l’ordre des surcharges, la séparation VSIX/configuration serveur et le chargement de `application-organisation.properties`.
+Les opérations Git gardent le credential helper/agent SSH du développeur. Pour une MR, l’extension cherche un token GitLab utilisateur dans le fournisseur d’authentification IDE ou Git Credential Manager. Un accès Git SSH ne crée pas un token API ; la MR explique l’indisponibilité si aucun credential API n’est déjà présent. Aucun écran de saisie de secret technique n’existe.

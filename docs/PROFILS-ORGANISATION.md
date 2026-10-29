@@ -1,56 +1,39 @@
-# Compiler pour une organisation
+# Construire un VSIX pour une organisation
 
-Le point d’entrée `script.bat` reconstruit tout le produit : Maven, tests des connecteurs avec services simulés, TypeScript, tests de la webview, VSIX et package autonome. Il accepte un fichier JSON conforme à `config/organisation.schema.json`. Les validations supplémentaires de chemins, d’URL et de fichiers sont exécutées par `tools/organisation_profile.py` avant la compilation.
-
-L'orchestration utilise Python 3.11+ (`tools/build.py`) sans appel PowerShell, y compris pour obtenir Maven. Les mêmes prérequis JDK 21, Node 24/npm et Git restent nécessaires. Le lanceur de gateway livré utilise également Python 3.11+.
-
-```bat
-script.bat config\organisations\demo\organisation.json
-```
-
-Ou définir `ODS_ORGANISATION_PROFILE` puis exécuter `script.bat`. Un argument explicite a priorité. Les chemins contenus dans le profil sont relatifs au dossier du profil ; utiliser `/` dans le JSON. Une URL distante de gateway doit utiliser HTTPS. Aucune commande de shell n’est évaluée depuis les fichiers de configuration.
+Copier `config/organisations/demo` vers un dossier administrateur externe au dépôt. Remplacer les placeholders dans `gateway.env.example` (ou renommer le fichier et adapter `envFiles`) et renseigner les mappings Sonar. Le profil JSON accepte `schemaVersion`, `id`, `extension`, `envFiles`, `environment` et `files`.
 
 ```json
 {
   "schemaVersion": 1,
-  "id": "organisation-exemple",
+  "id": "organisation-demo",
   "extension": {
-    "name": "outils-developpement",
-    "publisher": "organisation-exemple",
-    "displayName": "Mon organisation — Développement"
+    "name": "organisation-development-standard",
+    "publisher": "ods-internal",
+    "displayName": "ORGANISATION DEVELOPMENT STANDARD"
   },
-  "gatewayUrl": "https://gateway.organisation.example",
   "envFiles": ["gateway.env"],
-  "environment": {
-    "ODS_MISTRAL_MODEL": "<MODELE_MISTRAL_APPROUVE>",
-    "ODS_MISTRAL_API_KEY": "${ORG_MISTRAL_KEY}",
-    "ODS_PROMPT_DIRECTORY": "config/prompts"
-  },
-  "files": [
-    {"source": "application-organisation.properties", "target": "application-organisation.properties"},
-    {"source": "prompts/bundle.json", "target": "prompts/bundle.json"},
-    {"source": "prompts/bundle.sig", "target": "prompts/bundle.sig"},
-    {"source": "prompts/global.md", "target": "prompts/global.md"}
-  ]
+  "environment": {"ODS_LLM_TRANSPORT": "VIBE_CLI"},
+  "files": [{"source": "application-organisation.properties", "target": "application-organisation.properties"}]
 }
 ```
 
-Tous les fichiers du bundle signé doivent être déclarés, y compris les profils Java/Angular/Python/.NET et les tâches référencées. Les valeurs `environment` surchargent les fichiers `envFiles`, lus dans l’ordre. Seules les variables `ODS_*` et `SPRING_PROFILES_ACTIVE` sont acceptées. Au démarrage, une valeur entière `${NOM_VARIABLE}` est résolue dans l’environnement du processus ; une variable absente bloque le démarrage. Les valeurs ne sont pas affichées dans les logs de build.
+`envFiles` est chargé dans l’ordre, puis `environment` prend priorité. Les chemins de fichiers sont relatifs au profil et ne peuvent pas en sortir. L’ancien champ `gatewayUrl` reste accepté pour lire un ancien profil, mais il ne redirige plus le gateway embarqué. Le port est choisi automatiquement.
 
-Le VSIX contient uniquement les éléments publics : identité, nom affiché, libellés et URL de gateway. Le callback OIDC suit l’identité réellement installée : `vscode://<publisher>.<name>/callback`. Enregistrer ce callback dans le SSO. Installer une seule variante ODS par profil VS Code : les identifiants de commandes et vues restent `ods.*` pour conserver la compatibilité.
+Depuis un terminal `cmd.exe`, à la racine des sources :
 
-La gateway reçoit `suiteInstall/config/gateway.env` et les fichiers déclarés sous `suiteInstall/config/`. Le script de démarrage charge aussi `config/application-organisation.properties`, destiné notamment aux mappings `ods.sonar-project-<ID>` et `ods.jfrog-build-<ID>`. Les starters organisationnels conservent leur configuration côté processus VS Code ; voir [CONFIGURATION.md](CONFIGURATION.md). Un bundle de prompts ou un catalogue de starters doit toujours satisfaire les contrôles de signature existants.
+```bat
+set "BUILD_MISTRAL_KEY=<VALEUR_FOURNIE_PAR_ORGANISATION>"
+script.bat "<DOSSIER_ADMIN>\organisation.json"
+```
 
-Le staging du VSIX est créé dans un nouveau dossier ignoré à chaque compilation. Les manifestes source restent inchangés. `BUILD.json` indique le commit, le profil et l’état des sources ; `config/organisation.json` identifie les paramètres publics et l’empreinte du profil. `config/CONFIG-SHA256SUMS` contient aussi les empreintes des configurations effectivement livrées, y compris les valeurs provenant de fichiers externes au dépôt. L’archive finale garde la version applicative Maven/VSIX ; le nom du VSIX suit `extension.name`. Copier la livraison avant de compiler un autre profil ; le build préserve aussi automatiquement le précédent `suiteInstall` sous `.artifacts`.
+Dans le fichier env, `ODS_MISTRAL_API_KEY=${BUILD_MISTRAL_KEY}` demande explicitement la résolution au packaging. Une valeur absente arrête le build. Les URL et paramètres non secrets peuvent être des valeurs littérales. Ne pas transmettre un secret comme argument de commande. Effacer les variables de la session de build après usage selon la procédure de l’organisation.
 
-## Configuration livrée et reprise
+`script.bat` exécute validation, compilation, tests et création de `suiteInstall`. `generate-vsix.bat "<PROFIL>"` produit seulement le VSIX après la même validation. `build.bat` exécute la validation sans packaging. Tous les scripts batch du produit appellent Python, sans appel PowerShell. Sans profil, le packaging utilise le profil de démonstration, qui n’autorise aucune connexion à un service réel.
 
-Le profil `demo` comporte des URL d’exemple et des paramètres à remplacer. Les mocks vivent exclusivement dans les tests ; ce profil n’active aucun faux service dans l’application. Aucune clé réelle d’organisation n’a été fournie pour cette livraison. Les clés privées de test OIDC/TLS/signature sont créées en mémoire ou dans un fichier temporaire supprimé après chargement. Les valeurs synthétiques des fixtures ne donnent accès à aucun service.
+Le runtime contient la gateway, la configuration compilée, les adaptateurs et, en mode Vibe, la distribution tierce figée. L’identité et le titre de l’extension viennent du profil ; aucun fichier source n’est réécrit avec les secrets. Installer une seule variante ODS par profil VS Code, car les commandes restent `ods.*`.
 
-À la demande explicite de l’utilisateur, la branche `dev/toreprise` conserve exceptionnellement un instantané de `suiteInstall`, configuration d’exemple comprise. Cette exception ne change pas l’exclusion des artefacts sur `main` et `develop`. Le package provient du commit tagué ; le commit d’instantané est un commit ultérieur et ne remplace pas `BUILD.json.sourceCommit`. Ne pas fusionner les binaires de cette branche vers les branches source. Les futurs secrets réels ne sont pas inventés ni récupérés dans les credentials du poste.
+Les valeurs et deux modes d’authentification Xray sont détaillés dans [CONFIGURATION](CONFIGURATION.md). Les profils privés, VSIX personnalisés et archives correspondantes ne doivent pas entrer dans Git ou les artefacts CI génériques. Les anciens instantanés explicitement demandés sur `dev/toreprise` et `script/vsix` restent historiques ; la branche 0.3.0 revient aux artefacts hors Git.
 
-La branche `script/vsix` constitue une seconde exception explicitement demandée pour le correctif 0.2.1 : le code y est commité avant la reconstruction, puis le dossier `suiteInstall/` correspondant est ajouté dans un commit distinct. `BUILD.json.sourceCommit` désigne ce commit source, pas le commit ultérieur contenant les binaires. Cet instantané de branche n'implique pas la création d'un tag ni d'une release GitHub.
+Le packaging privé autorise explicitement les identifiants dans `runtime/deployment.json`. Le contrôle générique de secrets de `vsce`, susceptible de les afficher dans ses erreurs, est remplacé pour ce paquet par le contrôle de la composition prévue ; tout fichier `.env` ou `.env.*` dans le staging est refusé. Cette exception ne concerne jamais les sources Git ni les publications publiques.
 
-## Références de mise en œuvre
-
-Les noms installés, vues et paramètres utilisent les [points de contribution VS Code](https://code.visualstudio.com/api/references/contribution-points). Les contrôles navigateur utilisent [Playwright Test](https://playwright.dev/docs/test-configuration). Le connecteur Xray lit le [Build Summary v2 officiel](https://docs.jfrog.com/security/reference/build-summary_artifacts-v2-openapi) ; les fixtures isolées ne qualifient pas à elles seules la version déployée dans une organisation.
+Dans `suiteInstall/config/gateway.env`, les valeurs sensibles sont remplacées par des placeholders : les credentials compilés restent dans le VSIX privé. Les fichiers compagnons déclarés sous `files` doivent contenir uniquement les mappings et réglages non secrets ; placer les identifiants dans les variables `ODS_*` prévues.

@@ -27,7 +27,7 @@ public final class ProcessRunner implements AutoCloseable {
         if (command.isEmpty() || command.size() > 64 || command.stream().anyMatch(s -> s.indexOf('\0') >= 0 || s.length() > 4096))
             throw new OdsException("INVALID_REQUEST", "Commande invalide");
         ProcessBuilder builder = new ProcessBuilder(command).directory(cwd.toFile()).redirectErrorStream(true);
-        builder.environment().keySet().removeIf(k -> k.toUpperCase(Locale.ROOT).matches(".*(TOKEN|PASSWORD|SECRET|API_KEY|PRIVATE_KEY|CREDENTIAL).*"));
+        builder.environment().keySet().removeIf(k -> k.toUpperCase(Locale.ROOT).matches(".*(TOKEN|PASSWORD|SECRET|API_KEY|PRIVATE_KEY|CREDENTIAL).*|ODS_.*|MISTRAL_.*|VIBE_.*|SPRING_.*"));
         builder.environment().putAll(credentials);
         Running running = new Running(builder.start(),cwd); String id = UUID.randomUUID().toString(); processes.put(id, running);
         Thread reader=Thread.ofVirtual().start(() -> {

@@ -1,43 +1,30 @@
-# Installation ODS 0.2.1
+# Installation du VSIX autonome 0.3.0
 
-## Prérequis de la machine cible
+1. Installer VS Code Desktop 1.95.0 ou supérieur dans la série 1.x, Java 21, Git et Python 3.12. Vérifier `java -version`, `git --version` et, sous Windows, `py -3.12 --version`. Utiliser le VSIX construit pour le système et l’architecture du poste.
+2. Installer le VSIX fourni par l’organisation via « Extensions: Install from VSIX » ou `suiteInstall/scripts/install-extension.bat`. La configuration des services est déjà compilée ; aucune URL ou clé n’est à saisir dans l’extension.
+3. Ouvrir le dépôt et approuver le workspace. Le remote `origin` doit appartenir au GitLab du profil et le compte déjà configuré dans Git doit pouvoir le lire.
+4. Ouvrir ODS. Le client vérifie réellement l’accès Git puis démarre automatiquement le gateway embarqué. Un refus Git bloque la connexion. Aucun SSO n’est demandé.
+5. Consulter l’état du projet et de sa politique IA. Starter et GitFlow restent utilisables selon leurs prérequis ; les scans ne nécessitent pas le droit IA. Les corrections par LLM nécessitent ce droit.
 
-Windows, VS Code Desktop 1.95.0 ou supérieur dans la série 1.x (dont 1.95.2) et Java 21 sur PATH. Les outils des projets ne sont pas embarqués : Git, Node/npm, Python, Maven Wrapper et SDK .NET selon la stack. Angular CLI 21.2.5 accepte notamment Node 24. Un simple runtime .NET ne suffit pas à créer un starter.
+À la fermeture de la fenêtre, désactivation de l’extension, déconnexion ou fermeture du projet, les processus possédés sont arrêtés. Masquer simplement la vue ne désactive pas l’extension. La perte du canal parent arrête également le gateway. Les données sont isolées par workspace ; l’ouverture simultanée du même workspace dans plusieurs fenêtres peut échouer sur le verrou de la base locale, sans arrêter la première instance.
 
-Le lanceur `scripts/start-gateway.bat` nécessite **Python 3.11+ sur PATH** en plus de Java 21. Les scripts batch du projet, y compris le build et la génération VSIX, ne font aucun appel PowerShell. L'installation du VSIX utilise uniquement la CLI `code`.
+## Quality et Security sans commit
 
-## Depuis suiteInstall
+Enregistrer les fichiers lorsque la boîte de dialogue le propose. Security → Générer SBOM lance le générateur de la stack choisie et propose l’export CycloneDX JSON. Télécharger SBOM réexporte le même document. Générer rapport Xray soumet le graphe au watch organisationnel. Le téléchargement est proposé hors du dépôt pour ne pas modifier son empreinte ; si un fichier est ajouté au dépôt entre deux étapes, régénérer le SBOM.
 
-Le manifeste du VSIX déclare `engines.vscode: "^1.95.0"` : VS Code accepte son installation à partir de 1.95.0 et avant 2.0.0. Les versions antérieures restent exclues ; la compatibilité avec toutes les versions passées ou futures n'est pas garantie. Le code est compilé avec `@types/vscode` verrouillé à `1.95.0`, afin de détecter l'utilisation d'API VS Code plus récentes.
+Quality → Analyser exécute le scanner sur les sources enregistrées et attend la tâche Sonar correspondante. Il s’agit d’une analyse à la demande, pas d’un diagnostic continu à chaque frappe comme SonarQube for IDE. Les issues sélectionnées peuvent être corrigées via le LLM, avec diff relu et validations. Un rapport devenu obsolète est refusé ; relancer l’analyse après modification.
 
-Si VS Code 1.95.2 refuse l'ancien VSIX 0.2.0, installer le **VSIX 0.2.1 reconstruit** ci-dessous : modifier le manifeste du projet ne change pas une archive déjà créée. Depuis les sources, `generate-vsix.bat` recrée le VSIX après compilation et tests. Voir la [règle officielle de compatibilité](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#visual-studio-code-compatibility).
+| Stack | Génération SBOM | Analyse qualité |
+|---|---|---|
+| Java | Maven sur PATH, `pom.xml`, plugin CycloneDX 2.9.1 téléchargé au besoin | `mvn verify`, puis plugin Sonar Maven 5.0.0.4389 |
+| Angular | Node/npm, `package-lock.json`, CLI CycloneDX npm 6.0.1 via npx | `sonar-scanner` sur PATH, configuration du projet |
+| Python | `cyclonedx-py` sur PATH ; requirements épinglés, Poetry ou Pipenv lock | `sonar-scanner` sur PATH, configuration du projet |
+| .NET | SDK .NET et outil `dotnet-CycloneDX` compatible avec `--spec-version` (5.5+), une solution/projet à la racine | `dotnet-sonarscanner`, begin/build/end ; paramètres privés via `SONARQUBE_SCANNER_PARAMS` |
 
-1. Extraire `suiteInstall-0.2.1.zip` et conserver son dossier `suiteInstall/`.
-2. Exécuter `scripts\install-extension.bat` ou « Extensions: Install from VSIX » avec le fichier de `bin/`.
-3. Exécuter `scripts\start-gateway.bat`. Sans configuration privée, seul le démarrage local et les endpoints de santé sont disponibles.
-4. Pour les services réels, copier `config/gateway.env.example` en `config/gateway.env`, remplacer les exemples puis relancer la gateway. Protéger ce fichier ; ne jamais le commiter.
-5. Dans VS Code, renseigner `ods.gatewayUrl` puis ouvrir **ODS: Ouvrir les outils**. La valeur locale est `http://127.0.0.1:8080` ; utiliser HTTPS pour un serveur distant.
-6. Ouvrir et approuver le dossier, connecter le SSO puis le compte GitLab utilisateur. Le serveur vérifie la correspondance OIDC/GitLab avant toute opération distante.
+Installer les versions de scanners qualifiées pour le serveur organisationnel. Le produit ne prétend pas que ces outils sont présents : une absence ou un échec empêche la création d’un rapport valide. Le compte Sonar doit pouvoir exécuter une analyse ; le compte Xray doit pouvoir lancer un Graph Scan sur le watch configuré. Les builds de projet exécutent du code et demandent une approbation native.
 
-Pour choisir un autre fichier de configuration, utiliser `scripts\start-gateway.bat --config "<CONFIGURATION>/gateway.env"` ; l'ancien argument `-Config` reste accepté. Les valeurs sont lues littéralement, sans exécution de shell ; une référence `${VARIABLE}` exige une variable d'environnement non vide.
+## Diagnostic et limites
 
-Les JAR et le VSIX sont autonomes par rapport au checkout source. Le JDK, VS Code, les services et les outils de développement restent des prérequis externes. Contrôler les empreintes de `SHA256SUMS` avant une installation organisationnelle.
+« Accès Git refusé » : vérifier l’identité déjà configurée dans Git/IDE et la lecture du remote ; Actualiser renouvelle le contrôle. « Configuration requise » : faire corriger le profil par l’administrateur puis réinstaller le VSIX. Les exemples `*.organisation.example` sont inopérants.
 
-## Usage
-
-- **Starter** : choisir la stack, le nom et le dossier parent. Une destination existante est refusée. Le résultat indique séparément génération et validation.
-- **IA / IA Code Generator** : Question lit le contexte ; Modification propose des diffs ; Agent peut exécuter les commandes approuvées, lire leurs résultats et corriger. Les fichiers sales de VS Code et les bases modifiées bloquent l'application. Les permissions de commande concernent les arguments exacts. Le trombone sélectionne jusqu’à 10 fichiers (100 Ko au total), présentés avant envoi. Entrée envoie, Maj+Entrée ajoute une ligne. Choisir les fichiers à appliquer dans le sélecteur natif du diff. La consommation mensuelle provient de la gateway.
-- **Quality / Security** : lancer un pipeline dans le projet runner dédié ou consulter les rapports réels. Les lectures de rapports ne prétendent pas avoir exécuté un scanner. Ces fonctions n'exigent pas un droit IA. Le bouton Corriger sélectionne les issues et exige le droit de remédiation distinct ; une correction n'est considérée résolue qu'après nouveau scan.
-- **GitFlow** : examiner l'état/diff, créer une branche, sélectionner les fichiers à commiter, pousser et ouvrir une MR avec vos droits utilisateur.
-
-## Arrêt et récupération
-
-Le bouton Arrêter demande l'arrêt du job et termine les processus locaux possédés. Un appel fournisseur déjà facturé reste comptabilisé. Les anciennes versions de fichiers sont conservées sous `.ods-local/backups/` dans le projet. La restauration contrôlée refuse d'écraser une modification utilisateur postérieure.
-
-Ne pas assimiler une fermeture de fenêtre à un rollback Git. Les connexions réelles Mistral, SSO, GitLab, Sonar, Xray et PostgreSQL doivent être qualifiées dans l'environnement cible avant une mise en production.
-
-La matrice [CONFORMITE.md](CONFORMITE.md) distingue fonctionnalités présentes et écarts restants. Cette version de développement ne constitue pas la recette complète du référentiel.
-
-## Variante organisationnelle
-
-Voir [PROFILS-ORGANISATION.md](PROFILS-ORGANISATION.md) pour reconstruire avec le nom, les URL et les fichiers de configuration d’une organisation. Le profil livré contient des paramètres d’exemple et ne permet pas une connexion réelle avant remplacement.
+Les identifiants embarqués restent extractibles malgré les champs verrouillés et logs masqués, conformément au choix accepté. Les instances métier et les licences doivent être qualifiées séparément ; les mocks de test ne prouvent pas leur disponibilité. Le démarrage manuel du JAR concerne uniquement le serveur séparé historique, pas l’installation normale du VSIX.

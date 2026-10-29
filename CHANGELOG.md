@@ -1,5 +1,17 @@
 # Changelog
 
+
+## 0.3.0 — 2026-10-29
+
+- Connexion du VSIX sans SSO : contrôle Git réel avant démarrage du gateway embarqué, session privée loopback et arrêt possédé.
+- Configuration organisationnelle et credentials embarqués au build, interface verrouillée et masquage ; extractibilité des secrets explicitement acceptée.
+- Choix Mistral API ou adaptateur CLI utilisant le backend officiel Vibe 3.0.3 embarqué, Vibe par défaut.
+- SBOM CycloneDX Java, Angular, Python et .NET exportable sans commit ; Graph Scan Xray avec watch et authentification Basic ou token.
+- Analyse Sonar locale sans commit, résultat lié à la tâche soumise et à une empreinte des sources ; refus des remédiations obsolètes.
+- Tests par doubles des nouveaux échanges, envoi Entrée jusqu’au client HTTP, documentation, spécification et PDF révisés.
+- Prérequis de distribution : Python 3.12 et VSIX pour la plateforme cible ; scanners de stack à installer. La rotation des credentials requiert un nouveau build privé.
+
+
 ## 0.2.1 — 2026-10-29
 
 - Correction du refus d'installation sur VS Code 1.95.2 : minimum déclaré abaissé de 1.96.0 à 1.95.0, pour la série VS Code 1.x.

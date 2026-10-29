@@ -28,7 +28,7 @@ function quota(data, limit) { const used = Number(data?.consumed || 0), reserved
 function report(m) {
   const source = m.source === 'SONAR' ? 'sonar' : 'xray', data = m.data;
   element(source).textContent = JSON.stringify(data, null, 2); element(`${source}-findings`).replaceChildren();
-  element(`${source}-summary`).textContent = `${data.source || m.source} · ${data.freshness || data.status || 'Provenance à consulter'} · ${data.commit || data.buildNumber || ''}`;
+  element(`${source}-summary`).textContent = `${data.source || m.source} · ${data.freshness || data.status || 'Provenance à consulter'} · ${data.fingerprint?.slice(0, 12) || data.commit || ''}`;
   for (const finding of data.issues || []) { const article = document.createElement('div'); article.className = 'finding'; const title = document.createElement('strong'); title.textContent = finding.message || finding.summary || finding.key; const meta = document.createElement('p'); meta.className = 'hint'; meta.textContent = [finding.severity, finding.path, finding.line ? `Ligne ${finding.line}` : '', finding.component].filter(Boolean).join(' · '); article.append(title, meta); element(`${source}-findings`).append(article); }
   if (source === 'sonar' && data.paging) { sonarPage = data.paging.pageIndex || 1; const pages = Math.max(1, Math.ceil(data.paging.total / (data.paging.pageSize || 50))); element('sonar-page').textContent = `Page ${sonarPage} / ${pages}`; element('sonar-previous').disabled = sonarPage <= 1; element('sonar-next').disabled = sonarPage >= pages; }
 }
@@ -37,7 +37,7 @@ document.querySelectorAll('[data-suggestion]').forEach(button => button.addEvent
 document.querySelectorAll('[data-action]').forEach(button => button.addEventListener('click', () => send({ type: button.dataset.action })));
 document.querySelectorAll('[data-git]').forEach(button => button.addEventListener('click', () => send({ type: 'git', action: button.dataset.git })));
 document.querySelectorAll('[data-scan]').forEach(button => button.addEventListener('click', () => send({ type: 'scan', source: button.dataset.scan })));
-document.querySelectorAll('[data-report]').forEach(button => button.addEventListener('click', () => send({ type: 'report', source: button.dataset.report, buildNumber: element('buildNumber').value })));
+document.querySelectorAll('[data-report]').forEach(button => button.addEventListener('click', () => send({ type: 'report', source: button.dataset.report })));
 document.querySelectorAll('[data-remediate]').forEach(button => button.addEventListener('click', () => send({ type: 'remediate', source: button.dataset.remediate })));
 element('create').addEventListener('click', () => send({ type: 'starter', stack: element('stack').value, name: element('name').value }));
 element('send').addEventListener('click', submit);

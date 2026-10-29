@@ -14,6 +14,7 @@ public final class MistralProvider implements ModelProvider {
     public MistralProvider(Settings settings,RemoteHttp http) { this.settings=settings; this.http=http; }
     /** Calls one approved deployment model; client model names/endpoints are never forwarded. Exigences : DEVAI-064, DEVAI-075. */
     @Override public JsonNode complete(List<Map<String,Object>> messages,List<Map<String,Object>> tools,int maxOutput) {
+        if(settings.get("llm-transport").equals("VIBE_CLI")) return new VibeProvider(settings).complete(messages,tools,maxOutput);
         Map<String,Object> payload=new LinkedHashMap<>(); payload.put("model",settings.require("mistral-model")); payload.put("messages",messages); payload.put("max_tokens",Math.min(maxOutput,4000)); payload.put("stream",false);
         if(!tools.isEmpty()) { payload.put("tools",tools); payload.put("tool_choice","auto"); payload.put("parallel_tool_calls",false); }
         URI uri=URI.create(settings.origin("mistral-url").toString().replaceAll("/$","")+"/v1/chat/completions");
@@ -21,6 +22,7 @@ public final class MistralProvider implements ModelProvider {
     }
     /** Requests real Mistral SSE while returning fully reconstructed tools and measured usage. Exigences : DEVAI-078, DEVAI-153. */
     @Override public JsonNode stream(List<Map<String,Object>> messages,List<Map<String,Object>> tools,int maxOutput,java.util.function.Consumer<String> progress) {
+        if(settings.get("llm-transport").equals("VIBE_CLI")) return new VibeProvider(settings).complete(messages,tools,maxOutput);
         Map<String,Object> payload=new LinkedHashMap<>(); payload.put("model",settings.require("mistral-model")); payload.put("messages",messages); payload.put("max_tokens",Math.min(maxOutput,4000)); payload.put("stream",true);
         if(!tools.isEmpty()) { payload.put("tools",tools); payload.put("tool_choice","auto"); payload.put("parallel_tool_calls",false); }
         MistralStream collector=new MistralStream(progress);

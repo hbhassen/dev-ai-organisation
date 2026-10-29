@@ -1,9 +1,9 @@
 # Organisation Development Standard
 
-Extension interne VS Code Desktop avec cinq vues : Project Initializer, IA Code Generator, Quality, Application Security et GitFlow.
+Cinq onglets : Starter, IA, Quality, Security et GitFlow. Compatible VS Code Desktop 1.95.0+ dans la série 1.x, dont 1.95.2.
 
-Prérequis : VS Code Desktop 1.95.0 ou supérieur dans la série 1.x (dont 1.95.2), Java 21 et Git, puis SDK de la stack générée. Installer le VSIX, ouvrir un workspace approuvé et lancer **ODS: Ouvrir les outils**. Les starters standards fonctionnent sans IA. Le chat et l'agent nécessitent la gateway configurée, SSO, accès GitLab et une politique signée qui autorise un modèle Mistral.
+Prérequis : Java 21, Python 3.12, Git et les outils de la stack. La configuration de l’organisation, le gateway et Vibe sont embarqués au build. Ouvrir un workspace approuvé puis ODS : l’accès Git existant est vérifié avant démarrage automatique du gateway. Aucun SSO, URL ou secret de service n’est demandé au développeur.
 
-Le réglage machine `ods.gatewayUrl` vaut `http://127.0.0.1:8080` pour le développement local ; utiliser HTTPS pour le serveur organisationnel. `ods.javaPath` permet de choisir Java 21 sans changer l'environnement global. Les jetons utilisateur sont conservés par SecretStorage ; aucune clé Mistral ou compte technique n'est embarqué.
+Security génère un SBOM CycloneDX téléchargeable puis un rapport Xray. Quality analyse les fichiers enregistrés. Ces parcours fonctionnent avant un commit. Les corrections IA sont gouvernées, présentées en diff et à valider par build, tests et nouvelle analyse. GitFlow utilise le compte Git du développeur.
 
-Le mode Agent lit le projet, propose un diff, demande les autorisations nécessaires puis peut lancer les commandes et analyser leurs résultats. Les outils ne donnent aucun droit supplémentaire côté serveur. Les scans distants nécessitent un runner isolé configuré ; l'absence de ce service est signalée explicitement.
+Le mode Vibe utilise le backend officiel embarqué via un adaptateur CLI isolé ; ses outils interactifs ne remplacent pas les approbations ODS. Les secrets compilés restent extractibles par le propriétaire du poste malgré le verrouillage de l’interface et le masquage des logs. Distribuer le VSIX personnalisé uniquement dans un canal privé autorisé.

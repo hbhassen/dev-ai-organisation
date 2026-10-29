@@ -4,6 +4,8 @@ const Module = require('node:module');
 
 /** Loads the real native view against an isolated workspace API for deterministic revocation tests. Exigences : DEVAI-017, DEVAI-024. */
 function viewWithClosedWorkspace(gateway) {
+  gateway.disposed = false;
+  gateway.dispose = () => { gateway.disposed = true; };
   const original = Module._load;
   Module._load = /** Substitutes only the native workspace surface while preserving real application imports. Exigences : DEVAI-135. */ function load(request, parent, main) { return request === 'vscode' ? { workspace: { workspaceFolders: [] } } : original.call(this, request, parent, main); };
   let OdsView;
@@ -21,10 +23,22 @@ test('DEVAI-017: closing the selected root revokes grants and stops local tools 
   state = viewWithClosedWorkspace(gateway);
   await state.view.workspaceChanged();
   assert.equal(state.view.grants.size, 0); assert.equal(state.view.reports.size, 0); assert.equal(state.view.root, undefined); assert.equal(state.view.stopped, true);
+  assert.equal(gateway.disposed, true);
 });
 
 test('DEVAI-024: remote cancellation failure cannot retain local context or execution rights', async () => {
   const state = viewWithClosedWorkspace({ /** Simulates a network failure after local rights must already be gone. Exigences : DEVAI-024. */ async request() { throw new Error('network unavailable'); } });
   await state.view.workspaceChanged();
   assert.equal(state.engine.disposed, true); assert.equal(state.view.conversation, undefined); assert.equal(state.view.grants.size, 0); assert.equal(state.view.project, undefined);
+});
+
+test('DEVAI-169: removing origin stops an already owned gateway on refresh', async () => {
+  const gateway = {};
+  const { view, engine } = viewWithClosedWorkspace(gateway);
+  view.selectRoot = async () => {};
+  engine.call = async method => { assert.equal(method, 'project.inspect'); return { stacks: ['PYTHON'] }; };
+  await view.refresh();
+  assert.equal(gateway.disposed, true);
+  assert.equal(view.project, undefined);
+  assert.equal(view.capabilities, undefined);
 });

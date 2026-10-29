@@ -1,185 +1,48 @@
 # Spécification complète — Organisation Development Standard (ODS)
 
-**Version documentaire : 1.2 — 29 octobre 2026**
-**Statut : référentiel cible ; une implémentation 0.2.1 est présente. Voir `docs/CONFORMITE.md` pour la couverture et les écarts, et `docs/VALIDATION.md` pour les preuves. La conformité complète n’est pas encore prononcée.**
-**Public : architecture, tech leads, développeurs, sécurité, exploitation et recette.**
+**Version documentaire : 1.3 — 29 octobre 2026 ; version produit cible : 0.3.0.**
 
-## Sommaire
+## 1. Référentiel et décisions
 
-- [1. Référentiel, portée et règles de lecture](#section-1)
-- [2. Cadrage et architecture — DEVAI-001 à DEVAI-012](#section-2)
-- [3. Extension, IPC et identité — DEVAI-013 à DEVAI-024](#section-3)
-- [4. Ségrégation, intégrité et confidentialité — DEVAI-025 à DEVAI-044](#section-4)
-- [5. Project Initializer et starters — DEVAI-045 à DEVAI-062](#section-5)
-- [6. IA, prompts, agents et consommation — DEVAI-063 à DEVAI-083](#section-6)
-- [7. Quality / SonarQube — DEVAI-084 à DEVAI-094](#section-7)
-- [8. Application Security / JFrog Xray — DEVAI-095 à DEVAI-105](#section-8)
-- [9. GitFlow et merge requests — DEVAI-106 à DEVAI-116](#section-9)
-- [10. Contrats, données et exploitation — DEVAI-117 à DEVAI-132](#section-10)
-- [11. Développement, tests et livraison — DEVAI-133 à DEVAI-150](#section-11)
-- [12. Agent de développement intégré — DEVAI-151 à DEVAI-160](#section-12)
-- [12 bis. Prompts système et recommandations organisationnelles — DEVAI-161 à DEVAI-166](#section-12bis)
-- [13. Architecture détaillée et contrats associés](#section-13)
-- [14. Exemples de politiques et configurations](#section-14)
-- [15. Exemples de code commentés et traçables](#section-15)
-- [16. Plan de réalisation, matrice de couverture et recette](#section-16)
-- [17. Références techniques et statut documentaire](#section-17)
+Ce référentiel remplace la conception 1.2 pour les parcours modifiés par la demande utilisateur du 29 octobre 2026. Le PDF `Organisation_Development_Standard_Architecture_avec_Interface.pdf` et le prompt d’implémentation doivent rester cohérents avec ces exigences. Les recettes décrivent les résultats attendus ; les résultats réellement exécutés sont consignés dans `docs/VALIDATION.md`.
 
-<a id="section-1"></a>
+Le produit vise VS Code Desktop Windows et Linux, minimum 1.95.0 (dont 1.95.2), Java 21, Maven, TypeScript et Python 3.12 pour le runtime Vibe et les scanners locaux. Les cinq vues Starter, IA, Quality, Security et GitFlow sont conservées. Les fournisseurs IA autres que Mistral restent interdits par défaut.
 
-## 1. Référentiel, portée et règles de lecture
+Le VSIX est autonome vis-à-vis de l’arborescence source et contient le gateway, Vibe et sa configuration administrée. Les runtimes Java/Python et les outils des stacks restent des prérequis du poste. Le mode distribué ne comporte aucune connexion SSO. Un accès Git réel avec les credentials existants du développeur conditionne la connexion au gateway. Les credentials de service sont intégrés au build, en lecture seule dans le parcours utilisateur et masqués dans les logs. **Le propriétaire du poste peut les extraire ; cette limite est explicitement acceptée.**
 
-### 1.1. Sources et priorité
+Les scans portent sur les sources enregistrées et ne nécessitent pas de commit. Les résultats et remédiations sont rattachés à une empreinte locale. La gouvernance signée continue de distinguer les droits IA par projet ; les scans non-IA restent disponibles indépendamment de ces droits. Les destinations et secrets réels doivent être fournis par l’organisation et ne sont jamais inventés ou récupérés sur le poste pour les tests.
 
-Cette spécification est construite à partir des 13 pages de `Organisation_Development_Standard_Architecture_avec_Interface.pdf`, dossier d'architecture V1.0 du 28 octobre 2026. Empreinte SHA-256 du PDF analysé : `d2ef94333ac3df6d394ad23ec3d0ddf61b40052df2fedd5ef81217a96901639a`. La maquette de la page 3 et le schéma d'architecture de la page 4 font partie du référentiel.
-
-Ordre de priorité : demandes explicites de l'utilisateur, exigences de ce document qui les déclinent, prescriptions du PDF, puis compléments de conception explicitement identifiés. Les contraintes de développement du dépôt s'appliquent en complément. Aucun exemple de domaine, de quota, de projet GitLab ou de version du PDF ne représente une configuration réelle.
-
-Trois origines sont utilisées dans les exigences : **PDF p. N** pour une prescription issue du document ; **Utilisateur** pour Maven, les starters standards substituables, les commentaires traçables, l'autorisation initiale limitée aux modèles Mistral et l'agent IDE de développement complet ; **Conception** pour une précision nécessaire à l'implémentation. Une exigence peut combiner ces origines. Les choix de conception constituent la base proposée pour développer ; les paramètres dépendant de l'organisation restent explicitement à renseigner avant production.
-
-Chaque exigence possède un identifiant stable `DEVAI-001` à `DEVAI-166`, une prescription vérifiable, un responsable technique et un critère de recette. Les identifiants ne seront jamais réaffectés après suppression d'une exigence. Les exemples, tableaux et diagrammes précisent les exigences qu'ils citent ; ils ne constituent pas de nouvelles exigences sans identifiant. **Toutes les exigences sont obligatoires pour la version complète**, sauf variantes explicitement optionnelles. Le découpage en lots ordonne le développement, sans réduire le périmètre final. Les exigences DEVAI-151 à DEVAI-160 intègrent la précision utilisateur : l'onglet IA Code Generator offre une expérience d'agent de développement comparable, dans ses parcours, à Codex, Continue ou Copilot, et ne se limite pas à un chatbot.
-
-Le terme **DOIT** exprime une obligation, **NE DOIT PAS** une interdiction et **PEUT** une variante facultative. Les diagrammes sont écrits en Mermaid et peuvent être visualisés dans un lecteur Markdown compatible. Les classes, chemins de code, contrats et tables présentés sont **des éléments à créer**, pas des éléments supposés exister dans le dossier actuel.
-
-### 1.2. Cadrage général
-
-ODS est une extension VS Code Desktop permettant de créer des projets conformes, utiliser une IA gouvernée, consulter la qualité et la sécurité applicative, proposer des corrections contrôlées et réaliser les opérations Git/GitLab. Sa valeur repose sur une gouvernance cohérente du poste au serveur : l'interface facilite les actions, le moteur Java prépare et orchestre, la gateway applique les autorisations effectives.
-
-Les objectifs de résultat sont : rendre opérationnels les cinq onglets ; livrer les quatre familles de starters Java, Python, .NET et Angular ; empêcher un accès IA serveur sans droits valides ; tracer les opérations, les consommations et les exigences ; produire une installation reproductible et une recette vérifiable.
-
-| Acteur | Responsabilités | Limite de pouvoir |
-|---|---|---|
-| Développeur | Créer, analyser, demander une assistance, relire les diff, gérer ses branches et MR | Ne modifie pas les politiques ni les comptes techniques |
-| Responsable des standards | Publier les catalogues de versions et starters | Ne s'attribue pas implicitement les droits IA |
-| Responsable IA / sécurité | Approuver politiques, modèles, prompts et permissions d'agents | Publication gouvernée et auditée |
-| Exploitant | Déployer gateway, base, runners, certificats et rotation des secrets | Pas d'accès par défaut aux contenus de code |
-| Auditeur | Consulter les décisions, preuves et consommations autorisées | Lecture limitée au périmètre attribué |
-| Services tiers | GitLab, fournisseur IA approuvé, SonarQube, JFrog Xray, IdP, coffre | Accès par contrats et droits minimaux |
-
-### 1.3. Périmètre et exclusions
-
-Inclus : VS Code Desktop Windows et Linux ; extension TypeScript ; moteur local Java 21 ; gateway Java 21 / Spring Boot ; Maven pour tous les composants et starters Java ; GitLab API v4 ; OIDC ; PostgreSQL en production ; intégrations Mistral, SonarQube et JFrog Xray ; configuration signée ; distribution VSIX et package `suiteInstall`. **État actuel de l'organisation : seuls les modèles Mistral explicitement approuvés sont autorisés.** Le contrat de connecteur permet une extension future à d'autres fournisseurs, tous désactivés tant qu'une nouvelle décision organisationnelle ne les autorise pas.
-
-Exclus de la première version complète : VS Code Web, prise en charge garantie de macOS, Remote SSH/WSL/Dev Containers non qualifiés, console web d'administration dédiée, entraînement de modèles, marketplace publique d'agents, mise à jour autonome des postes, exécution de commandes arbitraires et promesse de sécurité absolue d'un poste compromis. L'administration initiale passe par des dépôts GitLab protégés et les outils d'exploitation. Un connecteur de publication GitHub peut servir au dépôt de développement de l'application sans remplacer les fonctions GitLab du produit.
-
-Angular et Python sont des **cibles de génération de projets** ; ils ne remplacent pas Java dans le moteur et la gateway. L'interface ODS utilise TypeScript et les API VS Code ; aucune application Angular supplémentaire n'est imposée pour cette interface.
-
-### 1.4. Décisions structurantes
-
-| Décision | Base de réalisation | Justification et références |
-|---|---|---|
-| Répartition | Extension mince, moteur Java, gateway modulaire | DEVAI-002 à DEVAI-004 |
-| Build Java | Maven exclusivement, wrapper et versions fixées | DEVAI-005, DEVAI-048, DEVAI-133 |
-| IPC | JSON-RPC 2.0 sur stdio pour V1 | DEVAI-014 ; pas de port local ouvert par défaut |
-| Bootstrap | Spring Initializr, Angular CLI, modèle Python conforme PyPA, templates .NET SDK | DEVAI-048 à DEVAI-051 |
-| Surcharge | Catalogue signé, remplacement ou overlay contrôlé | DEVAI-052 à DEVAI-054 |
-| Autorité IA | Gateway, refus par défaut et décision par action | DEVAI-025 à DEVAI-039 |
-| Exécution des scans | Runners organisationnels isolés par défaut | DEVAI-085, DEVAI-096 ; aucun secret technique livré au poste |
-| Contexte | Mode local gouverné et mode renforcé vérifié côté serveur | DEVAI-040 à DEVAI-042 |
-| Asynchronisme | Jobs persistés PostgreSQL, workers et baux de traitement | DEVAI-119, DEVAI-120 |
-| Administration | GitLab protégé, signature et publication CI | DEVAI-031, DEVAI-044 |
-
-### 1.5. Paramètres d'environnement à renseigner
-
-| Paramètre | Valeur de conception | Condition avant production |
-|---|---|---|
-| GitLab | `<GITLAB_BASE_URL>`, IDs des dépôts de gouvernance | Instance, certificats, permissions et projets de qualification confirmés |
-| Identité | `<OIDC_ISSUER>`, `<OIDC_CLIENT_ID>` | Audience, claims, mapping GitLab et flux natif testés |
-| Versions | Java 21 ; Spring Boot 4.x ; Maven 3.9.x | Versions correctives exactes et matrice de compatibilité verrouillées |
-| IA | Alias organisationnel ; fournisseur initial `MISTRAL` uniquement | Modèles Mistral exacts, limites, rétention et transfert de sources approuvés ; autre fournisseur interdit par défaut |
-| Sonar / JFrog | URLs et versions administrées | Licences, API, scanners, droits et runners disponibles |
-| Quotas | Mensuels par projet et éventuels plafonds utilisateur | Montants, fuseau UTC et budget de coût validés |
-| Conservation | Proposition : audit 90 jours, jobs 30 jours, chat non conservé | Politique de conservation de l'organisation appliquée |
-| Objectifs d'exploitation | Cibles de DEVAI-126 et DEVAI-130 | Dimensionnement et validation en qualification |
-| Distribution | Dépôt privé configuré et registre VSIX interne | Destination de release et droits réellement disponibles |
-
-Ces inconnues n'empêchent pas le développement et les tests avec des doubles explicites. Elles empêchent de déclarer l'intégration réelle ou la mise en production validée.
-
-<a id="section-2"></a>
+Les exigences DEVAI-001 à DEVAI-166 sont conservées avec leurs identifiants ; les sections modifiées remplacent leur prescription antérieure. DEVAI-167 à DEVAI-179 détaillent le mode autonome. Les configurations du serveur séparé historique ne sont pas un prérequis du VSIX. L’intégrité locale détecte une corruption accidentelle, sans garantir l’inviolabilité du poste.
 
 ## 2. Cadrage et architecture — DEVAI-001 à DEVAI-012
 
 ### DEVAI-001 — Périmètre fonctionnel complet
 
-**Origine :** PDF p. 2–6. **Responsable :** produit / extension / moteur.
+**Origine historique (PDF 1.0) :** PDF p. 2–6. **Responsable :** produit / extension / moteur.
 
 ODS DOIT exposer les cinq onglets Project Initializer, IA Code Generator, Quality, Application Security et GitFlow. Les fonctions non IA restent disponibles selon leurs propres droits quand l'IA est interdite. La version complète inclut les quatre lignes Java, Python, .NET et Angular ; un lot initial ne vaut pas livraison complète.
 
 **Recette :** un projet non éligible à l'IA peut accéder au catalogue, à ses analyses et aux opérations Git autorisées ; tous les chemins d'appel IA sont refusés.
 
-### DEVAI-002 — Architecture globale à trois niveaux
+### DEVAI-002 — Architecture locale à trois composants
 
-**Origine :** PDF p. 4, 10–12 ; Conception. **Responsable :** architecture.
+**Origine :** évolution utilisateur du 29 octobre 2026.
 
-L'extension TypeScript DOIT porter la présentation et l'intégration éditeur ; le moteur Java local DOIT porter l'orchestration métier locale ; la gateway Spring Boot DOIT porter l'autorisation distante, les connecteurs, quotas et audits. Le moteur ne détient aucun secret de service. La gateway peut être déployée comme un monolithe modulaire avec workers isolés ; des microservices séparés ne sont pas nécessaires en V1.
+Le VSIX contient une extension TypeScript, le moteur Java 21 sur stdio et une gateway Spring Boot possédée par l’extension. Le contrôle Git natif précède tout démarrage du gateway. Le gateway écoute sur loopback et exige le jeton aléatoire de lancement. Les intégrations de service passent par lui ; GitFlow conserve les credentials du développeur. Voir DEVAI-167 — DEVAI-176.
 
-```mermaid
-flowchart TB
-    D[Développeur] --> E[Extension VS Code / TypeScript]
-    subgraph Poste[Poste de développement - confiance limitée]
-      E <-->|JSON-RPC stdio| J[Moteur local Java 21]
-      J --> W[Workspace et Git local]
-    end
-    J <-->|HTTPS et identité utilisateur| G[Gateway Spring Boot / Java 21]
-    subgraph Serveur[Périmètre organisationnel]
-      G --> P[(PostgreSQL)]
-      G --> V[Coffre de secrets]
-      G --> I[IdP OIDC]
-      G --> R[Runners de scans isolés]
-    end
-    G --> L[GitLab - projets et gouvernance]
-    G --> M[IA approuvée]
-    R --> S[SonarQube]
-    R --> X[JFrog Xray]
-```
+**Recette :** tests déterministes des parcours positifs, refus et erreurs ; preuves réelles consignées dans `docs/VALIDATION.md`.
 
-```mermaid
-sequenceDiagram
-    actor D as Développeur
-    participant E as Extension
-    participant J as Moteur Java
-    participant G as Gateway
-    participant T as Service tiers
-    D->>E: Demander une opération
-    E->>J: Commande typée et contexte du projet
-    J->>G: Requête authentifiée
-    G->>G: Vérifier droits, politique et limites
-    alt Autorisation valide
-      G->>T: Appeler le connecteur autorisé
-      T-->>G: Résultat
-      G-->>J: Résultat normalisé et trace
-    else Refus
-      G-->>J: Erreur explicite sans appel tiers
-    end
-    J-->>E: État et données de présentation
-```
+### DEVAI-003 — Frontières de confiance du mode autonome
 
-**Recette :** les tests de dépendances et de contrat montrent qu'aucune vue TypeScript ne calcule une autorisation métier définitive ni n'appelle directement l'IA avec une clé fournisseur.
+**Origine :** évolution utilisateur du 29 octobre 2026.
 
-### DEVAI-003 — Frontières de confiance
+La webview ne reçoit ni secrets ni chemins natifs de configuration. Le client natif vérifie Workspace Trust, le remote GitLab administré et un accès Git réel. La gateway limite les routes de projet au dépôt vérifié au lancement. La politique IA signée demeure contrôlée par la gateway. Le propriétaire du poste peut extraire les secrets et modifier le programme distribué ; cette limite acceptée interdit de présenter quotas et gouvernance locaux comme une autorité centrale inviolable.
 
-**Origine :** PDF p. 4, 7–8, 12 ; Conception. **Responsable :** sécurité / gateway.
-
-La gateway DOIT traiter l'extension, le moteur, le remote déclaré, les chemins et les résultats locaux comme des entrées non fiables. Aucun booléen `aiEnabled`, rôle, utilisateur ou quota envoyé par le client n'est une preuve d'autorisation. Le serveur déduit l'identité du jeton validé et recalcule les droits. Les restrictions d'interface et les signatures locales sont une défense complémentaire, pas une barrière suffisante contre le propriétaire du poste.
-
-```mermaid
-sequenceDiagram
-    participant C as Client modifié
-    participant G as Gateway
-    participant P as Moteur de politique serveur
-    participant L as IA
-    C->>G: CHAT avec aiEnabled=true et projet interdit
-    G->>P: Identité vérifiée, instance, projet, action
-    P-->>G: DENY
-    G-->>C: 403 ACTION_DENIED
-    Note over G,L: Aucun appel fournisseur
-```
-
-**Recette :** un appel HTTP direct et une falsification du message IPC échouent de la même façon qu'une action UI interdite.
+**Recette :** tests déterministes des parcours positifs, refus et erreurs ; preuves réelles consignées dans `docs/VALIDATION.md`.
 
 ### DEVAI-004 — Modularité et dépendances
 
-**Origine :** PDF p. 10 ; Conception. **Responsable :** tech lead Java.
+**Origine historique (PDF 1.0) :** PDF p. 10 ; Conception. **Responsable :** tech lead Java.
 
 Le domaine DOIT être indépendant des clients HTTP et du transport IPC. Les modules sécurité, configuration, starters, contexte IA, qualité, Xray et GitFlow utilisent des ports typés et des adaptateurs testables. Les règles communes de signature et de décision peuvent être partagées entre moteur et serveur, mais la gateway charge elle-même les données officielles. Les DTO publics ne révèlent pas les modèles de persistance.
 
@@ -200,7 +63,7 @@ sequenceDiagram
 
 ### DEVAI-005 — Socle Java et Maven
 
-**Origine :** PDF p. 11 ; Utilisateur. **Responsable :** build Java.
+**Origine historique (PDF 1.0) :** PDF p. 11 ; Utilisateur. **Responsable :** build Java.
 
 Le moteur et la gateway DOIVENT cibler Java 21 et être construits par Maven. Le dépôt DOIT fournir `pom.xml`, `mvnw`, `mvnw.cmd` et les métadonnées du wrapper avec version et empreinte de distribution. Spring Boot 4.x est la famille cible de la gateway ; la version exacte compatible est choisie, documentée et figée à l'implémentation. Gradle n'est pas proposé pour un nouveau starter Java. Un projet existant Gradle peut être détecté sans conversion silencieuse ni promesse de prise en charge non qualifiée.
 
@@ -208,7 +71,7 @@ Le moteur et la gateway DOIVENT cibler Java 21 et être construits par Maven. Le
 
 ### DEVAI-006 — Plateformes et prérequis
 
-**Origine :** PDF p. 11 ; Conception. **Responsable :** extension / packaging.
+**Origine historique (PDF 1.0) :** PDF p. 11 ; Conception. **Responsable :** extension / packaging.
 
 Le support V1 DOIT couvrir VS Code Desktop Windows et Linux. L'extension vérifie Java 21 et Git avant leur utilisation, ainsi que les SDK nécessaires au starter demandé. Elle affiche une erreur exploitable si un runtime manque, sans installation silencieuse. Les environnements distants non qualifiés sont détectés et déclarés non pris en charge. Un JRE fourni séparément reste une option soumise aux licences et à la qualification.
 
@@ -216,7 +79,7 @@ Le support V1 DOIT couvrir VS Code Desktop Windows et Linux. L'extension vérifi
 
 ### DEVAI-007 — Séparation produit et hébergement du code
 
-**Origine :** PDF p. 6–7 ; règles de développement utilisateur ; Conception. **Responsable :** architecture / livraison.
+**Origine historique (PDF 1.0) :** PDF p. 6–7 ; règles de développement utilisateur ; Conception. **Responsable :** architecture / livraison.
 
 Le produit DOIT utiliser GitLab pour l'identité de projet, les politiques, les starters organisationnels et les MR. Le dépôt qui contient le code d'ODS peut être hébergé sur GitHub privé conformément aux règles du développeur. Cette différence n'autorise ni à remplacer GitLab par GitHub dans les fonctionnalités ni à inventer une infrastructure disponible. La CI et la publication utilisent le fournisseur réellement configuré.
 
@@ -224,7 +87,7 @@ Le produit DOIT utiliser GitLab pour l'identité de projet, les politiques, les 
 
 ### DEVAI-008 — Catalogue et versions externalisés
 
-**Origine :** PDF p. 5, 9–11. **Responsable :** configuration / gouvernance.
+**Origine historique (PDF 1.0) :** PDF p. 5, 9–11. **Responsable :** configuration / gouvernance.
 
 Les versions des starters, modèles IA, prompts, scanners et SDK DOIVENT provenir de manifestes administrés, signés et versionnés. Les versions de construction d'ODS sont fixées dans ses fichiers de build. Une version de manifeste n'est ni la version de l'application ni celle du schéma. Aucun `latest` implicite ne doit affecter une génération reproductible.
 
@@ -232,7 +95,7 @@ Les versions des starters, modèles IA, prompts, scanners et SDK DOIVENT proveni
 
 ### DEVAI-009 — Administration gouvernée
 
-**Origine :** PDF p. 6–9, 12. **Responsable :** administrateurs / CI gouvernance.
+**Origine historique (PDF 1.0) :** PDF p. 6–9, 12. **Responsable :** administrateurs / CI gouvernance.
 
 Les politiques, catalogues et prompts de production DOIVENT être gérés dans des dépôts GitLab privés protégés, séparés des exemples du code applicatif. Les changements passent par revue, validation de schéma, tests et signature. La gestion des rôles et la séparation auteur / approbateur sont appliquées selon les capacités de GitLab et les règles organisationnelles.
 
@@ -240,7 +103,7 @@ Les politiques, catalogues et prompts de production DOIVENT être gérés dans d
 
 ### DEVAI-010 — Responsabilité humaine
 
-**Origine :** PDF p. 5–6, 9 ; Conception. **Responsable :** moteur / extension.
+**Origine historique (PDF 1.0) :** PDF p. 5–6, 9 ; Conception. **Responsable :** moteur / extension.
 
 Un résultat IA DOIT être présenté comme une proposition. Les écritures, commandes, installations, suppressions, push et créations de MR passent par une décision d'exécution explicite ou une autorisation de session précise, limitée et journalisée prévue par politique. Un simple consentement au chat ne vaut pas consentement à ces effets de bord. Aucun résultat d'analyse ne peut être déclaré corrigé avant vérification.
 
@@ -248,7 +111,7 @@ Un résultat IA DOIT être présenté comme une proposition. Les écritures, com
 
 ### DEVAI-011 — Terminologie et erreurs compréhensibles
 
-**Origine :** PDF p. 3 ; Conception. **Responsable :** UX / contrats.
+**Origine historique (PDF 1.0) :** PDF p. 3 ; Conception. **Responsable :** UX / contrats.
 
 L'interface DOIT distinguer « IA interdite », « authentification requise », « politique invalide », « service indisponible », « quota atteint », « rapport obsolète » et « fonctionnalité non prise en charge ». Les messages affichent un identifiant de corrélation et une action de résolution sans exposer secrets, chemins absolus ou détails internes sensibles.
 
@@ -256,7 +119,7 @@ L'interface DOIT distinguer « IA interdite », « authentification requise », 
 
 ### DEVAI-012 — Définition de livraison complète
 
-**Origine :** PDF p. 11–12 ; Utilisateur ; Conception. **Responsable :** tech lead / recette.
+**Origine historique (PDF 1.0) :** PDF p. 11–12 ; Utilisateur ; Conception. **Responsable :** tech lead / recette.
 
 Une livraison complète DOIT associer chaque exigence à une implémentation, des tests et une preuve. Les connecteurs réels, quatre starters, cinq vues, paquet d'installation, documentation et limites connues font partie de la livraison. Un mode démonstration à données simulées doit être étiqueté et ne satisfait pas les validations d'intégration réelle.
 
@@ -268,7 +131,7 @@ Une livraison complète DOIT associer chaque exigence à une implémentation, de
 
 ### DEVAI-013 — Bandeau et navigation
 
-**Origine :** PDF p. 3 et maquette. **Responsable :** extension.
+**Origine historique (PDF 1.0) :** PDF p. 3 et maquette. **Responsable :** extension.
 
 Le bandeau DOIT afficher le projet GitLab actif, sa branche, sa stack, l'état de connexion, le statut IA, l'alias du modèle autorisé et le quota restant. Les cinq onglets partagent ce contexte. L'interface différencie chargement, vide, erreur, déconnecté et accès refusé. Les changements de projet invalident immédiatement les propositions devenues étrangères au contexte.
 
@@ -278,7 +141,7 @@ Le bandeau DOIT afficher le projet GitLab actif, sa branche, sa stack, l'état d
 
 ### DEVAI-014 — Contrat JSON-RPC local
 
-**Origine :** PDF p. 4, 11 ; Conception. **Responsable :** extension / moteur.
+**Origine historique (PDF 1.0) :** PDF p. 4, 11 ; Conception. **Responsable :** extension / moteur.
 
 Le transport local DOIT utiliser JSON-RPC 2.0 sur les flux stdio d'un processus enfant appartenant à l'extension. Le framing ODS est un objet JSON UTF-8 par ligne, avec retours à la ligne des chaînes échappés ; taille maximale initiale de 8 Mio par message et refus des lots JSON-RPC en V1. `stdout` est réservé au protocole, `stderr` aux logs filtrés. L'initialisation négocie version de protocole, version moteur et capacités ; les contrats sont validés des deux côtés. Les annulations et notifications sont des méthodes ODS documentées, pas des mécanismes implicites de JSON-RPC. Référence : [JSON-RPC 2.0](https://www.jsonrpc.org/specification).
 
@@ -322,7 +185,7 @@ sequenceDiagram
 
 ### DEVAI-016 — Workspace Trust
 
-**Origine :** PDF p. 8–9 ; Conception. **Responsable :** extension / moteur.
+**Origine historique (PDF 1.0) :** PDF p. 8–9 ; Conception. **Responsable :** extension / moteur.
 
 Dans un workspace non approuvé, ODS DOIT désactiver lecture de contexte destinée à l'IA, exécution de scripts, génération dans ce workspace et commandes Git à effet de bord. Il peut afficher aide et catalogue sans exécuter le contenu du projet. Le changement de confiance déclenche une réévaluation. Cette information locale ne constitue pas une attestation serveur d'intégrité du poste. Référence : [VS Code Workspace Trust](https://code.visualstudio.com/api/extension-guides/workspace-trust).
 
@@ -330,7 +193,7 @@ Dans un workspace non approuvé, ODS DOIT désactiver lecture de contexte destin
 
 ### DEVAI-017 — Isolation des racines et dépôts imbriqués
 
-**Origine :** PDF p. 7, 12 ; Conception. **Responsable :** moteur.
+**Origine historique (PDF 1.0) :** PDF p. 7, 12 ; Conception. **Responsable :** moteur.
 
 Chaque racine et dépôt imbriqué DOIT être résolu séparément. La sélection active détermine un contexte de projet explicite ; tout fichier d'un autre dépôt, sous-module ou worktree est réévalué. La clé de contexte inclut racine canonique locale, instance, project ID, branche et commit ; seuls les identifiants nécessaires quittent le poste.
 
@@ -346,7 +209,7 @@ Les webviews DOIVENT utiliser une CSP restrictive, des ressources locales autori
 
 ### DEVAI-019 — Accessibilité et expérience native
 
-**Origine :** PDF p. 3 ; Conception. **Responsable :** extension.
+**Origine historique (PDF 1.0) :** PDF p. 3 ; Conception. **Responsable :** extension.
 
 Les vues DOIVENT respecter les thèmes VS Code, le clavier, l'ordre de focus, les noms accessibles et les états compréhensibles sans couleur seule. Les résultats ouvrent fichier et ligne avec les API éditeur ; une référence invalide affiche un diagnostic. L'interface initiale est en français, avec libellés métier des cinq onglets conservés et textes externalisés.
 
@@ -354,61 +217,45 @@ Les vues DOIVENT respecter les thèmes VS Code, le clavier, l'ordre de focus, le
 
 **Précision utilisateur 1.2 :** la saisie du chat privilégie une zone compacte inspirée des assistants IDE, avec trombone, sélection du mode et bouton d’envoi. Entrée envoie, Maj+Entrée insère une ligne ; empêcher les doubles soumissions et conserver un brouillon refusé.
 
-### DEVAI-020 — Authentification OIDC native
+### DEVAI-020 — Connexion fondée sur Git, sans SSO
 
-**Origine :** PDF p. 8 ; Conception. **Responsable :** identité / gateway / extension.
+**Origine :** évolution utilisateur du 29 octobre 2026.
 
-L'authentification DOIT utiliser un flux OIDC adapté à un client public : Authorization Code avec PKCE via navigateur et redirection enregistrée, sans secret client distribué. Un flux Device Authorization n'est une variante que si l'IdP le prend en charge et l'organisation l'autorise. La gateway vérifie signature, issuer, audience, dates et scopes de l'access token ; un ID token n'est pas accepté comme jeton d'accès API.
+Aucun écran, commande ou paramètre SSO n’est utilisé par le VSIX autonome. Avant connexion, le client natif vérifie réellement l’accès Git avec les credentials déjà présents dans Git ou l’IDE. Un refus interdit le lancement et la connexion au gateway. Voir DEVAI-169. Le support OIDC historique d’un serveur déployé séparément n’est pas activé par ce parcours.
 
-```mermaid
-sequenceDiagram
-    actor D as Développeur
-    participant E as Extension
-    participant I as IdP
-    participant G as Gateway
-    D->>E: Se connecter
-    E->>I: Autorisation navigateur avec challenge PKCE
-    I-->>E: Code via redirection enregistrée
-    E->>I: Code et verifier PKCE
-    I-->>E: Access token et renouvellement autorisé
-    E->>G: Requête avec access token
-    G->>G: Valider issuer, audience, signature et expiration
-    G-->>E: Identité et capacités
-```
+**Recette :** tests déterministes des parcours positifs, refus et erreurs ; preuves réelles consignées dans `docs/VALIDATION.md`.
 
-**Recette :** mauvais issuer, audience incorrecte, jeton expiré et rejeu d'un code d'autorisation sont refusés.
+### DEVAI-021 — Conservation de la session locale
 
-### DEVAI-021 — Conservation et rotation de session
+**Origine :** évolution utilisateur du 29 octobre 2026.
 
-**Origine :** PDF p. 8 ; Conception. **Responsable :** extension / identité.
+Le jeton de connexion au gateway est aléatoire, privé au lancement et non persisté. Les données locales sont chiffrées avec une clé stable du profil ou générée dans SecretStorage. La déconnexion arrête le processus possédé et conserve les credentials Git de l’IDE. Une session ne change jamais implicitement de workspace.
 
-Les secrets utilisateur persistants DOIVENT utiliser le stockage sécurisé fourni par VS Code ou un mécanisme organisationnel équivalent ; aucun token dans `settings.json`, logs ou Git. L'access token transmis au moteur reste en mémoire. Le renouvellement est synchronisé, borné et révoqué à la déconnexion ; un échec demande une reconnexion sans utiliser une identité de service de secours.
+**Recette :** tests déterministes des parcours positifs, refus et erreurs ; preuves réelles consignées dans `docs/VALIDATION.md`.
 
-**Recette :** la déconnexion efface les données d'authentification ODS et interdit les nouveaux appels sans fermer VS Code.
+### DEVAI-022 — Accès au dépôt et compte de lecture
 
-### DEVAI-022 — Correspondance identité et droits GitLab
+**Origine :** évolution utilisateur du 29 octobre 2026.
 
-**Origine :** PDF p. 6–8 ; Conception. **Responsable :** gateway / connecteur GitLab.
+Le contrôle Git du développeur a lieu dans le client natif avant connexion. Le compte de gouvernance configuré au build lit les métadonnées et politiques privées ; il doit avoir les droits de lecture nécessaires. La gateway vérifie que le projet demandé correspond exactement au chemin de dépôt validé au lancement. Un changement de dépôt renouvelle ce contrôle. Cette vérification locale ne résiste pas à une modification malveillante du VSIX par son propriétaire.
 
-La gateway DOIT associer le sujet OIDC à une identité GitLab vérifiée et vérifier les permissions réelles du développeur sur chaque projet demandé. Une adresse email déclarée par le client n'établit pas cette correspondance. Un compte technique de lecture de politiques ne donne jamais au développeur accès aux projets lisibles par ce compte. Les refus d'accès ne révèlent pas l'existence d'autres projets privés.
-
-**Recette :** un utilisateur authentifié sans accès au projet ne peut lire ses capacités détaillées, rapports, jobs ou consommation.
+**Recette :** tests déterministes des parcours positifs, refus et erreurs ; preuves réelles consignées dans `docs/VALIDATION.md`.
 
 ### DEVAI-023 — Identité utilisateur pour Git et MR
 
-**Origine :** PDF p. 6, 8. **Responsable :** GitFlow / gateway.
+**Origine :** évolution utilisateur du 29 octobre 2026.
 
-Les opérations Git distantes DOIVENT utiliser le credential helper ou l'agent SSH du développeur ; les MR utilisent une autorisation GitLab utilisateur déléguée et limitée. Le jeton OIDC de la gateway n'est pas présumé utilisable directement par GitLab. Les scopes minimaux et l'association entre les deux sessions sont documentés ; aucun compte de service privilégié ne réalise push ou MR à la place de l'utilisateur.
+Git distant utilise le credential helper ou l’agent SSH du développeur. Une MR utilise un token utilisateur déjà disponible via l’IDE ou Git Credential Manager ; en son absence l’API MR est indisponible, sans substitution de compte de service. Un accès SSH seul permet Git mais ne fournit pas automatiquement un token API GitLab.
 
-**Recette :** l'auteur observé dans GitLab correspond au développeur ; une permission GitLab retirée bloque l'opération malgré une session OIDC valide.
+**Recette :** tests déterministes des parcours positifs, refus et erreurs ; preuves réelles consignées dans `docs/VALIDATION.md`.
 
 ### DEVAI-024 — Déconnexion et annulation contextuelle
 
-**Origine :** PDF p. 7, 12 ; Conception. **Responsable :** extension / moteur / gateway.
+**Origine :** évolution utilisateur du 29 octobre 2026.
 
-Une déconnexion, fermeture de racine ou perte de confiance DOIT interrompre les nouveaux appels IA et invalider les actions en attente. Les travaux serveur déjà lancés reçoivent une annulation au mieux et restent consultables selon les droits après reconnexion. L'interface distingue annulation demandée et annulation confirmée ; les tokens déjà consommés restent comptabilisés.
+La déconnexion, fermeture de workspace ou désactivation annule les travaux possédés et arrête le gateway associé. Aucun credential Git utilisateur n’est effacé. La perte du canal parent ferme aussi le gateway. Un changement de workspace exige un nouveau contrôle Git.
 
-**Recette :** une réponse tardive d'une ancienne session ne s'applique pas au nouveau workspace et n'autorise pas un patch.
+**Recette :** tests déterministes des parcours positifs, refus et erreurs ; preuves réelles consignées dans `docs/VALIDATION.md`.
 
 <a id="section-4"></a>
 
@@ -416,7 +263,7 @@ Une déconnexion, fermeture de racine ou perte de confiance DOIT interrompre les
 
 ### DEVAI-025 — Identité canonique du projet
 
-**Origine :** PDF p. 6–7. **Responsable :** moteur / gateway.
+**Origine historique (PDF 1.0) :** PDF p. 6–7. **Responsable :** moteur / gateway.
 
 L'autorisation DOIT utiliser le couple instance GitLab normalisée et `projectId` numérique vérifié auprès de cette instance. Le nom du dossier, le slug ou un remote fourni par le client ne suffit pas. Les URL SSH et HTTPS sont résolues par un adaptateur borné aux instances administrées ; les redirections et hôtes inattendus sont refusés.
 
@@ -424,7 +271,7 @@ L'autorisation DOIT utiliser le couple instance GitLab normalisée et `projectId
 
 ### DEVAI-026 — Refus par défaut et droits par action
 
-**Origine :** PDF p. 6–7. **Responsable :** politique serveur.
+**Origine historique (PDF 1.0) :** PDF p. 6–7. **Responsable :** politique serveur.
 
 Le défaut DOIT être `DENY`. Une autorisation exige : utilisateur actif, accès au projet, politique valide, `aiEnabled=true`, action explicitement permise, modèle autorisé, contexte conforme et quota disponible. Les actions de base sont `CHAT`, `CODE_GENERATION`, `SONAR_REMEDIATION`, `XRAY_REMEDIATION`, `MR_DESCRIPTION` ; `AGENT_RUN` est ajoutée explicitement pour éviter qu'un droit de chat autorise tous les agents. Une action inconnue est refusée.
 
@@ -432,7 +279,7 @@ Le défaut DOIT être `DENY`. Une autorisation exige : utilisateur actif, accès
 
 ### DEVAI-027 — Matrice IA / non-IA
 
-**Origine :** PDF p. 3, 6. **Responsable :** politique / extension.
+**Origine historique (PDF 1.0) :** PDF p. 3, 6. **Responsable :** politique / extension.
 
 Le système DOIT appliquer la matrice ci-dessous indépendamment du grisement visuel. « Selon droits » inclut droits de projet, santé du service et prérequis ; il ne signifie pas accès universel.
 
@@ -451,7 +298,7 @@ Le système DOIT appliquer la matrice ci-dessous indépendamment du grisement vi
 
 ### DEVAI-028 — Lecture officielle et atomique des politiques
 
-**Origine :** PDF p. 7 ; Conception. **Responsable :** gateway / configuration.
+**Origine historique (PDF 1.0) :** PDF p. 7 ; Conception. **Responsable :** gateway / configuration.
 
 La gateway DOIT lire politique et signature depuis un commit immuable du dépôt de gouvernance attendu, via GitLab Repository Files API. La référence protégée est résolue une fois en SHA ; tous les fichiers d'un bundle proviennent de ce SHA. Le client ne choisit ni dépôt, ni chemin, ni référence de politique. Référence : [GitLab Repository Files API](https://docs.gitlab.com/api/repository_files/).
 
@@ -473,7 +320,7 @@ sequenceDiagram
 
 ### DEVAI-029 — Signature Ed25519 sur octets exacts
 
-**Origine :** PDF p. 7–9 ; Conception. **Responsable :** sécurité Java.
+**Origine historique (PDF 1.0) :** PDF p. 7–9 ; Conception. **Responsable :** sécurité Java.
 
 La signature détachée Ed25519 DOIT couvrir exactement les octets UTF-8 distribués, sans reformatage JSON préalable. L'enveloppe contient `keyId`, algorithme fixé à `Ed25519`, signature Base64 et empreinte SHA-256 informative. La clé est recherchée dans le magasin de confiance administré ; un fichier de politique ne peut fournir sa propre clé de confiance. L'intégrité est vérifiée avant le parsing métier ; taille et formats sont bornés avant toute allocation importante.
 
@@ -481,7 +328,7 @@ La signature détachée Ed25519 DOIT couvrir exactement les octets UTF-8 distrib
 
 ### DEVAI-030 — Schéma, dates et sémantique
 
-**Origine :** PDF p. 6–9 ; Conception. **Responsable :** sécurité / configuration.
+**Origine historique (PDF 1.0) :** PDF p. 6–9 ; Conception. **Responsable :** sécurité / configuration.
 
 Le parseur DOIT rejeter champs critiques inconnus, doublons de clés JSON, IDs dupliqués, version de schéma inconnue, quota négatif, dates invalides et règle contradictoire. `issuedAt < expiresAt`, une émission future hors tolérance de 60 secondes est refusée, et `now >= expiresAt` interdit l'IA. Les durées maximales de validité sont gouvernées ; la base proposée est 24 heures. L'heure serveur de référence est UTC et surveillée.
 
@@ -489,7 +336,7 @@ Le parseur DOIT rejeter champs critiques inconnus, doublons de clés JSON, IDs d
 
 ### DEVAI-031 — Anti-rejeu et rotation des clés
 
-**Origine :** PDF p. 7 ; Conception. **Responsable :** gateway / exploitation.
+**Origine historique (PDF 1.0) :** PDF p. 7 ; Conception. **Responsable :** gateway / exploitation.
 
 La gateway DOIT persister le plus haut `policyVersion` accepté par périmètre de gouvernance, y compris après redémarrage. Une version inférieure est refusée ; une même version avec une empreinte différente est refusée. Un rollback métier se publie sous une version plus élevée. La rotation utilise une période de coexistence bornée et un canal d'administration de confiance ; une clé compromise est révoquée indépendamment de la signature d'un ancien bundle.
 
@@ -514,7 +361,7 @@ sequenceDiagram
 
 ### DEVAI-032 — Cache, révocation et mode dégradé
 
-**Origine :** PDF p. 7, 12 ; Conception. **Responsable :** gateway.
+**Origine historique (PDF 1.0) :** PDF p. 7, 12 ; Conception. **Responsable :** gateway.
 
 Le cache DOIT contenir uniquement des snapshots signés valides. Une décision réévalue droits et expiration à chaque requête ; le cache de droits a une fraîcheur maximale proposée de 60 secondes. Une notification authentifiée de révocation invalide immédiatement les entrées concernées, avec rafraîchissement périodique en secours. En panne de gouvernance, seul un cache encore valide et suffisamment frais peut servir ; passé ce délai, aucun nouvel appel IA. Ce délai borné est la latence maximale de révocation annoncée, pas une révocation instantanée universelle.
 
@@ -522,7 +369,7 @@ Le cache DOIT contenir uniquement des snapshots signés valides. Une décision r
 
 ### DEVAI-033 — Cycle de décision complet
 
-**Origine :** PDF p. 7. **Responsable :** moteur / gateway.
+**Origine historique (PDF 1.0) :** PDF p. 7. **Responsable :** moteur / gateway.
 
 L'ouverture du workspace, un changement de remote, branche, confiance ou identité, une expiration et chaque requête IA DOIVENT déclencher les vérifications adaptées. Le résultat expose capacités, version de politique, durée de validité et motif de refus. Un cache UI n'est jamais un titre d'accès.
 
@@ -547,23 +394,23 @@ sequenceDiagram
 
 ### DEVAI-034 — Intégrité des ressources embarquées
 
-**Origine :** PDF p. 7. **Responsable :** moteur / packaging.
+**Origine historique (PDF 1.0) :** PDF p. 7. **Responsable :** moteur / packaging.
 
 Le VSIX et les ressources statiques sensibles DOIVENT être accompagnés d'un manifeste signé avec empreintes SHA-256. Le moteur vérifie les ressources au démarrage et avant utilisation sensible. Une altération bloque la ressource et produit un diagnostic ; elle ne peut être résolue par un simple attribut lecture seule ou une clé AES livrée dans le même paquet.
 
 **Recette :** une modification du catalogue embarqué est détectée ; l'absence de vérification côté client ne contourne pas les règles serveur.
 
-### DEVAI-035 — Coffre et secrets techniques
+### DEVAI-035 — Secrets techniques embarqués et limites acceptées
 
-**Origine :** PDF p. 7–8, 12. **Responsable :** gateway / exploitation.
+**Origine :** évolution utilisateur du 29 octobre 2026.
 
-Les comptes de lecture de gouvernance, Sonar, JFrog et la clé fournisseur IA DOIVENT rester dans le coffre ou l'infrastructure serveur. Ils sont distincts, limités par fonction, renouvelables et absents du VSIX, JAR client, repository, image et archives de livraison. Les exemples utilisent des références de secrets ; les certificats publics de confiance ne sont pas assimilés à des secrets privés.
+Les comptes de service et clés sont configurés par l’organisation au build, embarqués dans le VSIX privé et non éditables dans l’interface. Ils sont extractibles par le propriétaire du poste : cette limite a été explicitement acceptée. Les logs et la webview masquent les secrets et formes d’autorisation. Les exemples, sources Git et artefacts CI génériques contiennent uniquement des placeholders. Une rotation exige un nouveau build privé.
 
-**Recette :** analyse du VSIX, des JAR, logs, images et archives sans secret technique ; rotation testée sans republication de l'extension.
+**Recette :** tests déterministes des parcours positifs, refus et erreurs ; preuves réelles consignées dans `docs/VALIDATION.md`.
 
 ### DEVAI-036 — TLS et destinations autorisées
 
-**Origine :** PDF p. 4, 11 ; Conception. **Responsable :** réseau / gateway / moteur.
+**Origine historique (PDF 1.0) :** PDF p. 4, 11 ; Conception. **Responsable :** réseau / gateway / moteur.
 
 Les appels distants DOIVENT vérifier certificats et noms d'hôte, utiliser le truststore organisationnel et limiter les destinations à celles administrées. Les redirections vers une autre origine, URL arbitraires de rapports, accès aux métadonnées cloud et résolutions privées inattendues sont bloqués côté connecteurs. Aucun mode de production ne désactive TLS pour contourner un certificat invalide.
 
@@ -571,7 +418,7 @@ Les appels distants DOIVENT vérifier certificats et noms d'hôte, utiliser le t
 
 ### DEVAI-037 — Filtrage des secrets et exclusions de contexte
 
-**Origine :** PDF p. 5, 9, 12 ; Conception. **Responsable :** contexte Java / gateway.
+**Origine historique (PDF 1.0) :** PDF p. 5, 9, 12 ; Conception. **Responsable :** contexte Java / gateway.
 
 Le contexte DOIT exclure fichiers de secrets, credentials, clés privées, historiques sensibles, répertoires générés et motifs administrés. Le filtrage combine chemins, types, contenu et limites de taille, puis s'exécute à nouveau côté gateway sur les données reçues. Une exclusion organisationnelle ne peut être levée localement. La détection n'est pas présentée comme exhaustive : un faux négatif reste un risque à réduire par politique et contrôle d'accès.
 
@@ -579,7 +426,7 @@ Le contexte DOIT exclure fichiers de secrets, credentials, clés privées, histo
 
 ### DEVAI-038 — Protection contre les instructions injectées
 
-**Origine :** PDF p. 9, 12 ; Conception. **Responsable :** IA / agents.
+**Origine historique (PDF 1.0) :** PDF p. 9, 12 ; Conception. **Responsable :** IA / agents.
 
 Les fichiers, commentaires, rapports Sonar/Xray, sorties de commandes et messages utilisateur DOIVENT être traités comme données non fiables. Ils ne peuvent modifier instructions système signées, permissions, endpoints ou outils autorisés. Les sorties du modèle passent par validation de schéma et d'autorisation avant tout effet ; une consigne dans un fichier ne déclenche pas de transfert, installation ou exécution.
 
@@ -587,7 +434,7 @@ Les fichiers, commentaires, rapports Sonar/Xray, sorties de commandes et message
 
 ### DEVAI-039 — Autorisation uniforme de tous les chemins IA
 
-**Origine :** PDF p. 12. **Responsable :** gateway.
+**Origine historique (PDF 1.0) :** PDF p. 12. **Responsable :** gateway.
 
 Chaque chemin vers le fournisseur IA DOIT passer par le même point de décision, y compris chat, agent, remédiations, descriptions de MR et tentatives de reprise. Les routes métiers déterminent elles-mêmes l'action ; le client ne peut étiqueter une remédiation comme simple chat pour obtenir des privilèges supplémentaires. Chaque étape d'agent sensible réévalue les droits.
 
@@ -595,7 +442,7 @@ Chaque chemin vers le fournisseur IA DOIT passer par le même point de décision
 
 ### DEVAI-040 — Provenance du contexte local
 
-**Origine :** PDF p. 7, 12 ; Conception. **Responsable :** moteur de contexte.
+**Origine historique (PDF 1.0) :** PDF p. 7, 12 ; Conception. **Responsable :** moteur de contexte.
 
 En mode `LOCAL_GOVERNED`, chaque fichier DOIT être rattaché au dépôt autorisé par chemin réel, racine, état Git, commit de base et empreinte. Traversées de chemin, liens symboliques sortants, junctions Windows et dépôts imbriqués non autorisés sont refusés. Les modifications non commitées sont identifiées comme telles et soumises à la politique de transfert. Le mode ne prouve pas cryptographiquement l'origine d'un contenu arbitraire sur un poste compromis.
 
@@ -626,7 +473,7 @@ sequenceDiagram
 
 ### DEVAI-042 — Prévisualisation et consentement au transfert
 
-**Origine :** PDF p. 3, 5 ; Conception. **Responsable :** extension / contexte.
+**Origine historique (PDF 1.0) :** PDF p. 3, 5 ; Conception. **Responsable :** extension / contexte.
 
 Avant un transfert de sources, l'interface DOIT montrer fichiers et extraits retenus, exclusions, mode de provenance, alias de modèle et estimation de taille. Le consentement de session est borné au projet et à la politique ; élargir les fichiers ou les destinations exige une nouvelle décision. Une demande de transfert interdite ne peut être autorisée par consentement utilisateur.
 
@@ -634,7 +481,7 @@ Avant un transfert de sources, l'interface DOIT montrer fichiers et extraits ret
 
 ### DEVAI-043 — Traçabilité des décisions de sécurité
 
-**Origine :** PDF p. 8–10 ; Conception. **Responsable :** audit.
+**Origine historique (PDF 1.0) :** PDF p. 8–10 ; Conception. **Responsable :** audit.
 
 Chaque autorisation ou refus sensible DOIT produire un événement corrélé contenant sujet pseudonymisé, projet, action, version et empreinte de politique, motif, instant UTC et résultat. Le contenu brut des sources, prompts utilisateur et tokens n'est pas journalisé par défaut. Les événements sont protégés contre modification par les rôles applicatifs ordinaires.
 
@@ -642,7 +489,7 @@ Chaque autorisation ou refus sensible DOIT produire un événement corrélé con
 
 ### DEVAI-044 — Validation et publication de gouvernance
 
-**Origine :** PDF p. 7–9 ; Conception. **Responsable :** CI gouvernance.
+**Origine historique (PDF 1.0) :** PDF p. 7–9 ; Conception. **Responsable :** CI gouvernance.
 
 La chaîne d'administration DOIT tester schémas, collisions de versions, droits, prompts, catalogues et signatures avant publication. Les clés privées de signature restent côté coffre/CI. Une politique d'exemple ne peut être chargée comme production sans configuration explicite du dépôt officiel. Les changements sont accompagnés d'un historique et d'une procédure de rollback à numéro de version croissant.
 
@@ -654,7 +501,7 @@ La chaîne d'administration DOIT tester schémas, collisions de versions, droits
 
 ### DEVAI-045 — Parcours de création
 
-**Origine :** PDF p. 4–5 ; Utilisateur. **Responsable :** starter / extension.
+**Origine historique (PDF 1.0) :** PDF p. 4–5 ; Utilisateur. **Responsable :** starter / extension.
 
 L'assistant DOIT proposer stack, variante, version autorisée, nom, coordonnées propres à la stack et destination. Il présente prérequis, origine du starter, options résolues, fichiers créés, commandes et éventuels accès réseau avant exécution. Il fonctionne sans IA. La création d'un dépôt distant est une action distincte explicitement choisie.
 
@@ -710,7 +557,7 @@ sequenceDiagram
 
 ### DEVAI-048 — Starter Java Spring Boot avec Maven
 
-**Origine :** PDF p. 5, 11 ; Utilisateur. **Responsable :** fournisseur Java.
+**Origine historique (PDF 1.0) :** PDF p. 5, 11 ; Utilisateur. **Responsable :** fournisseur Java.
 
 Le starter Java DOIT utiliser Spring Initializr, service public approuvé ou instance miroir, avec projet Maven, Java 21, coordonnées validées et version Spring Boot autorisée. Spring Initializr est le mécanisme standard retenu : il ne faut pas inventer un « archetype Maven officiel Spring Boot ». Un archétype Maven interne réel pourra être ajouté comme fournisseur organisationnel si ses coordonnées et sa provenance sont vérifiées. Les métadonnées d'Initializr sont consultées pour vérifier versions et dépendances. Références : [Spring Initializr](https://docs.spring.io/initializr/docs/current/reference/html/), [compatibilité Spring Boot](https://docs.spring.io/spring-boot/system-requirements.html).
 
@@ -720,7 +567,7 @@ La sortie DOIT contenir `pom.xml`, wrapper Maven, classe d'entrée documentée, 
 
 ### DEVAI-049 — Starter Angular standard
 
-**Origine :** PDF p. 5 ; Utilisateur. **Responsable :** fournisseur Angular.
+**Origine historique (PDF 1.0) :** PDF p. 5 ; Utilisateur. **Responsable :** fournisseur Angular.
 
 Le starter Angular DOIT utiliser une version fixée et autorisée de la CLI officielle `@angular/cli` et la commande `ng new`, avec options explicites et mode non interactif. Le manifeste fixe les compatibilités Node, TypeScript et Angular. Le générateur conserve tests, configuration de build, lockfile npm et README ; les choix routing, styles et architecture de composants sont exposés lorsqu'ils sont pris en charge. Les schematics organisationnels restent une surcharge ultérieure. Référence : [Angular CLI — ng new](https://angular.dev/cli/new).
 
@@ -728,7 +575,7 @@ Le starter Angular DOIT utiliser une version fixée et autorisée de la CLI offi
 
 ### DEVAI-050 — Starter Python conforme aux standards
 
-**Origine :** PDF p. 5 ; Utilisateur ; Conception. **Responsable :** fournisseur Python.
+**Origine historique (PDF 1.0) :** PDF p. 5 ; Utilisateur ; Conception. **Responsable :** fournisseur Python.
 
 Python n'ayant pas de générateur universel officiel équivalent à Initializr, ODS DOIT fournir un template minimal versionné conforme aux recommandations PyPA : `pyproject.toml`, package sous `src/`, tests, README et environnement virtuel isolé. Le backend de build, Python, outils de test et lint sont sélectionnés et verrouillés dans le catalogue. Le profil de base est un package Python ; un framework web reste une variante explicitement choisie. Référence : [Packaging Python Projects — PyPA](https://packaging.python.org/en/latest/tutorials/packaging-projects/).
 
@@ -738,7 +585,7 @@ Le profil initial utilise `venv`, `pip`, un backend standard tel que setuptools,
 
 ### DEVAI-051 — Maintien du starter .NET
 
-**Origine :** PDF p. 3, 5, 11 ; Conception. **Responsable :** fournisseur .NET.
+**Origine historique (PDF 1.0) :** PDF p. 3, 5, 11 ; Conception. **Responsable :** fournisseur .NET.
 
 Le starter .NET DOIT utiliser les templates présents dans un SDK autorisé, via `dotnet new`, notamment un profil ASP.NET Core et un projet de tests compatible. Le SDK est fixé dans `global.json` ; les sources NuGet et options de restauration sont gouvernées. Le format de solution généré suit le SDK qualifié sans supposer une extension unique. Référence : [dotnet new](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-new).
 
@@ -778,7 +625,7 @@ Un overlay DOIT déclarer sa version de base exacte, fichiers ajoutés ou rempla
 
 ### DEVAI-054 — Sources, archives et chaîne d'approvisionnement
 
-**Origine :** PDF p. 5, 7 ; Conception. **Responsable :** starter / sécurité.
+**Origine historique (PDF 1.0) :** PDF p. 5, 7 ; Conception. **Responsable :** starter / sécurité.
 
 Le téléchargement DOIT vérifier origine autorisée, signature de manifeste, empreinte d'archive, taille compressée et taille extraite. L'extraction refuse chemins absolus, `..`, liens sortants, collisions de casse et bombes de décompression. Un template Git est fixé par commit immuable. Les scripts fournis par le template sont inertes tant qu'ils ne figurent pas dans le plan autorisé.
 
@@ -802,7 +649,7 @@ Le projet DOIT être généré dans une zone temporaire contrôlée, vérifié p
 
 ### DEVAI-057 — Registres et dépendances
 
-**Origine :** PDF p. 5 ; Utilisateur ; Conception. **Responsable :** starter / configuration.
+**Origine historique (PDF 1.0) :** PDF p. 5 ; Utilisateur ; Conception. **Responsable :** starter / configuration.
 
 Les starters standards DOIVENT pouvoir utiliser les registres publics approuvés lorsque l'organisation n'a pas de miroir. La configuration organisationnelle peut imposer Maven, npm, PyPI ou NuGet internes sans secret embarqué. Les URLs sont des paramètres administrés ; les credentials sont fournis par environnement, coffre ou mécanisme utilisateur prévu. Un accès public n'est pas utilisé en secours si le miroir obligatoire est indisponible.
 
@@ -810,7 +657,7 @@ Les starters standards DOIVENT pouvoir utiliser les registres publics approuvés
 
 ### DEVAI-058 — Livrables de chaque starter
 
-**Origine :** PDF p. 5 ; Utilisateur. **Responsable :** starter.
+**Origine historique (PDF 1.0) :** PDF p. 5 ; Utilisateur. **Responsable :** starter.
 
 Chaque starter DOIT produire code minimal utile, tests, `.gitignore`, README, configuration de qualité et de sécurité, références de versions et pipeline adapté au fournisseur Git choisi. La CI GitLab est la valeur métier par défaut pour les projets ODS ; une variante GitHub explicitement configurée peut être fournie. La documentation donne les commandes réellement disponibles et les prérequis, sans chemins propres au poste.
 
@@ -818,7 +665,7 @@ Chaque starter DOIT produire code minimal utile, tests, `.gitignore`, README, co
 
 ### DEVAI-059 — Provenance et reproductibilité des starters
 
-**Origine :** PDF p. 5 ; Conception. **Responsable :** starter.
+**Origine historique (PDF 1.0) :** PDF p. 5 ; Conception. **Responsable :** starter.
 
 Chaque génération DOIT créer `.ods/starter-lock.json` contenant ID/version du starter, fournisseur/version, commit ou empreinte source, version du catalogue, overlays, options résolues et exigences de génération applicables. Ce fichier ne contient ni secret, ni chemin absolu, ni identité privée. Les archives récupérées d'un service de génération sont conservées par empreinte dans un cache autorisé pour permettre leur reproduction lorsque le service amont change.
 
@@ -854,7 +701,7 @@ La substitution des starters organisationnels DOIT s'appliquer aux nouvelles cr�
 
 ### DEVAI-063 — Conversation contextualisée
 
-**Origine :** PDF p. 5. **Responsable :** IA / extension.
+**Origine historique (PDF 1.0) :** PDF p. 5. **Responsable :** IA / extension.
 
 L'onglet IA DOIT permettre question, explication, génération, revue et refactoring sur un contexte autorisé. Il distingue requête en préparation, envoyée, réponse en cours, terminée, annulée et échouée. Le texte libre ne remplace pas le système organisationnel ; il peut être désactivé par la politique renforcée de contexte. L'absence d'autorisation affiche sa cause et empêche tous les envois.
 
@@ -882,17 +729,17 @@ sequenceDiagram
 
 ### DEVAI-064 — Modèle par alias administré
 
-**Origine :** PDF p. 5–6 ; Utilisateur. **Responsable :** gateway / connecteur IA.
+**Origine historique (PDF 1.0) :** PDF p. 5–6 ; Utilisateur. **Responsable :** gateway / connecteur IA.
 
 Le client DOIT demander un alias autorisé ou accepter celui de la politique. La gateway résout fournisseur, modèle exact, limites, paramètres et credentials. **La liste organisationnelle initiale des fournisseurs autorisés contient exclusivement `MISTRAL`, et seuls les modèles Mistral explicitement listés sont utilisables.** La disponibilité d'un modèle chez Mistral ne vaut pas autorisation automatique. L'utilisateur ne peut saisir un endpoint, une clé personnelle ou un modèle hors catalogue dans les fonctions administrées. Le connecteur Mistral utilise une API officielle qualifiée ; les fonctionnalités preview ne sont pas supposées stables. Référence : [API Chat Mistral](https://docs.mistral.ai/api/endpoint/chat).
 
-Le domaine DOIT définir un port de fournisseur IA indépendant de Mistral : capacités, génération/streaming, annulation si disponible et normalisation d'usage. V1 implémente le connecteur Mistral réel ; les autres fournisseurs ne sont ni installés par nécessité ni activés. Un ajout futur exige connecteur qualifié, secrets serveur, évaluation de confidentialité et activation dans un catalogue signé ainsi que dans les politiques concernées. Un nouveau connecteur peut nécessiter une nouvelle gateway, sans modifier les cinq vues ni le contrat de l'extension.
+Le domaine DOIT définir un port de fournisseur IA indépendant de Mistral : capacités, génération/streaming, annulation si disponible et normalisation d'usage. V1 implémente le connecteur Mistral réel ; les autres fournisseurs ne sont ni installés par nécessité ni activés. Un ajout futur exige connecteur qualifié, secrets administrés, évaluation de confidentialité et activation dans un catalogue signé ainsi que dans les politiques concernées. Un nouveau connecteur peut nécessiter une nouvelle gateway, sans modifier les cinq vues ni le contrat de l'extension.
 
 **Recette :** un modèle Mistral approuvé fonctionne ; un modèle Mistral non listé et tout fournisseur non Mistral sont refusés en configuration initiale, même via un appel direct. Changer d'alias Mistral approuvé conserve le contrat client et inscrit le modèle effectif dans l'audit. Un adaptateur factice de test démontre l'extensibilité sans être activable en production.
 
 ### DEVAI-065 — Construction bornée du contexte
 
-**Origine :** PDF p. 5, 9 ; Conception. **Responsable :** module contexte.
+**Origine historique (PDF 1.0) :** PDF p. 5, 9 ; Conception. **Responsable :** module contexte.
 
 Le moteur DOIT sélectionner fichier actif, sélection et fichiers explicitement pertinents, puis appliquer provenance, exclusions, déduplication et budget. Il réserve une capacité de sortie et priorise les extraits au lieu de tronquer silencieusement un fichier au milieu d'une information critique. Les limites initiales proposées sont 20 fichiers, 256 Kio par fichier et 2 Mio de contexte brut, abaissées si le modèle ou la politique l'exige. L'estimation de tokens indique son caractère estimatif.
 
@@ -900,7 +747,7 @@ Le moteur DOIT sélectionner fichier actif, sélection et fichiers explicitement
 
 ### DEVAI-066 — Gouvernance des prompts
 
-**Origine :** PDF p. 9. **Responsable :** prompts / gateway.
+**Origine historique (PDF 1.0) :** PDF p. 9. **Responsable :** prompts / gateway.
 
 Les prompts approuvés DOIVENT inclure ID, version, actions autorisées, variables typées, instructions système, contraintes, exigences cibles et empreinte signée. Les catégories initiales sont `code-generation`, `code-review`, `sonar-remediation`, `xray-remediation` et `gitlab-mr-description`. La gateway compose les instructions officielles ; elle n'accepte pas un message `system` arbitraire envoyé par le client.
 
@@ -910,7 +757,7 @@ Le catalogue de prompts de tâches est distinct du socle système obligatoire : 
 
 ### DEVAI-067 — Sessions et historique
 
-**Origine :** PDF p. 10 ; Conception. **Responsable :** IA / persistance.
+**Origine historique (PDF 1.0) :** PDF p. 10 ; Conception. **Responsable :** IA / persistance.
 
 Une session DOIT être liée au sujet et au projet, avec ID opaque, timestamps et métriques. Le contenu conversationnel est en mémoire par défaut ; sa persistance nécessite une politique explicite de conservation, contrôle d'accès et effacement. Restaurer un historique ne rétablit pas les anciennes permissions ni les anciens quotas.
 
@@ -918,7 +765,7 @@ Une session DOIT être liée au sujet et au projet, avec ID opaque, timestamps e
 
 ### DEVAI-068 — Diff exploitable et validation du patch
 
-**Origine :** PDF p. 5 ; Conception. **Responsable :** IA / moteur / extension.
+**Origine historique (PDF 1.0) :** PDF p. 5 ; Conception. **Responsable :** IA / moteur / extension.
 
 Les changements proposés DOIVENT être normalisés en patch portant chemin relatif, contenu de base ou empreinte de base, modifications et références d'exigences. Les chemins sortants, fichiers secrets, binaires non prévus et écritures dans les métadonnées Git sont refusés. Le diff est ouvert dans VS Code avec choix accepter, rejeter ou sélectionner les fichiers ; aucun Markdown du modèle n'est exécuté.
 
@@ -926,7 +773,7 @@ Les changements proposés DOIVENT être normalisés en patch portant chemin rela
 
 ### DEVAI-069 — Application sans perte de travail
 
-**Origine :** PDF p. 5 ; règles utilisateur ; Conception. **Responsable :** moteur / extension.
+**Origine historique (PDF 1.0) :** PDF p. 5 ; règles utilisateur ; Conception. **Responsable :** moteur / extension.
 
 Avant application, le moteur DOIT vérifier que les empreintes du workspace et des buffers correspondent à la base du patch. Un fichier modifié depuis la proposition déclenche un conflit. Le changement est appliqué via les mécanismes éditeur adaptés, avec sauvegarde récupérable du contenu préalable et conservation des buffers non enregistrés. Les règles de backup Git du dépôt sont respectées ; aucun reset destructif n'est utilisé pour « faciliter » l'application.
 
@@ -951,7 +798,7 @@ sequenceDiagram
 
 ### DEVAI-070 — Vérification après génération
 
-**Origine :** PDF p. 5 ; Utilisateur. **Responsable :** moteur / tests.
+**Origine historique (PDF 1.0) :** PDF p. 5 ; Utilisateur. **Responsable :** moteur / tests.
 
 Après un patch accepté, ODS DOIT proposer et, après autorisation correspondante, exécuter le build et les tests pertinents existants. La stratégie et les commandes proviennent du projet détecté, pas d'une supposition du modèle. L'échec laisse le diff accessible, conserve les logs filtrés et marque la proposition non validée ; aucune suppression de test n'est autorisée pour obtenir un statut vert.
 
@@ -959,7 +806,7 @@ Après un patch accepté, ODS DOIT proposer et, après autorisation correspondan
 
 ### DEVAI-071 — Registre des agents approuvés
 
-**Origine :** PDF p. 5, 9 ; Conception. **Responsable :** agents / gouvernance.
+**Origine historique (PDF 1.0) :** PDF p. 5, 9 ; Conception. **Responsable :** agents / gouvernance.
 
 Chaque agent DOIT être défini par un manifeste signé : ID/version, prompt, outils, actions IA, catégories de fichiers, commandes typées, destinations réseau, durée, nombre d'étapes et budget. Le droit `AGENT_RUN` seul ne donne accès qu'aux agents explicitement autorisés. Les limites initiales proposées sont 10 étapes et 10 minutes, réduites par la politique applicable.
 
@@ -967,7 +814,7 @@ Chaque agent DOIT être défini par un manifeste signé : ID/version, prompt, ou
 
 ### DEVAI-072 — Plan et consentement des agents
 
-**Origine :** PDF p. 9 ; Conception. **Responsable :** agents / extension.
+**Origine historique (PDF 1.0) :** PDF p. 9 ; Conception. **Responsable :** agents / extension.
 
 L'agent DOIT présenter un plan distinguant lecture, écriture, exécution, installation, accès réseau et Git distant. Chaque effet sensible est soumis à l'autorisation exacte applicable, avec projet, commande/arguments, fichiers et durée. Un nouveau plan qui élargit le périmètre invalide le consentement antérieur. L'utilisateur peut arrêter l'agent et voir les actions déjà réalisées.
 
@@ -992,7 +839,7 @@ sequenceDiagram
 
 ### DEVAI-073 — Exécuteur d'outils borné
 
-**Origine :** PDF p. 9, 12 ; Conception. **Responsable :** moteur / runners.
+**Origine historique (PDF 1.0) :** PDF p. 9, 12 ; Conception. **Responsable :** moteur / runners.
 
 L'exécuteur DOIT utiliser des arguments structurés, répertoire de travail vérifié, environnement filtré, timeout, limite de sortie et arrêt de l'arbre de processus. Les commandes autorisées sont des outils identifiés ; aucune commande shell libre du LLM n'est exécutée. Un build peut exécuter du code du projet : il nécessite un workspace approuvé et, pour les traitements centraux, un runner isolé sans credentials de déploiement et avec sorties réseau bornées. Une liste blanche de noms de commandes ne constitue pas à elle seule une sandbox.
 
@@ -1008,7 +855,7 @@ Chaque étape DOIT produire statut, artefacts, empreintes et effets réellement 
 
 ### DEVAI-075 — Mesures de consommation
 
-**Origine :** PDF p. 5, 10. **Responsable :** quotas / extension.
+**Origine historique (PDF 1.0) :** PDF p. 5, 10. **Responsable :** quotas / extension.
 
 La consommation DOIT distinguer tokens d'entrée, de sortie et total, par requête, session, utilisateur et projet, ainsi que période mensuelle UTC et solde. Les métriques retournées par le fournisseur priment sur l'estimation locale. Les coûts restent séparés, avec devise, modèle et date du tarif ; une estimation monétaire n'est pas une facture. Sans métriques définitives, le statut est `ESTIMATED` ou `PENDING_RECONCILIATION`.
 
@@ -1016,7 +863,7 @@ La consommation DOIT distinguer tokens d'entrée, de sortie et total, par requê
 
 ### DEVAI-076 — Réservation atomique des quotas
 
-**Origine :** PDF p. 6, 10 ; Conception. **Responsable :** gateway / PostgreSQL.
+**Origine historique (PDF 1.0) :** PDF p. 6, 10 ; Conception. **Responsable :** gateway / PostgreSQL.
 
 Avant tout appel, la gateway DOIT réserver atomiquement un budget conservateur d'entrée plus sortie maximale. Les plafonds projet et utilisateur applicables sont vérifiés dans la même transaction. Les appels concurrents ne peuvent dépasser le solde disponible. Après réponse, la réservation est réconciliée avec l'usage ; si le fournisseur rapporte plus que réservé, l'écart est audité et le solde peut devenir débiteur, bloquant de nouveaux appels. Une réservation interrompue n'est libérée qu'après résolution de l'incertitude.
 
@@ -1065,7 +912,7 @@ Les appels DOIVENT être limités par utilisateur, projet et fournisseur, indép
 
 ### DEVAI-080 — Pannes et indisponibilité IA
 
-**Origine :** PDF p. 12 ; Conception. **Responsable :** connecteur IA.
+**Origine historique (PDF 1.0) :** PDF p. 12 ; Conception. **Responsable :** connecteur IA.
 
 Les timeouts, erreurs fournisseur, interruptions et réponses malformées DOIVENT être normalisés et audités. Les retries sont bornés aux opérations sûres ; un coupe-circuit limite les appels à un service défaillant. Aucun repli vers un modèle ou fournisseur non autorisé n'est possible. Les fonctions non IA restent utilisables selon leurs propres dépendances.
 
@@ -1081,7 +928,7 @@ La génération DOIT demander du code compatible avec le projet et des commentai
 
 ### DEVAI-082 — Confidentialité et conservation chez le fournisseur
 
-**Origine :** PDF p. 5, 9, 13 ; Conception. **Responsable :** sécurité / exploitation.
+**Origine historique (PDF 1.0) :** PDF p. 5, 9, 13 ; Conception. **Responsable :** sécurité / exploitation.
 
 La configuration du fournisseur DOIT documenter catégories de données transférées, localisation autorisée, conditions de conservation et fonctions activées. La solution ne peut garantir par simple configuration locale qu'un fournisseur ne conserve rien : cette propriété doit être confirmée dans le service et son cadre organisationnel. Les données de projet ne servent pas à une mémoire interprojets ODS non autorisée.
 
@@ -1089,7 +936,7 @@ La configuration du fournisseur DOIT documenter catégories de données transfé
 
 ### DEVAI-083 — Exemples de consommation et contrôles de coût
 
-**Origine :** PDF p. 10 ; Conception. **Responsable :** quotas / UX.
+**Origine historique (PDF 1.0) :** PDF p. 10 ; Conception. **Responsable :** quotas / UX.
 
 L'interface DOIT expliquer l'unité et l'état des chiffres. Exemple fictif : 1 200 tokens d'entrée et 300 de sortie produisent 1 500 tokens, et non 1 500 unités monétaires. Un plafond mensuel de 100 000 et 42 500 tokens déjà débités laisse 57 500 avant réservations en cours. Les alertes de seuil sont administrables ; elles n'annulent pas rétroactivement une consommation déjà réalisée.
 
@@ -1101,41 +948,23 @@ L'interface DOIT expliquer l'unité et l'état des chiffres. Exemple fictif : 1 
 
 ### DEVAI-084 — Détection du projet à analyser
 
-**Origine :** PDF p. 5. **Responsable :** qualité / moteur.
+**Origine historique (PDF 1.0) :** PDF p. 5. **Responsable :** qualité / moteur.
 
 Le module DOIT détecter manifests, modules et stack pour choisir un profil Sonar compatible : scanner Maven pour Java Maven, scanner .NET pour .NET, scanner adapté pour Python et Angular. Un monorepo présente les unités analysables ; une stack ambiguë demande une sélection explicite. Une absence de scanner compatible n'est pas interprétée comme absence d'anomalies. Référence : [SonarScanner for Maven](https://docs.sonarsource.com/sonarqube-server/analyzing-source-code/scanners/sonarscanner-for-maven).
 
 **Recette :** les quatre projets de référence sélectionnent le bon profil et un projet inconnu est signalé comme non pris en charge.
 
-### DEVAI-085 — Exécution réelle du scanner
+### DEVAI-085 — Analyse Sonar des sources enregistrées
 
-**Origine :** PDF p. 5, 7–8, 11 ; Conception. **Responsable :** qualité / gateway / runner.
+**Origine :** évolution utilisateur du 29 octobre 2026.
 
-Une analyse DOIT réellement exécuter le scanner ; consulter la Web API Sonar ne remplace pas cette étape. Le mode V1 par défaut déclenche un runner organisationnel isolé sur un commit GitLab immuable lisible par l'utilisateur, avec token Sonar limité côté runner. Les sources non commitées sont explicitement hors du résultat de ce mode. Une variante locale n'est activable qu'après qualification d'un mécanisme d'identité éphémère limité, sans compte technique partagé livré au poste.
+Analyser lance un scanner réel sur les sources locales enregistrées, sans prérequis de commit ni de push. Maven, SonarScanner CLI et SonarScanner .NET sont choisis selon la stack. Seul le scanner Sonar reçoit son credential de service. Le résultat est associé au ceTaskId produit par cette exécution, à son analysisId et à l’empreinte locale. Le rapport est refusé si une autre analyse a remplacé les résultats du projet. Aucun ancien rapport n’est présenté comme une nouvelle analyse.
 
-```mermaid
-sequenceDiagram
-    participant E as Quality
-    participant G as Gateway
-    participant R as Runner isolé
-    participant S as SonarQube
-    E->>G: Analyser projet et commit
-    G->>G: Vérifier droits non IA et profil
-    G-->>E: 202 et jobId
-    G->>R: Job borné et commit immuable
-    R->>R: Checkout, build/tests selon profil, scanner
-    R->>S: Publier l'analyse avec identité limitée
-    S-->>R: Identifiant de tâche Sonar
-    R-->>G: Identifiant et logs filtrés
-    G->>S: Suivre la tâche puis lire le résultat
-    G-->>E: Rapport normalisé et Quality Gate
-```
-
-**Recette :** un scanner volontairement absent produit un échec de scan ; aucune réponse de l'API de lecture ne peut masquer cet échec.
+**Recette :** tests déterministes des parcours positifs, refus et erreurs ; preuves réelles consignées dans `docs/VALIDATION.md`.
 
 ### DEVAI-086 — Paramètres de scan gouvernés
 
-**Origine :** PDF p. 5 ; Conception. **Responsable :** qualité / configuration.
+**Origine historique (PDF 1.0) :** PDF p. 5 ; Conception. **Responsable :** qualité / configuration.
 
 Le mapping projet GitLab vers clé Sonar, organisation, branche et profil DOIT être administré ou résolu de façon validée. L'utilisateur peut choisir des options exposées par le profil, pas injecter une URL, token, exclusion de sécurité ou arguments libres. Les scanners et plugins sont versionnés ; les analyses de branches/MR suivent les capacités et licences réellement disponibles.
 
@@ -1143,7 +972,7 @@ Le mapping projet GitLab vers clé Sonar, organisation, branche et profil DOIT �
 
 ### DEVAI-087 — Suivi asynchrone Sonar
 
-**Origine :** PDF p. 11 ; Conception. **Responsable :** qualité / jobs.
+**Origine historique (PDF 1.0) :** PDF p. 11 ; Conception. **Responsable :** qualité / jobs.
 
 Le scan DOIT exposer ID ODS, ID de tâche fournisseur, statut, progression disponible, timestamps, commit et erreurs. La gateway attend la fin du traitement Sonar avec polling borné ou événement validé. Fin du processus scanner ne signifie pas fin de calcul du serveur. Une annulation impossible côté fournisseur est annoncée comme telle.
 
@@ -1151,7 +980,7 @@ Le scan DOIT exposer ID ODS, ID de tâche fournisseur, statut, progression dispo
 
 ### DEVAI-088 — Rapport de qualité normalisé
 
-**Origine :** PDF p. 5. **Responsable :** qualité / extension.
+**Origine historique (PDF 1.0) :** PDF p. 5. **Responsable :** qualité / extension.
 
 Le rapport DOIT afficher identifiant, règle, message, type, sévérité d'origine et normalisée, fichier relatif, ligne si disponible, statut et lien validé vers Sonar. Les résultats sont paginés et filtrables. Une absence de ligne ou un fichier supprimé est traitée explicitement ; les données fournisseur ne sont pas interprétées comme HTML fiable.
 
@@ -1159,7 +988,7 @@ Le rapport DOIT afficher identifiant, règle, message, type, sévérité d'origi
 
 ### DEVAI-089 — Quality Gate et fraîcheur
 
-**Origine :** PDF p. 5 ; Conception. **Responsable :** qualité.
+**Origine historique (PDF 1.0) :** PDF p. 5 ; Conception. **Responsable :** qualité.
 
 L'écran DOIT distinguer succès technique du scan, état du Quality Gate et obsolescence du rapport. Le Quality Gate est `PASSED`, `FAILED` ou `UNKNOWN`, selon les données effectives. Si le commit ou l'état local diffère de la cible analysée, le rapport est marqué obsolète ou partiel pour le workspace ; un rapport ancien ne valide pas de nouvelles modifications.
 
@@ -1167,7 +996,7 @@ L'écran DOIT distinguer succès technique du scan, état du Quality Gate et obs
 
 ### DEVAI-090 — Sélection de remédiation Sonar
 
-**Origine :** PDF p. 5. **Responsable :** qualité / IA.
+**Origine historique (PDF 1.0) :** PDF p. 5. **Responsable :** qualité / IA.
 
 L'utilisateur DOIT pouvoir choisir les issues à corriger, voir le code ciblé et le prompt approuvé. La gateway exige `SONAR_REMEDIATION`, des droits sur le rapport et la conformité du contexte. Le rapport fournisseur est une donnée non fiable ; aucun fichier non nécessaire n'est ajouté automatiquement.
 
@@ -1175,7 +1004,7 @@ L'utilisateur DOIT pouvoir choisir les issues à corriger, voir le code ciblé e
 
 ### DEVAI-091 — Boucle de correction Sonar
 
-**Origine :** PDF p. 5 ; Conception. **Responsable :** qualité / moteur.
+**Origine historique (PDF 1.0) :** PDF p. 5 ; Conception. **Responsable :** qualité / moteur.
 
 La remédiation DOIT produire un diff, obtenir l'acceptation, exécuter les validations autorisées puis lancer une nouvelle analyse sur la révision corrigée. En mode runner distant, les modifications doivent d'abord être commitées et rendues accessibles à GitLab avec autorisation du développeur ; ODS ne push pas implicitement pour rescan. Les issues ne sont marquées résolues qu'après nouveau résultat correspondant.
 
@@ -1201,23 +1030,23 @@ sequenceDiagram
 
 ### DEVAI-092 — Non-régression de qualité
 
-**Origine :** PDF p. 5 ; Conception. **Responsable :** qualité / tests.
+**Origine historique (PDF 1.0) :** PDF p. 5 ; Conception. **Responsable :** qualité / tests.
 
 La comparaison DOIT montrer issues ciblées résolues, persistantes, nouvelles et statut du gate. Elle conserve les identifiants fournisseur et les commits comparés. Une baisse du nombre d'issues due à l'exclusion d'un répertoire ou à une modification du profil qualité n'est pas automatiquement une correction du code.
 
 **Recette :** une modification d'exclusions est signalée séparément et ne satisfait pas le critère de remédiation d'une issue.
 
-### DEVAI-093 — Erreurs Sonar et permissions
+### DEVAI-093 — Validation après correction qualité
 
-**Origine :** PDF p. 5 ; Conception. **Responsable :** connecteur Sonar.
+**Origine :** évolution utilisateur du 29 octobre 2026.
 
-Token expiré, projet absent, accès interdit, scanner en échec, traitement serveur en échec et délai dépassé DOIVENT être distingués. Les retries concernent seulement les lectures et opérations explicitement idempotentes. Une erreur conserve le dernier rapport connu avec sa date, sans le présenter comme nouveau scan réussi.
+Après acceptation du diff, le développeur autorise les builds et tests utiles puis une nouvelle analyse locale. Un commit ou push n’est pas requis. Aucune issue n’est annoncée corrigée sans résultat d’un nouveau scan sur les sources modifiées.
 
-**Recette :** un serveur indisponible affiche une erreur et un rapport précédent clairement daté, sans perte de traçabilité.
+**Recette :** tests déterministes des parcours positifs, refus et erreurs ; preuves réelles consignées dans `docs/VALIDATION.md`.
 
 ### DEVAI-094 — Qualification Sonar multistack
 
-**Origine :** PDF p. 12. **Responsable :** QA / intégration.
+**Origine historique (PDF 1.0) :** PDF p. 12. **Responsable :** QA / intégration.
 
 La recette DOIT couvrir au moins un projet de chaque stack avec anomalies connues, processus scanner, fin de tâche, pagination, gate et droits. Des tests contractuels sur doubles sont requis en CI ; l'intégration contre l'instance de qualification est distincte et indispensable pour déclarer le connecteur validé dans l'organisation.
 
@@ -1229,43 +1058,23 @@ La recette DOIT couvrir au moins un projet de chaque stack avec anomalies connue
 
 ### DEVAI-095 — Inventaire des dépendances
 
-**Origine :** PDF p. 5. **Responsable :** sécurité applicative / moteur.
+**Origine historique (PDF 1.0) :** PDF p. 5. **Responsable :** sécurité applicative / moteur.
 
 Le module DOIT identifier dépendances directes et transitives, coordonnées, versions résolues, portée et chaînes de dépendance. Les fichiers de verrouillage et métadonnées de build sont utilisés lorsqu'ils existent. Une version déclarée différente de la version résolue est signalée. Les dépendances de développement sont distinguées sans être automatiquement ignorées.
 
 **Recette :** une vulnérabilité transitive montre le chemin depuis la dépendance directe responsable.
 
-### DEVAI-096 — Modes d'analyse Xray
+### DEVAI-096 — SBOM local et Graph Scan Xray
 
-**Origine :** PDF p. 5, 11 ; Conception. **Responsable :** Xray / gateway / runner.
+**Origine :** évolution utilisateur du 29 octobre 2026.
 
-ODS DOIT permettre la consultation d'un rapport d'un build publié identifié, et l'audit à la demande via une capacité JFrog réellement disponible. Le mode V1 déclenche un runner isolé au commit demandé ; les identités JFrog restent serveur. L'analyse peut utiliser `jf audit` avec le mode qualifié pour Maven, npm, pip ou NuGet ; les flags exacts sont vérifiés sur la version installée. Référence : [JFrog — Scan Your Source Code](https://docs.jfrog.com/security/docs/scan-your-source-code).
+Security génère et exporte un document CycloneDX pour Java, Angular, Python et .NET. Générer rapport Xray utilise le Graph Scan API du projet scan-sbom-xray : POST /xray/api/v1/scan/graph avec watch et scan_type=dependency, puis GET /{scan_id} avec include_vulnerabilities et include_licenses. Le watch, l’URL et l’authentification BASIC ou TOKEN proviennent du build. Aucun commit n’est requis. Voir DEVAI-172 et DEVAI-173.
 
-```mermaid
-sequenceDiagram
-    participant E as Application Security
-    participant G as Gateway
-    participant R as Runner
-    participant X as JFrog Xray
-    E->>G: Rapport de build ou audit d'un commit
-    G->>G: Vérifier droits, build et profil
-    G-->>E: jobId asynchrone
-    alt Rapport publié
-      G->>X: Lire le rapport du build identifié
-    else Audit demandé
-      G->>R: Résoudre dépendances dans l'environnement isolé
-      R->>X: Audit pris en charge
-      X-->>R: Résultat fournisseur
-      R-->>G: Résultat et provenance
-    end
-    G-->>E: Rapport normalisé et fraîcheur
-```
-
-**Recette :** la vue indique clairement l'origine du résultat ; un rapport de build ancien n'est pas assimilé à un audit de l'état local courant.
+**Recette :** tests déterministes des parcours positifs, refus et erreurs ; preuves réelles consignées dans `docs/VALIDATION.md`.
 
 ### DEVAI-097 — Résultats de vulnérabilités
 
-**Origine :** PDF p. 5. **Responsable :** Xray / extension.
+**Origine historique (PDF 1.0) :** PDF p. 5. **Responsable :** Xray / extension.
 
 Le rapport DOIT présenter identifiant fournisseur, CVE quand disponible, sévérité, score et version de score si fournis, composant/version, chemin transitif, état et versions corrigées annoncées. Les licences et violations de politiques sont montrées si l'instance les fournit, sans les confondre avec une CVE. Une donnée absente n'est pas inventée.
 
@@ -1273,7 +1082,7 @@ Le rapport DOIT présenter identifiant fournisseur, CVE quand disponible, sévé
 
 ### DEVAI-098 — Remédiation Xray autorisée
 
-**Origine :** PDF p. 5–6. **Responsable :** Xray / IA.
+**Origine historique (PDF 1.0) :** PDF p. 5–6. **Responsable :** Xray / IA.
 
 La demande de correction DOIT exiger `XRAY_REMEDIATION` et limiter le contexte aux findings et manifestes nécessaires : `pom.xml`, `pyproject.toml`/requirements, projet .NET, `package.json` et locks pertinents. Les données fournisseur ne peuvent remplacer les contraintes de versions organisationnelles ni la validation métier.
 
@@ -1281,7 +1090,7 @@ La demande de correction DOIT exiger `XRAY_REMEDIATION` et limiter le contexte a
 
 ### DEVAI-099 — Sélection de versions compatibles
 
-**Origine :** PDF p. 5 ; Conception. **Responsable :** dépendances / Xray.
+**Origine historique (PDF 1.0) :** PDF p. 5 ; Conception. **Responsable :** dépendances / Xray.
 
 Une version proposée DOIT être disponible dans le registre autorisé, compatible avec runtime et contraintes déclarées, et autorisée par le catalogue. Une montée majeure nécessite une explication des incompatibilités et une décision explicite. L'absence de correction connue produit une recommandation de mitigation documentée, pas une version inventée. La mise à jour générale ou `--force` n'est pas une stratégie par défaut.
 
@@ -1289,7 +1098,7 @@ Une version proposée DOIT être disponible dans le registre autorisé, compatib
 
 ### DEVAI-100 — Mise à jour cohérente des manifestes et locks
 
-**Origine :** PDF p. 5 ; Conception. **Responsable :** remédiation / moteur.
+**Origine historique (PDF 1.0) :** PDF p. 5 ; Conception. **Responsable :** remédiation / moteur.
 
 Le patch DOIT mettre à jour les déclarations nécessaires et régénérer les fichiers de verrouillage avec les outils du projet après approbation. Les locks ne sont pas inventés par le LLM ni édités partiellement sans résolution réelle. Le diff expose changements directs et transitifs afin que l'utilisateur mesure la portée.
 
@@ -1297,7 +1106,7 @@ Le patch DOIT mettre à jour les déclarations nécessaires et régénérer les 
 
 ### DEVAI-101 — Validation de correction sécurité
 
-**Origine :** PDF p. 5 ; Conception. **Responsable :** Xray / tests.
+**Origine historique (PDF 1.0) :** PDF p. 5 ; Conception. **Responsable :** Xray / tests.
 
 Après acceptation du patch, le système DOIT lancer build, tests et nouvel audit autorisés, puis comparer les résultats sur les versions réellement résolues. Les contraintes de commit/push du mode runner s'appliquent comme pour Sonar. Une compilation réussie ne prouve pas la disparition d'une vulnérabilité ; seul le nouveau rapport apporte cette preuve dans le périmètre de l'outil.
 
@@ -1321,23 +1130,23 @@ sequenceDiagram
 
 ### DEVAI-102 — Fraîcheur et correspondance des rapports
 
-**Origine :** PDF p. 5 ; Conception. **Responsable :** Xray / persistance.
+**Origine historique (PDF 1.0) :** PDF p. 5 ; Conception. **Responsable :** Xray / persistance.
 
 Un rapport DOIT être rattaché à son commit ou build, ses empreintes de manifestes/locks, sa date et sa configuration d'analyse. Une analyse partielle ou un échec de résolution est visible. Un rapport sans dépendances résolues ne vaut pas résultat « aucune vulnérabilité ».
 
 **Recette :** changer un lockfile rend le rapport précédent obsolète et un échec réseau lors de la résolution ne produit pas un état vert.
 
-### DEVAI-103 — Exemptions et décisions de risque
+### DEVAI-103 — Validation après correction sécurité
 
-**Origine :** Conception. **Responsable :** sécurité / Xray.
+**Origine :** évolution utilisateur du 29 octobre 2026.
 
-ODS DOIT afficher les exceptions de sécurité fournies par la politique ou l'outil avec raison, auteur autorisé et expiration, lorsqu'elles sont accessibles. Un développeur ou un agent ne peut supprimer silencieusement une vulnérabilité de l'affichage pour valider le projet. Une demande d'exception suit le processus organisationnel ; sa création automatique est hors périmètre V1.
+Après application du diff, exécuter build et tests autorisés, régénérer le SBOM local, puis lancer un nouveau Graph Scan. Une compilation réussie ne prouve pas la disparition d’une CVE. L’empreinte des sources et les versions résolues relient chaque résultat aux entrées analysées.
 
-**Recette :** une exception expirée redevient visible comme non couverte et reste traçable.
+**Recette :** tests déterministes des parcours positifs, refus et erreurs ; preuves réelles consignées dans `docs/VALIDATION.md`.
 
 ### DEVAI-104 — Capacités et erreurs JFrog
 
-**Origine :** PDF p. 5, 13 ; Conception. **Responsable :** connecteur JFrog.
+**Origine historique (PDF 1.0) :** PDF p. 5, 13 ; Conception. **Responsable :** connecteur JFrog.
 
 Le connecteur DOIT qualifier les capacités de l'instance et distinguer outil absent, licence insuffisante, écosystème non pris en charge, accès refusé et scan échoué. L'API exacte est encapsulée par version ; aucune route proposée dans ce document n'est présentée comme route native universelle de Xray.
 
@@ -1345,7 +1154,7 @@ Le connecteur DOIT qualifier les capacités de l'instance et distinguer outil ab
 
 ### DEVAI-105 — Qualification Xray multistack
 
-**Origine :** PDF p. 12. **Responsable :** QA / intégration.
+**Origine historique (PDF 1.0) :** PDF p. 12. **Responsable :** QA / intégration.
 
 La recette DOIT couvrir Java Maven, Python, .NET et Angular avec dépendances directes/transitives, résolution, vulnérabilités connues, absence de correction et registre indisponible. Les contrats utilisent des fixtures sans secrets ; l'intégration réelle indique version CLI, version serveur, capacités et preuve d'audit.
 
@@ -1357,7 +1166,7 @@ La recette DOIT couvrir Java Maven, Python, .NET et Angular avec dépendances di
 
 ### DEVAI-106 — Diagnostic Git préalable
 
-**Origine :** PDF p. 6 ; règles utilisateur. **Responsable :** GitFlow.
+**Origine historique (PDF 1.0) :** PDF p. 6 ; règles utilisateur. **Responsable :** GitFlow.
 
 Avant toute mutation Git, le moteur DOIT lire dépôt réel, branche, état des fichiers, remotes, upstream, opérations en cours et éventuel HEAD détaché. Plusieurs remotes nécessitent une cible déterminée sans ambiguïté. Un dépôt absent active le parcours d'initialisation au lieu d'inventer une branche ou un remote.
 
@@ -1365,7 +1174,7 @@ Avant toute mutation Git, le moteur DOIT lire dépôt réel, branche, état des 
 
 ### DEVAI-107 — Clone, fetch et pull guidés
 
-**Origine :** PDF p. 6 ; Conception. **Responsable :** GitFlow.
+**Origine historique (PDF 1.0) :** PDF p. 6 ; Conception. **Responsable :** GitFlow.
 
 ODS DOIT proposer clone, fetch et pull avec identité utilisateur, affichage de la destination/remote et stratégie de pull définie par le dépôt. Le clonage refuse une destination occupée. Avant pull, les modifications locales sont préservées ; aucune stratégie merge/rebase, acceptation de clé SSH ou désactivation TLS n'est choisie silencieusement.
 
@@ -1373,7 +1182,7 @@ ODS DOIT proposer clone, fetch et pull avec identité utilisateur, affichage de 
 
 ### DEVAI-108 — Branches et protections
 
-**Origine :** PDF p. 6 ; règles utilisateur. **Responsable :** GitFlow.
+**Origine historique (PDF 1.0) :** PDF p. 6 ; règles utilisateur. **Responsable :** GitFlow.
 
 Le produit DOIT appliquer les conventions administrées : `main` stable, `develop` courant, préfixes `feat/`, `fix/`, `chore/`, `docs/` lorsque ce GitFlow est retenu. Les protections réelles GitLab restent prioritaires. La création et la bascule vérifient base, collision et modifications non sauvegardées ; un projet suivant une autre convention validée n'est pas converti automatiquement.
 
@@ -1389,7 +1198,7 @@ Avant une modification de code régie par les règles du dépôt, ODS DOIT prés
 
 ### DEVAI-110 — Staging et commit explicites
 
-**Origine :** PDF p. 6 ; règles utilisateur. **Responsable :** GitFlow.
+**Origine historique (PDF 1.0) :** PDF p. 6 ; règles utilisateur. **Responsable :** GitFlow.
 
 La vue DOIT montrer fichiers, diff, éléments staged et contrôles de secrets avant commit. Le développeur choisit le périmètre ; un agent ne fait pas `add -A` sans analyse. Le message respecte les conventions du projet. L'identité Git reste celle configurée et autorisée ; aucune identité privée n'est inventée ou remplacée globalement.
 
@@ -1397,7 +1206,7 @@ La vue DOIT montrer fichiers, diff, éléments staged et contrôles de secrets a
 
 ### DEVAI-111 — Push contrôlé
 
-**Origine :** PDF p. 6 ; Conception. **Responsable :** GitFlow.
+**Origine historique (PDF 1.0) :** PDF p. 6 ; Conception. **Responsable :** GitFlow.
 
 Avant push, ODS DOIT afficher remote, branche, commits et état des validations, vérifier les secrets et protections, puis utiliser les droits du développeur. Aucun force push n'est effectué par défaut. Un rejet distant reste un rejet ; la solution ne contourne ni protection ni divergence par écrasement.
 
@@ -1405,7 +1214,7 @@ Avant push, ODS DOIT afficher remote, branche, commits et état des validations,
 
 ### DEVAI-112 — Création de merge request
 
-**Origine :** PDF p. 6, 10. **Responsable :** GitFlow / gateway.
+**Origine historique (PDF 1.0) :** PDF p. 6, 10. **Responsable :** GitFlow / gateway.
 
 L'utilisateur DOIT pouvoir préparer source, cible, titre, description, tickets et reviewers selon les droits disponibles, prévisualiser puis créer une MR via son identité GitLab. Une clé d'idempotence et une recherche de MR existante évitent les doublons ; un timeout n'entraîne pas une seconde création aveugle. Référence : [GitLab Merge Requests API](https://docs.gitlab.com/api/merge_requests/).
 
@@ -1433,7 +1242,7 @@ sequenceDiagram
 
 ### DEVAI-113 — Description de MR assistée par IA
 
-**Origine :** PDF p. 6. **Responsable :** GitFlow / IA.
+**Origine historique (PDF 1.0) :** PDF p. 6. **Responsable :** GitFlow / IA.
 
 La génération DOIT exiger `MR_DESCRIPTION`, un diff borné et filtré, commits, résultats de tests réellement disponibles et rapports pertinents. La sortie propose titre, résumé, impacts, tests, tickets et points de revue, sans inventer de ticket ou test réussi. Le développeur peut modifier le texte avant publication ; la génération ne crée pas la MR.
 
@@ -1449,7 +1258,7 @@ Les conflits DOIVENT être présentés dans les outils éditeur natifs et néces
 
 ### DEVAI-115 — Suivi CI et merge protégé
 
-**Origine :** PDF p. 6 ; règles utilisateur. **Responsable :** GitFlow / intégration.
+**Origine historique (PDF 1.0) :** PDF p. 6 ; règles utilisateur. **Responsable :** GitFlow / intégration.
 
 ODS DOIT afficher l'état CI et les protections associés au commit exact de la MR. Une validation d'un ancien commit ne valide pas le dernier push. Le merge reste soumis aux approbations GitLab et aux règles du dépôt ; une éventuelle commande de merge explicite n'est activée qu'après contrôles et consentement, sans identité de service privilégiée.
 
@@ -1457,7 +1266,7 @@ ODS DOIT afficher l'état CI et les protections associés au commit exact de la 
 
 ### DEVAI-116 — Traçabilité Git et indépendance de l'IA
 
-**Origine :** PDF p. 6 ; Conception. **Responsable :** GitFlow / audit.
+**Origine historique (PDF 1.0) :** PDF p. 6 ; Conception. **Responsable :** GitFlow / audit.
 
 Les opérations Git DOIVENT journaliser type, projet, branche, commit avant/après lorsque pertinent, identité logique et résultat sans credentials ni contenu complet de diff. GitFlow doit rester exploitable sans IA et sans serveur IA ; les actions Git locales peuvent fonctionner si la gateway est indisponible, sous réserve des règles locales et des droits Git distants.
 
@@ -1469,7 +1278,7 @@ Les opérations Git DOIVENT journaliser type, projet, branche, commit avant/apr�
 
 ### DEVAI-117 — Contrat REST interne versionné
 
-**Origine :** PDF p. 10–11 ; Conception. **Responsable :** API gateway.
+**Origine historique (PDF 1.0) :** PDF p. 10–11 ; Conception. **Responsable :** API gateway.
 
 La gateway DOIT publier un contrat OpenAPI versionné sous `/api/v1`, avec schémas, authentification, droits, exemples, pagination, erreurs et statuts asynchrones. Chaque route vérifie l'accès aux objets référencés ; un UUID opaque n'est pas une autorisation. Les routes ci-dessous sont des **contrats ODS à développer**, distincts des API natives GitLab, Sonar, JFrog et Mistral. Les extensions incompatibles nécessitent une nouvelle version majeure de contrat.
 
@@ -1485,7 +1294,7 @@ Les erreurs DOIVENT contenir `code`, message sûr, `correlationId`, caractère r
 
 ### DEVAI-119 — Modèle de jobs persistants
 
-**Origine :** PDF p. 11 ; Conception. **Responsable :** jobs / PostgreSQL.
+**Origine historique (PDF 1.0) :** PDF p. 11 ; Conception. **Responsable :** jobs / PostgreSQL.
 
 Les scans, agents et remédiations longues DOIVENT retourner rapidement `202 Accepted` avec `jobId` et URL de suivi. États : `QUEUED`, `RUNNING`, `WAITING_APPROVAL`, `CANCEL_REQUESTED`, puis `SUCCEEDED`, `FAILED`, `CANCELLED` ou `TIMED_OUT`. Les transitions sont validées et persistées. `SUCCEEDED` décrit l'exécution du job, pas nécessairement un Quality Gate réussi ou l'absence de vulnérabilité.
 
@@ -1512,7 +1321,7 @@ stateDiagram-v2
 sequenceDiagram
     participant C as Client
     participant G as Gateway
-    participant DB as PostgreSQL
+    participant DB as Stockage transactionnel
     participant W as Worker
     C->>G: Créer un scan
     G->>DB: Insérer job et événement dans une transaction
@@ -1536,14 +1345,14 @@ Les workers DOIVENT acquérir les jobs avec un bail et un mécanisme empêchant 
 
 ### DEVAI-121 — Modèle de données central
 
-**Origine :** PDF p. 4, 10–11 ; Conception. **Responsable :** persistance.
+**Origine historique (PDF 1.0) :** PDF p. 4, 10–11 ; Conception. **Responsable :** persistance.
 
-PostgreSQL DOIT conserver projets référencés, sujets pseudonymisés, snapshots de gouvernance, versions anti-rejeu, jobs, événements, références de rapports, sessions de métadonnées, réservations et consommations, idempotence et audit. Les relations portent systématiquement le périmètre instance/projet. Les données longues de rapport peuvent utiliser un stockage objet administré si nécessaire ; aucun stockage objet n'est supposé déjà disponible.
+Le stockage local H2 (ou PostgreSQL pour un serveur séparé) DOIT conserver projets référencés, sujets pseudonymisés, snapshots de gouvernance, versions anti-rejeu, jobs, événements, références de rapports, sessions de métadonnées, réservations et consommations, idempotence et audit. Les relations portent systématiquement le périmètre instance/projet. Les données longues de rapport peuvent utiliser un stockage objet administré si nécessaire ; aucun stockage objet n'est supposé déjà disponible.
 
 ```mermaid
 sequenceDiagram
     participant API as Service métier
-    participant DB as PostgreSQL
+    participant DB as Stockage transactionnel
     participant AUD as Lecture audit
     API->>DB: Transaction job, quota et événement associé
     DB-->>API: Commit ou rollback cohérent
@@ -1563,7 +1372,7 @@ Les changements de schéma DOIVENT être des migrations versionnées exécutées
 
 ### DEVAI-123 — Rétention et suppression
 
-**Origine :** PDF p. 10 ; Conception. **Responsable :** données / exploitation.
+**Origine historique (PDF 1.0) :** PDF p. 10 ; Conception. **Responsable :** données / exploitation.
 
 Les catégories de données DOIVENT avoir une rétention administrée : proposition initiale de 90 jours pour audit et registre d'usage, 30 jours pour jobs/rapports, aucune conservation centrale des textes de chat par défaut. Une politique organisationnelle plus adaptée peut les remplacer. La suppression respecte les obligations applicables, les références comptables et les sauvegardes ; les versions anti-rejeu ne sont pas purgées comme un simple log.
 
@@ -1571,7 +1380,7 @@ Les catégories de données DOIVENT avoir une rétention administrée : proposit
 
 ### DEVAI-124 — Journaux, métriques et traces
 
-**Origine :** PDF p. 8–10 ; Conception. **Responsable :** observabilité.
+**Origine historique (PDF 1.0) :** PDF p. 8–10 ; Conception. **Responsable :** observabilité.
 
 Les composants DOIVENT produire logs structurés filtrés et corrélés, métriques de latence/erreur, files de jobs, refus de politique, état des dépendances et consommation. Les métriques n'utilisent pas un chemin de fichier ou un prompt comme label. Les endpoints d'administration sont protégés et ne sont pas exposés par défaut au poste. L'audit de sécurité est distinct du log de diagnostic échantillonné.
 
@@ -1579,9 +1388,9 @@ Les composants DOIVENT produire logs structurés filtrés et corrélés, métriq
 
 ### DEVAI-125 — Résilience des dépendances
 
-**Origine :** PDF p. 7, 12 ; Conception. **Responsable :** gateway.
+**Origine historique (PDF 1.0) :** PDF p. 7, 12 ; Conception. **Responsable :** gateway.
 
-Chaque connecteur DOIT définir timeouts de connexion et réponse, retry borné avec délai variable, coupe-circuit et limite de concurrence. Un retry n'est autorisé que s'il ne duplique pas un effet ou une facturation. L'indisponibilité de PostgreSQL empêche les opérations exigeant quota/audit transactionnel ; aucune consommation IA non suivie n'est autorisée en mode dégradé.
+Chaque connecteur DOIT définir timeouts de connexion et réponse, retry borné avec délai variable, coupe-circuit et limite de concurrence. Un retry n'est autorisé que s'il ne duplique pas un effet ou une facturation. L'indisponibilité du stockage transactionnel empêche les opérations exigeant quota/audit transactionnel ; aucune consommation IA non suivie n'est autorisée en mode dégradé.
 
 **Recette :** perte de base bloque les nouveaux appels IA et un service tiers lent ne bloque pas tous les threads de la gateway.
 
@@ -1589,42 +1398,21 @@ Chaque connecteur DOIT définir timeouts de connexion et réponse, retry borné 
 
 **Origine :** Conception. **Responsable :** performance / QA.
 
-La qualification DOIT mesurer les cibles suivantes sur un poste de référence 4 cœurs / 8 Gio et une gateway 4 vCPU / 8 Gio avec PostgreSQL dimensionné, 100 sessions connectées et 20 jobs simultanés : UI utilisable en moins de 2 s au p95 hors démarrage Java ; moteur prêt en moins de 5 s au p95 ; capacités en cache en moins de 500 ms au p95 ; acceptation de job en moins de 1 s au p95. Les temps LLM/scanner sont affichés séparément et ne sont pas garantis par ces cibles. La volumétrie de référence doit être consignée avec le résultat.
+La qualification du mode autonome DOIT mesurer les cibles suivantes sur un poste de référence 4 cœurs / 8 Gio, un workspace et un job actif : UI utilisable en moins de 2 s au p95 hors démarrage Java ; moteur prêt en moins de 5 s au p95 ; capacités en cache en moins de 500 ms au p95 ; acceptation de job en moins de 1 s au p95. Les temps LLM/scanner sont affichés séparément et ne sont pas garantis par ces cibles. La volumétrie de référence doit être consignée avec le résultat.
 
 **Recette :** un rapport de charge reproductible mesure p50/p95, mémoire et erreurs ; les écarts sont exposés, sans annoncer ces objectifs comme performances déjà obtenues.
 
-### DEVAI-127 — Configuration et profils
+### DEVAI-127 — Configuration organisationnelle compilée
 
-**Origine :** PDF p. 7, 10–11 ; Conception. **Responsable :** configuration.
+**Origine :** évolution utilisateur du 29 octobre 2026.
 
-Le système DOIT séparer profils développement, test, qualification et production. Les paramètres serveur validés incluent destinations, IdP, stockage, coffre, catalogues, limites et politiques de conservation. Le profil production refuse placeholders obligatoires, clés de test et connecteurs simulés. Les réglages utilisateur sont limités à l'ergonomie et aux options réellement déléguées.
+Le profil JSON et ses fichiers env constituent les entrées administrateur au packaging. L’organisation choisit les URL, transports, credentials de service et mappings de projets. Les références explicites ${VARIABLE} sont résolues au build. Aucun éditeur de ces paramètres n’est fourni au développeur dans le VSIX. Les prérequis locaux Java/Python/scanners restent documentés et les exemples demeurent dépourvus de secrets réels.
 
-**Recette :** une gateway production configurée avec un modèle non Mistral dans la politique initiale ou une clé de signature de démonstration refuse les opérations concernées et fournit un diagnostic sûr.
-
-**Précision utilisateur 1.2 :** fournir `script.bat <profil-organisation.json>` et son schéma. Le profil regroupe identité et nom affiché du plugin, URL publique de gateway, fichiers de variables et configurations serveur. La reconstruction valide les entrées, applique les surcharges dans un staging isolé et livre la configuration séparée du VSIX. Les URL réelles pourront être introduites ultérieurement ; les mocks restent limités aux tests.
-
-```mermaid
-sequenceDiagram
-    actor Admin as Administrateur
-    participant CLI as script.bat
-    participant V as Validation du profil
-    participant B as Maven et tests
-    participant S as Staging VSIX
-    participant D as suiteInstall
-    Admin->>CLI: profil organisation JSON
-    CLI->>V: Schéma, URL et fichiers déclarés
-    V-->>CLI: Profil valide ou erreur bloquante
-    CLI->>B: Compilation complète et tests avec mocks
-    B-->>CLI: Résultat et artefacts vérifiés
-    CLI->>S: Métadonnées publiques et nom affiché
-    S-->>D: VSIX et JAR
-    CLI->>D: Configuration serveur distincte + empreintes
-    D-->>Admin: Archive versionnée et identité du commit
-```
+**Recette :** tests déterministes des parcours positifs, refus et erreurs ; preuves réelles consignées dans `docs/VALIDATION.md`.
 
 ### DEVAI-128 — Séparation des privilèges d'exploitation
 
-**Origine :** PDF p. 7–8 ; Conception. **Responsable :** exploitation / sécurité.
+**Origine historique (PDF 1.0) :** PDF p. 7–8 ; Conception. **Responsable :** exploitation / sécurité.
 
 Les identités gateway, workers, migrations et administration DOIVENT disposer des seuls droits nécessaires. Les runners sont éphémères ou nettoyés de manière vérifiée, exécutés sans privilèges élevés et isolés par job/projet. Le code analysé ne reçoit pas la clé IA ni les droits d'administration GitLab. Les accès techniques sont révoqués/renouvelés indépendamment des sessions développeur.
 
@@ -1632,7 +1420,7 @@ Les identités gateway, workers, migrations et administration DOIVENT disposer d
 
 ### DEVAI-129 — Déploiement et health checks
 
-**Origine :** PDF p. 11 ; Conception. **Responsable :** exploitation.
+**Origine historique (PDF 1.0) :** PDF p. 11 ; Conception. **Responsable :** exploitation.
 
 La gateway DOIT disposer de contrôles de vie et de disponibilité séparés, d'un arrêt gracieux et d'une configuration externe. Le moteur local n'ouvre pas d'endpoint réseau par défaut. Le déploiement serveur peut utiliser JAR ou image OCI selon l'infrastructure réelle ; la recette choisit un mode de référence documenté et ne prétend pas valider tous les orchestrateurs.
 
@@ -1684,7 +1472,7 @@ ODS DOIT proposer un diagnostic exportable sur action explicite : versions, capa
 
 ### DEVAI-133 — Build reproductible du dépôt ODS
 
-**Origine :** PDF p. 10–11 ; Utilisateur. **Responsable :** build / tech lead.
+**Origine historique (PDF 1.0) :** PDF p. 10–11 ; Utilisateur. **Responsable :** build / tech lead.
 
 Le dépôt DOIT fournir un réacteur Maven parent pour moteur, bibliothèques partagées et gateway, avec versions de plugins fixées, tests unitaires et d'intégration inclus dans `verify`. L'extension utilise npm avec lockfile et scripts documentés pour compilation, lint, tests et VSIX. Le Java installé du poste ne doit pas modifier la cible de compilation. Les dépendances ne sont mises à jour que si nécessaire et compatible.
 
@@ -1700,7 +1488,7 @@ Avant modification de code existant, l'équipe DOIT inventorier langages, versio
 
 ### DEVAI-135 — Tests unitaires et intégration
 
-**Origine :** PDF p. 12 ; Utilisateur. **Responsable :** QA / développeurs.
+**Origine historique (PDF 1.0) :** PDF p. 12 ; Utilisateur. **Responsable :** QA / développeurs.
 
 Les tests DOIVENT couvrir les modules métier, les contrats IPC/REST, la base réelle en environnement isolé, les connecteurs via doubles et les intégrations de qualification. Les cas limites de politique, concurrence de quota, idempotence et chemins doivent être explicites. La couverture ne remplace pas des assertions métier ; aucun test ne peut être désactivé pour cacher un échec.
 
@@ -1710,7 +1498,7 @@ Les tests DOIVENT couvrir les modules métier, les contrats IPC/REST, la base r�
 
 ### DEVAI-136 — Tests de sécurité obligatoires
 
-**Origine :** PDF p. 12 ; Utilisateur. **Responsable :** QA sécurité.
+**Origine historique (PDF 1.0) :** PDF p. 12 ; Utilisateur. **Responsable :** QA sécurité.
 
 La suite DOIT inclure projet inconnu/interdit/mauvaise instance, politique absente/expirée/modifiée/mal signée/rejouée, clés révoquées, changements de remote/branche/racine, accès gateway direct, transfert interprojets, secret synthétique, injection de prompt, permissions d'agents, quota concurrent, révocation, perte de connectivité et modèle non autorisé. Les tests supplémentaires couvrent traversée d'archive, IDOR, SSRF, XSS, reprise de jobs et absence de secrets dans les artefacts.
 
@@ -1744,7 +1532,7 @@ Chaque modification DOIT mettre à jour les documents impactés : installation, 
 
 ### DEVAI-140 — Pipeline CI complet
 
-**Origine :** PDF p. 11–12 ; règles utilisateur. **Responsable :** CI.
+**Origine historique (PDF 1.0) :** PDF p. 11–12 ; règles utilisateur. **Responsable :** CI.
 
 Le pipeline DOIT enchaîner installation verrouillée, compilation, tests, contrôles de traçabilité, secrets, qualité/sécurité disponibles, packaging et validation des artefacts. Il préserve les workflows existants et utilise GitHub Actions pour le dépôt GitHub configuré, ou GitLab CI dans le contexte GitLab réel. Les credentials sont injectés par le mécanisme de secrets du fournisseur ; aucun job d'un contributeur non fiable ne reçoit les secrets de release.
 
@@ -1752,7 +1540,7 @@ Le pipeline DOIT enchaîner installation verrouillée, compilation, tests, contr
 
 ### DEVAI-141 — Packaging VSIX et Java
 
-**Origine :** PDF p. 11 ; Utilisateur. **Responsable :** release.
+**Origine historique (PDF 1.0) :** PDF p. 11 ; Utilisateur. **Responsable :** release.
 
 Le build DOIT produire un VSIX installable contenant l'extension, le moteur local et les ressources nécessaires, ainsi qu'un JAR exécutable de gateway distribué séparément. Les noms/version des fichiers proviennent du build. La liste des dépendances, licences et un inventaire logiciel sont fournis ; les artefacts ne contiennent ni comptes techniques, clés privées, sources inutiles ni cache local.
 
@@ -1762,7 +1550,7 @@ Le build DOIT produire un VSIX installable contenant l'extension, le moteur loca
 
 **Origine :** règles utilisateur. **Responsable :** packaging.
 
-La livraison DOIT préparer `suiteInstall/` hors Git avec `bin/`, `config/`, `docs/`, `scripts/`, `examples/` lorsque utiles, `README.md` et `VERSION`. Elle contient VSIX et gateway du dernier build, configurations d'exemple, scripts relatifs, contrats et documentation. Les prérequis externes Java, Git, PostgreSQL, IdP et services sont indiqués : autonome signifie indépendant de l'arborescence source, pas un service complet sans infrastructure. Aucun répertoire vide artificiel n'est requis.
+La livraison DOIT préparer `suiteInstall/` hors Git avec `bin/`, `config/`, `docs/`, `scripts/`, `examples/` lorsque utiles, `README.md` et `VERSION`. Elle contient VSIX et gateway du dernier build, configurations d'exemple, scripts relatifs, contrats et documentation. Les prérequis externes Java 21, Python 3.12, Git, scanners et services sont indiqués : autonome signifie indépendant de l'arborescence source, pas un service complet sans infrastructure. Aucun répertoire vide artificiel n'est requis.
 
 **Recette :** l'installation et un smoke test sont exécutés depuis une copie de ce dossier sans accès aux répertoires de build source.
 
@@ -1782,15 +1570,15 @@ La version applicative DOIT provenir d'une source de vérité du dépôt et alim
 
 **Recette :** la liste des fichiers suivis et indexés ne contient aucun package généré interdit.
 
-**Exception explicite utilisateur 1.2 :** pour cette livraison, conserver également `suiteInstall` et sa configuration sur la branche `dev/toreprise`. Le package doit provenir de la release validée ; le commit d’instantané référence le commit source tagué et ne se substitue pas à lui. L’exception ne modifie pas les branches source. Seules les configurations fournies ou les valeurs de test/exemple existent à ce stade ; aucun secret réel d’organisation n’est inventé ni prélevé dans le poste.
+**Exception historique utilisateur 1.2 (hors livraison 0.3.0) :** conserver également `suiteInstall` et sa configuration sur la branche `dev/toreprise`. Le package doit provenir de la release validée ; le commit d’instantané référence le commit source tagué et ne se substitue pas à lui. L’exception ne modifie pas les branches source. Seules les configurations fournies ou les valeurs de test/exemple existent à ce stade ; aucun secret réel d’organisation n’est inventé ni prélevé dans le poste.
 
-### DEVAI-145 — Validation minimale de distribution
+### DEVAI-145 — Recette du package autonome
 
-**Origine :** règles utilisateur. **Responsable :** QA livraison.
+**Origine :** évolution utilisateur du 29 octobre 2026.
 
-La recette DOIT vérifier archive, contenu, tailles, versions, empreintes, configurations nécessaires, absence d'anciens exécutables et secrets. Elle teste le VSIX et le démarrage gateway depuis `suiteInstall`, ainsi que scripts d'installation et d'arrêt sur plateformes qualifiées. Une simple présence de JAR ne vaut pas test d'exécution.
+Vérifier versions, tailles, empreintes, configuration compilée, gateway et Vibe embarqués, licences et compatibilité VS Code. Tester le démarrage et l’arrêt possédés. Les artefacts de démonstration ne contiennent pas de secret réel ; les distributions privées peuvent contenir les secrets explicitement autorisés selon DEVAI-035 et DEVAI-176. Un JAR présent ne vaut pas test d’exécution.
 
-**Recette :** le rapport distingue build, tests, installation et smoke tests réellement exécutés ; une plateforme indisponible est marquée `NON VÉRIFIABLE`.
+**Recette :** tests déterministes des parcours positifs, refus et erreurs ; preuves réelles consignées dans `docs/VALIDATION.md`.
 
 ### DEVAI-146 — Merge, tag et publication
 
@@ -1826,7 +1614,7 @@ Le dépôt DOIT offrir des fixtures synthétiques et doubles de services pour d�
 
 ### DEVAI-148 — Lots de réalisation sans réduction de périmètre
 
-**Origine :** PDF p. 11–12 ; Utilisateur. **Responsable :** pilotage / tech lead.
+**Origine historique (PDF 1.0) :** PDF p. 11–12 ; Utilisateur. **Responsable :** pilotage / tech lead.
 
 La réalisation DOIT suivre des incréments vérifiables : socle/gouvernance ; quatre starters ; IA Mistral, agents et quotas ; Quality/Security ; GitFlow et industrialisation. Les contrats et tests transverses commencent dès le socle. Les cinq vues peuvent être présentes tôt avec états « indisponible », mais la livraison complète ne s'arrête pas à cette maquette ou au seul starter Java.
 
@@ -1842,7 +1630,7 @@ Le rapport DOIT indiquer modifications, fichiers principaux, tests/commandes/nom
 
 ### DEVAI-150 — Acceptation finale de la solution
 
-**Origine :** PDF p. 12 ; Utilisateur ; Conception. **Responsable :** architecture / QA / sécurité.
+**Origine historique (PDF 1.0) :** PDF p. 12 ; Utilisateur ; Conception. **Responsable :** architecture / QA / sécurité.
 
 L'acceptation DOIT vérifier la couverture des 166 exigences, les quatre starters remplaçables, les cinq vues fonctionnelles, l'agent de développement outillé de bout en bout, Java/Maven, l'autorisation initiale Mistral seule, les commentaires traçables, l'autorité serveur, les tests négatifs, les connecteurs réels qualifiés et la distribution validée. Les risques résiduels et décisions d'environnement sont approuvés par leurs responsables. Une exception est documentée avec impact et ne transforme pas un contrôle manquant en succès.
 
@@ -2075,753 +1863,69 @@ La recette DOIT couvrir : démarrage avec génériques, ajout d'un prompt de tâ
 
 **Recette :** un auditeur retrouve les règles exactes ayant gouverné une génération ; les tests démontrent le passage des fichiers génériques aux fichiers organisationnels sans modification de l'extension et sans élargissement de droits.
 
-<a id="section-13"></a>
-
-## 13. Architecture détaillée et contrats associés
-
-### 13.1. Arborescence cible à créer
-
-Cette arborescence précise DEVAI-004, DEVAI-133 et DEVAI-139. Le nom proposé dans le PDF, `organisation-developpent-standard`, est conservé comme identifiant historique ; le nom commercial reste Organisation Development Standard. Toute correction du nom de dépôt se fait explicitement, pas par renommage implicite.
-
-```text
-organisation-developpent-standard/
-  pom.xml                       # agrégateur Maven et versions Java
-  mvnw / mvnw.cmd / .mvn/       # wrapper Maven qualifié
-  .gitignore
-  README.md
-  CHANGELOG.md
-  specification.md
-  vscode-extension/
-    package.json
-    package-lock.json
-    src/
-      extension.ts
-      views/                    # cinq vues et bandeau partagé
-      java-client/              # client IPC et cycle de vie Java
-    test/
-  ods-contracts/                # DTO et schémas partagés, sans secret
-  ods-java-core/
-    pom.xml
-    ods-security/
-    ods-config/
-    ods-starter/
-    ods-ai-context/
-    ods-quality/
-    ods-xray/
-    ods-gitflow/
-    ods-runtime/                # composition et entrée stdio exécutable
-  ods-gateway/
-    pom.xml
-    src/main/java/org/organisation/ods/
-      auth/ policy/ gitlab/ ai/ mistral/ sonar/ jfrog/
-      starter/ prompt/ agent/ job/ audit/ quota/
-    src/main/resources/         # migrations et defaults sans secret
-    src/test/
-  policies/                    # schémas et exemples, jamais politique prod
-  starter-manifests/           # catalogue standard et exemples de surcharge
-  prompt-manifests/            # prompts d'exemple signables
-  prompt-content/              # contenus génériques ; vrais fichiers via gouvernance
-    system/global.md
-    stacks/java.md
-    stacks/angular.md
-    stacks/python.md
-    stacks/dotnet.md
-  integration-tests/           # harness et fixtures multi-services
-  packaging/                  # scripts sources de construction de suiteInstall
-  docs/
-    architecture/ api/ installation/ exploitation/ security/
-    traceability.csv
-    decisions/                # décisions et paramètres effectivement retenus
-  suiteInstall/               # généré, ignoré par Git
-```
-
-Tous les répertoires Java livrables sont des modules Maven déclarés ; un répertoire d'exemples n'est pas ajouté comme module vide. Le `pom.xml` racine et les POM enfants constituent le build Java unique. Les commandes npm de l'extension restent adaptées à sa technologie.
-
-### 13.2. Endpoints REST ODS
-
-Table normative de détail pour DEVAI-117 à DEVAI-120. Authentification obligatoire sauf endpoints de santé explicitement exposés par l'exploitation. `gitlabInstance` et `projectId` identifient le projet ; les IDs de jobs sont opaques et soumis au contrôle de propriétaire/périmètre. Les opérations de création acceptent `Idempotency-Key` lorsqu'un effet ou une facturation est possible.
-
-| Méthode et route interne | Entrée principale | Réponse nominale | Autorisation / comportement |
-|---|---|---|---|
-| `GET /api/v1/capabilities` | Instance et projet en paramètres | 200, capacités et motifs | Identité + droits projet ; `aiEnabled` informatif |
-| `GET /api/v1/starters` | Stack, variantes, curseur | 200, catalogue effectif | Identité + politique de catalogue ; projet pas obligatoire pour création |
-| `POST /api/v1/ai/chat` | Projet, session, action chat/génération, prompt, contexte | 202, job et liens | `CHAT` ou `CODE_GENERATION` résolu/validé serveur |
-| `POST /api/v1/ai/agents/run` | Projet, agentId/version, paramètres | 202, job et plan | `AGENT_RUN` + agent explicitement permis |
-| `POST /api/v1/ai/agents/{runId}/turns` | Séquence attendue, contexte/objectif ou continuation | 202, job d'étape IA | Parent agent autorisé ; quota par appel ; un tour actif au plus |
-| `POST /api/v1/ai/agents/{runId}/tool-results` | toolCallId, planHash, résultat filtré, empreintes | 200, étape enregistrée | Appel préalablement émis, résultat idempotent et taille bornée |
-| `GET /api/v1/ai/usage` | Projet, période, session optionnelle | 200, consommé/réservé/disponible | Lecture limitée aux droits du sujet |
-| `POST /api/v1/quality/scans` | Projet, commit, profil | 202, job | Droit de scan non IA |
-| `POST /api/v1/security/scans` | Projet, commit ou buildRef, profil | 202, job | Droit d'audit non IA |
-| `POST /api/v1/remediations` | reportId, findingIds, contexte | 202, job de proposition | Action Sonar/Xray déduite du rapport serveur |
-| `POST /api/v1/git/merge-requests` | Projet, source, cible, titre, description | 201, MR créée ; 200 si idempotente | Identité GitLab utilisateur ; aucune IA implicite |
-| `POST /api/v1/git/merge-request-descriptions` | Projet, commits, preuves, contexte | 202, job de rédaction | `MR_DESCRIPTION` ; ne crée pas la MR |
-| `GET /api/v1/jobs/{jobId}` | Identifiant | 200, état, timestamps, liens | Propriétaire ou rôle explicitement autorisé |
-| `GET /api/v1/jobs/{jobId}/events` | `Last-Event-ID` optionnel | 200, flux `text/event-stream` | Même contrôle ; reconnexion sans nouvel appel IA |
-| `POST /api/v1/jobs/{jobId}/cancel` | Motif facultatif | 202 si en cours ; 200 si terminal | Propriétaire ou rôle autorisé ; annulation au mieux |
-| `POST /api/v1/jobs/{jobId}/approvals` | actionId, décision, empreinte du plan | 200, décision enregistrée | Sujet autorisé ; plan inchangé ; permission réévaluée |
-| `GET /api/v1/reports/{reportId}` | ID, curseur/filtre | 200, rapport normalisé | Accès projet obligatoire ; liens et contenu filtrés |
-
-Les générations de starters locales sont pilotées par IPC ; elles n'exigent pas une route REST d'écriture de fichiers du poste. Les fichiers restent locaux sauf téléchargement autorisé des templates. Les routes REST non présentes dans le PDF complètent explicitement le contrat asynchrone, l'agent outillé et la description IA de MR.
-
-Pour l'agent, le moteur local conduit la boucle IDE et conserve l'état local de travail ; la gateway possède le run autorisé, les séquences attendues, les appels Mistral, quotas et décisions. Un run parent reste `RUNNING` entre ses tours ; les sous-jobs décrivent les appels IA/exécutions distantes. `WAITING_APPROVAL` est utilisé pour une permission manquante. Les résultats locaux sont des données non fiables, jamais une preuve serveur de confinement. Le serveur vérifie chaque tour, IDs d'outils, séquence et droits, ne réexécute pas un résultat déjà reçu et n'autorise aucun outil distant sur la seule parole du client. Les événements de job exposent `plan.updated`, `tool.proposed`, `tool.started`, `tool.completed`, `patch.proposed`, `validation.completed`, `usage.updated` et `run.completed`, avec payloads filtrés et versionnés.
-
-### 13.3. Contrats de données
-
-| Objet | Champs et invariants principaux | Références |
-|---|---|---|
-| `ProjectRef` | `gitlabInstance` URL canonique autorisée, `projectId` entier positif ; branche/commit renseignés selon opération | DEVAI-025 |
-| `Capabilities` | Projet, actions accordées, motifs de refus, alias, fournisseur effectif `MISTRAL` initialement, policyVersion, validUntil, modes de contexte | DEVAI-026, DEVAI-033, DEVAI-064 |
-| `ContextManifest` | mode, commit, fichiers relatifs, hashes SHA-256, plages, état dirty, exclusions et budget ; jamais preuve auto-suffisante | DEVAI-037, DEVAI-040, DEVAI-041, DEVAI-065 |
-| `Job` | UUID, kind, projet, sujet, état, version optimiste, timestamps, providerTaskId, résultat, error, corrélation | DEVAI-119, DEVAI-120 |
-| `Finding` | source Sonar/Xray, ID, règle/CVE, sévérité d'origine, fichier ou composant, chemin de dépendance, statut | DEVAI-088, DEVAI-097 |
-| `PatchProposal` | ID, job, baseCommit, baseHashes, fichiers, modifications, exigences, validations conseillées et réalisées | DEVAI-068 à DEVAI-070 |
-| `UsageRecord` | requestId unique, projet, sujet, modèle effectif, prompt/completion/total tokens, état de mesure, période UTC, coût optionnel | DEVAI-075 à DEVAI-077 |
-| `Approval` | actionId, planHash, sujet, décision, portée, expiration, horodatage ; non transférable à un autre plan | DEVAI-072 |
-| `AuditEvent` | eventId, instant UTC, sujet pseudonymisé, projet, action, décision, reasonCode, policyVersion/hash, correlationId | DEVAI-043 |
-
-Dans tous les objets, les tailles sont bornées avant traitement. Un champ absent, `null`, vide et zéro ne sont pas interchangeables. Les durées sont entières et unités documentées ; les instants sont ISO 8601 UTC. Les tokens sont des entiers non négatifs, jamais des flottants ; les coûts utilisent un type décimal.
-
-### 13.4. Exemple de job et d'erreur
-
-Exemples synthétiques de contrats ODS à implémenter ; les identifiants ne désignent aucune ressource réelle.
-
-```json
-{
-  "jobId": "00000000-0000-4000-8000-000000000001",
-  "kind": "SONAR_SCAN",
-  "status": "QUEUED",
-  "project": {
-    "gitlabInstance": "https://gitlab.organisation.example",
-    "projectId": 1042
-  },
-  "createdAt": "2026-10-29T10:00:00Z",
-  "correlationId": "example-correlation-001",
-  "links": {
-    "self": "/api/v1/jobs/00000000-0000-4000-8000-000000000001",
-    "events": "/api/v1/jobs/00000000-0000-4000-8000-000000000001/events"
-  }
-}
-```
-
-```json
-{
-  "code": "MODEL_NOT_ALLOWED",
-  "message": "Ce modèle ne figure pas dans le catalogue autorisé pour le projet.",
-  "correlationId": "example-correlation-002",
-  "retryable": false
-}
-```
-
-Codes minimaux associés : `AUTHENTICATION_REQUIRED`, `PROJECT_ACCESS_DENIED`, `ACTION_DENIED`, `POLICY_INVALID`, `POLICY_EXPIRED`, `POLICY_REPLAYED`, `WORKSPACE_UNTRUSTED`, `CONTEXT_REJECTED`, `MODEL_NOT_ALLOWED`, `QUOTA_EXCEEDED`, `RATE_LIMITED`, `STALE_BASE`, `IDEMPOTENCY_CONFLICT`, `SCANNER_UNAVAILABLE`, `DEPENDENCY_UNAVAILABLE`, `PROTOCOL_INCOMPATIBLE`. Les raisons détaillées de politique sont réservées aux sujets autorisés.
-
-### 13.5. Modèle PostgreSQL logique
-
-Schéma logique proposé à concrétiser par migrations, lié à DEVAI-121 et DEVAI-122 :
-
-| Table logique | Clés / contraintes essentielles | Usage |
-|---|---|---|
-| `project_reference` | unique(instance, project_id) | Identité canonique et mapping vers outils |
-| `subject_reference` | unique(issuer, subject_ref) | Sujet pseudonymisé et mapping d'identité autorisé |
-| `governance_snapshot` | unique(scope, version), hash immuable | Bundle accepté, dates, clé et commit source |
-| `governance_watermark` | scope primaire, version monotone, hash | Anti-rejeu survivant aux redémarrages |
-| `job` | UUID, project FK, subject FK, optimistic_version | États, baux, identifiants fournisseurs |
-| `job_event` | unique(job_id, sequence) | Progression et replay SSE borné |
-| `report` | UUID, job FK, project FK, commit/build et hash | Métadonnées et rapport filtré |
-| `quota_bucket` | unique(project, subject_scope, month_utc) | Plafonds, consommé, réservé ; verrous transactionnels |
-| `quota_reservation` | request_id unique, bucket FK | Réservations, échéances et réconciliation |
-| `usage_record` | request_id unique, provider_request_id optionnel | Usage définitif ou estimé et modèle effectif |
-| `idempotency_record` | unique(subject, project, route, key) | Payload hash, opération et résultat réutilisable |
-| `approval` | unique(job, action, plan_hash, subject) | Décisions bornées et révocation |
-| `audit_event` | event_id, project, subject, correlation | Événements append-only au niveau des droits applicatifs |
-
-Les accès objet vérifient les permissions côté service même si les contraintes FK sont correctes. Les snapshots contiennent des politiques et non des credentials. Les réservations et l'usage ne peuvent être modifiés depuis l'extension. Les index couvrent projet/date, statut de job/bail et corrélation ; ils sont mesurés sur la volumétrie de qualification.
-
-<a id="section-14"></a>
-
-## 14. Exemples de politiques et configurations
-
-### 14.1. Politique IA signable, avec Mistral exclusivement
-
-Exemple de schéma ODS à créer, complétant DEVAI-026, DEVAI-029 à DEVAI-032 et DEVAI-064. Cette politique n'est pas signée, ses dates sont illustratives et elle ne doit pas être utilisée telle quelle en production. Les nouveaux champs par rapport au PDF sont des décisions de conception : fournisseurs autorisés, agents et mode de contexte.
-
-```json
-{
-  "schemaVersion": 1,
-  "policyVersion": 1,
-  "issuedAt": "2026-10-29T00:00:00Z",
-  "expiresAt": "2026-10-30T00:00:00Z",
-  "gitlabInstance": "https://gitlab.organisation.example",
-  "defaultEffect": "DENY",
-  "allowedProviders": ["MISTRAL"],
-  "projects": [
-    {
-      "projectId": 1042,
-      "aiEnabled": true,
-      "allowedActions": [
-        "CHAT", "CODE_GENERATION", "SONAR_REMEDIATION",
-        "XRAY_REMEDIATION", "MR_DESCRIPTION", "AGENT_RUN"
-      ],
-      "modelAlias": "mistral-coding-approved",
-      "allowedAgents": ["review-project"],
-      "contextMode": "LOCAL_GOVERNED",
-      "allowFreeText": true,
-      "monthlyTokenQuota": 1000000
-    },
-    {
-      "projectId": 2075,
-      "aiEnabled": false,
-      "allowedActions": [],
-      "allowedAgents": [],
-      "monthlyTokenQuota": 0
-    }
-  ]
-}
-```
-
-La signature est une enveloppe séparée couvrant les octets de ce fichier. `keyId` sélectionne uniquement une clé déjà approuvée. Le schéma doit aussi imposer `aiEnabled=false` compatible avec actions et agents vides. En mode renforcé sans texte libre, le projet porte `contextMode: SERVER_VERIFIED` et `allowFreeText: false` ; la donnée libre est refusée dans les routes concernées.
-
-### 14.2. Catalogue des modèles, serveur uniquement
-
-Configuration ODS illustrative liée à DEVAI-064 et DEVAI-127, pas configuration native de Mistral. Tous les placeholders obligatoires doivent être résolus avant activation. Le nom exact du modèle Mistral sera choisi dans le catalogue réellement approuvé, sans supposer qu'un nom commercial disponible aujourd'hui restera identique.
-
-```yaml
-schemaVersion: 1
-catalogVersion: 1
-allowedProviders:
-  - MISTRAL
-models:
-  - alias: mistral-coding-approved
-    provider: MISTRAL
-    modelId: <APPROVED_MISTRAL_MODEL_ID>
-    endpointRef: mistral-approved-endpoint
-    credentialRef: <SERVER_SECRET_REFERENCE>
-    enabled: true
-    contextWindowTokens: 32000
-    maxOutputTokens: 4000
-    allowedActions:
-      - CHAT
-      - CODE_GENERATION
-      - SONAR_REMEDIATION
-      - XRAY_REMEDIATION
-      - MR_DESCRIPTION
-      - AGENT_RUN
-    requirements:
-      - DEVAI-064
-      - DEVAI-075
-      - DEVAI-076
-```
-
-Les limites numériques sont des valeurs d'exemple à remplacer par celles du modèle qualifié. Une future entrée `provider` différente exige une nouvelle autorisation organisationnelle, un connecteur serveur et une politique signée qui l'accorde ; elle ne devient pas utilisable en ajoutant un paramètre au client. Une simple API « compatible » avec un autre format ne suffit pas à l'autoriser.
-
-### 14.3. Catalogue de starter et surcharge
-
-Exemple conceptuel de descripteur signé pour DEVAI-046 à DEVAI-059. Les champs `...Version` sont des valeurs exactes à résoudre lors de la publication du catalogue, jamais des chaînes `latest`. Les fournisseurs cités sont des identifiants internes à créer.
-
-```yaml
-schemaVersion: 1
-catalogVersion: 1
-fallbackToStandard: true
-starters:
-  - id: java-spring-boot
-    version: 1.0.0
-    stack: JAVA
-    origin: STANDARD
-    provider: SPRING_INITIALIZR
-    sourceRef: approved-initializr
-    parameters:
-      type: maven-project
-      language: java
-      javaVersion: "21"
-      bootVersion: <VALIDATED_SPRING_BOOT_VERSION>
-      packaging: jar
-    validationProfile: java-maven-verify
-    requirements:
-      - DEVAI-048
-      - DEVAI-137
-  - id: python-package
-    version: 1.0.0
-    stack: PYTHON
-    origin: STANDARD
-    provider: SIGNED_ARCHIVE
-    sourceRef: bundled-python-package
-    validationProfile: python-package-build-test
-    requirements:
-      - DEVAI-050
-      - DEVAI-137
-```
-
-Surcharge future d'un starter par un template organisationnel :
-
-```yaml
-schemaVersion: 1
-catalogVersion: 2
-overrides:
-  - starterId: java-spring-boot
-    baseVersion: 1.0.0
-    overrideVersion: 1.0.0
-    mode: REPLACE
-    provider: GITLAB_ARCHIVE
-    source:
-      gitlabInstance: https://gitlab.organisation.example
-      projectId: 3001
-      commit: <IMMUTABLE_COMMIT_SHA>
-      sha256: <ARCHIVE_SHA256>
-    validationProfile: java-maven-verify
-    fallbackAllowed: false
-    requirements:
-      - DEVAI-052
-      - DEVAI-054
-```
-
-Un `OVERLAY` utiliserait la même base exacte et une liste d'opérations de fusion validées. Les données standard et organisationnelles ne modifient pas l'obligation Maven. Les profiles de validation sont résolus dans un registre de commandes typées revues ; ils ne contiennent pas une commande shell venant d'une source non approuvée.
-
-### 14.4. Configuration gateway sans secret embarqué
-
-Exemple de configuration applicative **ODS à implémenter** ; les propriétés sous `ods` nécessitent des classes de configuration validées. Les variables d'environnement sont des références, pas des valeurs de credentials.
-
-```yaml
-spring:
-  datasource:
-    url: ${ODS_DATABASE_URL}
-    username: ${ODS_DATABASE_USER}
-    password: ${ODS_DATABASE_PASSWORD}
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: ${ODS_OIDC_ISSUER}
-ods:
-  identity:
-    expected-audience: ${ODS_API_AUDIENCE}
-  gitlab:
-    base-url: ${ODS_GITLAB_BASE_URL}
-    governance-project-id: ${ODS_GOVERNANCE_PROJECT_ID}
-  ai:
-    allowed-providers:
-      - MISTRAL
-    default-model-alias: mistral-coding-approved
-    credential-reference: ${ODS_MISTRAL_SECRET_REFERENCE}
-  policy:
-    max-freshness-seconds: 60
-    max-validity-hours: 24
-  context:
-    max-files: 20
-    max-file-bytes: 262144
-    max-total-bytes: 2097152
-  audit:
-    store-source-content: false
-```
-
-L'audience doit être vérifiée par la configuration sécurité effective ; la présence d'une propriété YAML ne réalise pas ce contrôle à elle seule. Les sources de politique et clés de confiance appartiennent au déploiement administré. Aucune valeur provenant du workspace ne peut remplacer ces paramètres.
-
-### 14.5. Exclusions Git minimales à adapter
-
-Exemple complémentaire à DEVAI-144, sans supprimer le suivi des fichiers source nécessaires :
-
-```gitignore
-# DEVAI-144 : artefacts de livraison, jamais dans les branches source.
-suiteInstall/
-suiteInstall-*.zip
-**/target/
-**/node_modules/
-**/dist/
-*.vsix
-# DEVAI-035 : fichiers de secrets locaux, exemples expurgés explicitement autorisés.
-.env
-.env.*
-!.env.example
-*.key
-*.pem
-credentials.json
-```
-
-Les certificats publics ou fixtures requis sont traités par exceptions explicites revues, sans ignorer les contrôles de secrets. Le wrapper Maven et ses métadonnées nécessaires restent suivis selon son mode officiel de distribution.
-
-### 14.6. Manifeste d'agent et prompt exécutable
-
-Exemple de contrat à créer pour DEVAI-071, DEVAI-152, DEVAI-158 et DEVAI-159. Ce bundle doit être signé avant usage réel. Le modèle alias doit avoir été qualifié pour les appels d'outils structurés ; un modèle de chat sans cette capacité ne satisfait pas le mode Agent.
-
-```yaml
-schemaVersion: 1
-agentId: implement-requirement
-agentVersion: 1.0.0
-mode: AGENT
-promptId: implement-requirement
-promptVersion: 1.0.0
-modelAlias: mistral-coding-approved
-requiredActions:
-  - AGENT_RUN
-  - CODE_GENERATION
-parameters:
-  requirementId:
-    type: string
-    pattern: '^DEVAI-[0-9]{3}$'
-tools:
-  - workspace.list
-  - project.detect
-  - project.instructions
-  - search.text
-  - files.read
-  - changes.propose
-  - changes.apply
-  - build.run
-  - tests.run
-  - docs.update
-  - task.checkpoint
-limits:
-  maxSteps: 10
-  maxDurationSeconds: 600
-  maxOutputTokensPerTurn: 4000
-permissions:
-  readWorkspace: true
-  editWorkspace: SESSION_SCOPED_APPROVAL
-  runProjectValidation: SESSION_SCOPED_APPROVAL
-  installDependencies: DENY
-  publishGit: DENY
-successCriteria:
-  - Exigence implémentée et références documentées
-  - Build et tests applicables exécutés avec succès
-  - Diff et preuves présentés au développeur
-```
-
-Ce manifeste illustre un agent particulier à permissions limitées ; il ne réduit pas le catalogue complet de DEVAI-152. Un agent autorisé à installer ou publier doit l'indiquer explicitement. Le serveur vérifie que `requirementId` existe réellement, au-delà de la simple regex.
-
-### 14.7. Exemple de manifeste de recommandations organisationnelles
-
-Contrat ODS proposé pour DEVAI-161 à DEVAI-166. Les fichiers génériques ci-dessus doivent être livrés réellement dès V1. Ce manifeste illustre une livraison ultérieure de règles internes : les empreintes/versions sont à renseigner par la CI de gouvernance, et non à copier telles quelles en production. Les chemins sont relatifs à un même bundle GitLab immuable, sans URL arbitraire ni chargement depuis le workspace.
-
-```yaml
-schemaVersion: 1
-bundleId: development-instructions
-bundleVersion: 2
-origin: ORGANIZATION
-global:
-  mode: REPLACE
-  required: true
-  fallbackToGeneric: false
-  files:
-    - path: system/global.md
-      sha256: <GLOBAL_FILE_SHA256>
-stacks:
-  JAVA:
-    mode: REPLACE
-    required: true
-    fallbackToGeneric: false
-    files:
-      - path: stacks/java.md
-        sha256: <JAVA_FILE_SHA256>
-  ANGULAR:
-    mode: APPEND
-    required: true
-    fallbackToGeneric: false
-    files:
-      - path: stacks/angular-organization.md
-        sha256: <ANGULAR_FILE_SHA256>
-unconfiguredStacks:
-  useApprovedGeneric: true
-requirements:
-  - DEVAI-161
-  - DEVAI-162
-  - DEVAI-164
-  - DEVAI-165
-```
-
-La signature détachée du bundle couvre ce manifeste, ses métadonnées de validité et les empreintes des fichiers. Dans cet exemple, le global et Java sont remplacés ; Angular cumule son générique approuvé et ses règles internes compatibles ; Python et .NET gardent leurs génériques approuvés. Tous les appels restent limités aux modèles Mistral approuvés et aux permissions de projet. La signature ne dispense pas de la validation sémantique des conflits.
-
-<a id="section-15"></a>
-
-## 15. Exemples de code commentés et traçables
-
-Les extraits ci-dessous illustrent des unités limitées à développer selon DEVAI-137 et DEVAI-138. Ils ne constituent pas l'implémentation complète, ni une preuve de conformité de l'application. Les commentaires explicatifs sont en français ; les identifiants de code suivent les conventions de chaque langage. Les références multiples ne sont utilisées que si l'unité contribue effectivement à chacune.
-
-### 15.1. Java 21 : validité temporelle et version
-
-Cette unité pure illustre une sous-partie de DEVAI-030 et DEVAI-031 avec tolérance future de 60 secondes. Elle ne vérifie ni signature, ni hash de même version, ni appartenance GitLab, ni quota ; un résultat `true` ne doit jamais autoriser seul un appel IA. En production, ces vérifications sont composées par la gateway et les bornes anti-rejeu sont persistées.
-
-```java
-import java.time.Duration;
-import java.time.Instant;
-
-/**
- * Vérifie les bornes temporelles et la monotonie d'une politique déjà parsée.
- * Cette vérification pure ne prend aucune décision d'autorisation complète.
- * Exigences : DEVAI-030, DEVAI-031.
- */
-public final class PolicyValidity {
-
-    /**
-     * Empêche l'instanciation de cet utilitaire sans état mutable.
-     * Exigences : DEVAI-030.
-     */
-    private PolicyValidity() {
-    }
-
-    /**
-     * Contrôle les dates et refuse une version antérieure à la borne connue.
-     * L'expiration est exclusive : à expiresAt la politique n'est plus valide.
-     * Une émission future n'est tolérée que dans une fenêtre de 60 secondes.
-     * Exigences : DEVAI-030, DEVAI-031.
-     *
-     * @param issuedAt date d'émission vérifiée par le parseur
-     * @param expiresAt date de fin de validité
-     * @param now instant fourni par l'horloge de confiance du service
-     * @param policyVersion numéro positif déclaré dans la politique
-     * @param minimumAcceptedVersion borne anti-rejeu persistée, zéro au départ
-     * @return false sur donnée absente, dates incohérentes ou version périmée
-     */
-    public static boolean isCurrent(
-            Instant issuedAt,
-            Instant expiresAt,
-            Instant now,
-            long policyVersion,
-            long minimumAcceptedVersion) {
-        if (issuedAt == null || expiresAt == null || now == null) {
-            return false;
-        }
-        if (policyVersion <= 0 || minimumAcceptedVersion < 0
-                || policyVersion < minimumAcceptedVersion) {
-            return false;
-        }
-        return issuedAt.isBefore(expiresAt)
-            && now.isBefore(expiresAt)
-            && Duration.between(now, issuedAt)
-                .compareTo(Duration.ofSeconds(60)) <= 0;
-    }
-}
-```
-
-Dans le dépôt, cet exemple devient une unité testée sous Maven. La comparaison du hash pour une version identique reste une responsabilité séparée et obligatoire. Une valeur de temps fournie par le client n'est jamais utilisée comme `now` serveur.
-
-### 15.2. TypeScript : affichage de la consommation
-
-L'extrait concerne uniquement la présentation, conformément à DEVAI-002. Il ne calcule pas le quota autorisé et ne prend aucune décision métier à la place de la gateway.
-
-```typescript
-/**
- * Prépare un libellé accessible à partir des compteurs reçus du serveur.
- * Les valeurs inconnues restent distinctes d'une consommation nulle.
- * Exigences : DEVAI-019, DEVAI-075.
- */
-export class UsagePresenter {
-  /**
-   * Affiche les tokens mesurés sans les confondre avec un coût monétaire.
-   * @param input Tokens d'entrée reçus du serveur, ou null si inconnus.
-   * @param output Tokens de sortie reçus du serveur, ou null si inconnus.
-   * @returns Un libellé de consommation ou un état d'attente explicite.
-   * Exigences : DEVAI-075, DEVAI-083.
-   */
-  public describe(input: number | null, output: number | null): string {
-    if (input === null || output === null) {
-      return "Consommation en attente de mesure";
-    }
-    if (!Number.isSafeInteger(input) || !Number.isSafeInteger(output)
-        || input < 0 || output < 0 || !Number.isSafeInteger(input + output)) {
-      return "Mesure de consommation invalide";
-    }
-    return `${input} tokens d'entrée, ${output} de sortie, ${input + output} au total`;
-  }
-}
-```
-
-### 15.3. Python : exemple de starter minimal documenté
-
-Ce code illustre le style de documentation d'un fichier `src/example_package/greeting.py` généré par le starter, pas un composant Python du moteur ODS. La référence de starter est réelle ; une exigence métier du projet cible sera ajoutée lorsqu'elle sera définie.
-
-```python
-"""Exemple minimal de package généré et documenté.
-
-Exigences : DEVAI-050, DEVAI-137.
-"""
-
-
-class GreetingService:
-    """Fournit un comportement simple pour tester le package généré.
-
-    Exigences : DEVAI-050, DEVAI-137.
-    """
-
-    def greet(self, name: str) -> str:
-        """Produit une salutation après validation du paramètre.
-
-        Args:
-            name: Nom non vide fourni par l'appelant.
-        Returns:
-            Une salutation ne contenant aucune donnée d'environnement.
-        Raises:
-            ValueError: Si le nom est vide ou ne contient que des espaces.
-        Exigences : DEVAI-050, DEVAI-137.
-        """
-        normalized = name.strip()
-        if not normalized:
-            raise ValueError("Le nom ne doit pas être vide")
-        return f"Bonjour {normalized}"
-```
-
-### 15.4. Exemple de test traçable et règle de contrôle CI
-
-Un test doit exprimer l'effet attendu, par exemple : « à l'instant exact d'expiration, la politique est invalide ». Sa documentation référence DEVAI-030 ; une assertion `assertTrue(true)` ne prouve rien. Les cas de la classe Java incluent dates nulles, expiration exacte, date d'émission trop future, fenêtre de 60 secondes, dates inversées, version antérieure et borne négative.
-
-Le contrôle des commentaires doit analyser les symboles, pas seulement rechercher la chaîne `DEVAI-` dans le fichier. Il associe le bloc de documentation au symbole, vérifie que l'ID existe, contrôle la présence d'une explication utile et publie les écarts. La vérification de pertinence sémantique reste une revue humaine assistée ; la CI ne peut garantir à elle seule la qualité du commentaire.
-
-### 15.5. Commandes de validation cibles
-
-Ces commandes sont des objectifs de scripts à fournir et à vérifier dans le futur dépôt, pas des commandes exécutées pour construire l'application lors de la rédaction de cette spécification. Les commandes npm supposent les scripts indiqués créés dans `package.json` ; les validations Python/.NET sont adaptées aux profils effectivement générés.
-
-```text
-# Composants ODS Java : réacteur Maven complet, Windows puis Linux.
-.\mvnw.cmd --batch-mode clean verify
-./mvnw --batch-mode clean verify
-
-# Extension : depuis son répertoire, après création effective des scripts.
-npm ci
-npm run compile
-npm run lint
-npm test
-npm run package
-
-# Starter Python : dans son environnement virtuel et avec dépendances installées.
-python -m pytest
-python -m build
-
-# Starter .NET : SDK et projet de tests qualifiés.
-dotnet restore
-dotnet build --no-restore
-dotnet test --no-build
-```
-
-Le starter Angular doit exposer ses propres scripts npm de build et de tests non interactifs ; leurs arguments dépendent de la version et du runner retenus. Aucune invocation générique ne doit remplacer la lecture de sa configuration.
-
-<a id="section-16"></a>
-
-## 16. Plan de réalisation, matrice de couverture et recette
-
-### 16.1. Lots et critères de sortie
-
-| Lot | Contenu | Sortie vérifiable | Dépendances |
-|---|---|---|---|
-| 0 — Préparation | Analyse du dépôt, règles Git, versions, contrats et traceabilité | Inventaire, backups requis, matrice et build minimal reproductible | Accès dépôt/configuration existante |
-| 1 — Socle | Cinq vues, Java/stdin, OIDC, projet GitLab, politique signée, coffre et audit | Appel direct refusé pour projet interdit ; aucune clé dans VSIX | IdP/GitLab de test ou doubles explicites |
-| 2 — Initializer | Quatre starters standards, surcharge et provenance | Build/test des quatre sorties et remplacement sans nouvelle extension | SDK et registres approuvés |
-| 3 — IA et agent | Chat Mistral, prompt système global et profils de stack génériques/remplaçables, prompts de tâches, outils IDE, édition, terminal, boucle de correction, quotas et reprise | Tâche agent réelle avec diff, build/test et droits vérifiés | Modèle Mistral autorisé et tool calling qualifié |
-| 4 — Qualité / sécurité | Runners, Sonar, Xray, rapports, remédiations et rescans | Scans réels et refus des remédiations non autorisées | Instances, licences et runners de qualification |
-| 5 — GitFlow / livraison | Git/MR, CI, distribution, documentation et exploitation | VSIX et suiteInstall validés au commit de release | Droits de publication réellement disponibles |
-
-Les tests de sécurité, la documentation et le contrôle des commentaires progressent dans chaque lot ; ils ne sont pas reportés au dernier lot. Une seule demande de développement peut exécuter ces lots successivement, avec checkpoints et rapport fidèle des blocages.
-
-### 16.2. Couverture des chapitres du PDF
-
-| Source PDF | Contenu couvert | Exigences principales |
-|---|---|---|
-| p. 1–2 | Vision, périmètre, principe Java et gouvernance | DEVAI-001 à DEVAI-012 |
-| p. 3 | Cinq vues, bandeau, maquette, disponibilité sans IA | DEVAI-013, DEVAI-017 à DEVAI-019, DEVAI-027 |
-| p. 4 | Architecture, rôles, frontière serveur, initialisation | DEVAI-002 à DEVAI-004, DEVAI-045 à DEVAI-047 |
-| p. 5 | Starters, IA, Sonar, Xray | DEVAI-048 à DEVAI-083, DEVAI-084 à DEVAI-105 |
-| p. 6 | GitFlow, permissions et politique | DEVAI-023, DEVAI-025 à DEVAI-027, DEVAI-106 à DEVAI-116 |
-| p. 7 | Cycle de vérification, intégrité, provenance et cache | DEVAI-028 à DEVAI-044 |
-| p. 8–9 | Identités, socle Java, prompts et agents | DEVAI-020 à DEVAI-024, DEVAI-029 à DEVAI-031, DEVAI-066 à DEVAI-074 |
-| p. 10 | Tokens, arborescence et endpoints | DEVAI-075 à DEVAI-083, DEVAI-117 à DEVAI-123, sections 13.1–13.5 |
-| p. 11 | Async, versions, plateforme et lots | DEVAI-005, DEVAI-006, DEVAI-119, DEVAI-133, DEVAI-148 |
-| p. 12 | Tests de sécurité, décisions et industrialisation | DEVAI-003, DEVAI-035, DEVAI-039, DEVAI-135 à DEVAI-150 |
-| p. 13 | Références et limites de configuration | Sections 1.5 et 17 |
-| Demandes utilisateur | Maven ; starters standards puis organisationnels ; commentaires ; Mistral seul ; agent IDE complet ; prompt système global et fichiers par stack remplaçables | DEVAI-005, DEVAI-046 à DEVAI-062, DEVAI-064, DEVAI-137, DEVAI-138, DEVAI-151 à DEVAI-166 |
-
-### 16.3. Matrice de recette par domaine
-
-Les groupes ci-dessous couvrent tous les IDs ; la matrice de développement détaillée fournit ensuite une ligne par exigence et par preuve. Les scénarios `REC-xx` sont des identifiants de tests, pas de nouvelles exigences.
-
-| Scénario | Exigences | Preuves attendues |
-|---|---|---|
-| REC-01 — Socle et distribution des rôles | DEVAI-001 à DEVAI-012 | Tests d'architecture, build Maven, absence de règles métier définitives en TypeScript |
-| REC-02 — IDE et identité | DEVAI-013 à DEVAI-024 | Tests UI/IPC, tokens invalides, multi-racines, déconnexion, crash moteur |
-| REC-03 — Gouvernance et confidentialité | DEVAI-025 à DEVAI-044 | Matrice DENY, signatures, rejeu, révocation, contexte interprojets, filtrage et appels directs |
-| REC-04 — Initializer | DEVAI-045 à DEVAI-062 | Quatre builds/tests, substitution et overlay, extraction hostile, collisions et cache |
-| REC-05 — IA, agents et quotas | DEVAI-063 à DEVAI-083 | Appels Mistral, refus autres modèles/fournisseurs, injection, diff concurrent, quota et idempotence |
-| REC-06 — Sonar | DEVAI-084 à DEVAI-094 | Scanner réel, tâche serveur, rapport paginé, gate, remédiation et rescan |
-| REC-07 — Xray | DEVAI-095 à DEVAI-105 | Graphe transitif, rapports, versions disponibles, locks, tests et nouveau scan |
-| REC-08 — GitFlow | DEVAI-106 à DEVAI-116 | Préservation, branches, commit/push contrôlés, MR utilisateur et CI du bon commit |
-| REC-09 — Serveur et exploitation | DEVAI-117 à DEVAI-132 | OpenAPI, isolation, jobs concurrents, migrations, charge, restauration et diagnostics expurgés |
-| REC-10 — Industrialisation | DEVAI-133 à DEVAI-150 | CI, commentaires, traçabilité, package, installation, tag et présence distante des assets |
-| REC-11 — Agent de développement complet | DEVAI-151 à DEVAI-160 | Tâche multifichiers, outils effectifs, boucle de correction, permissions de session et reprise |
-| REC-12 — Recommandations organisationnelles | DEVAI-161 à DEVAI-166 | Génériques utiles, prompt global, profils de stack, ajout/remplacement, composition, conflits et provenance |
-
-### 16.4. Scénarios transverses prioritaires
-
-1. **Projet interdit, client modifié.** Le chat paraît actif après modification locale ; l'appel direct gateway reste refusé et le compteur fournisseur ne bouge pas.
-2. **Mistral exclusivement.** Un alias Mistral approuvé fonctionne ; un autre modèle Mistral non listé et un fournisseur différent sont refusés, même si une URL ou un nom de modèle est injecté dans la requête.
-3. **Contexte croisé.** Deux racines ouvertes, l'une non autorisée ; copier une référence de fichier vers la conversation autorisée déclenche le rejet de provenance. Le mode renforcé refuse tout octet source local arbitraire.
-4. **Révocation et concurrence.** Retirer le droit pendant deux demandes simultanées ; les étapes suivantes respectent la nouvelle décision et les quotas restent cohérents.
-5. **Agent réel.** Demander une petite fonctionnalité avec tests ; l'agent inspecte le projet, modifie code/tests/docs, exécute les outils et corrige un test défaillant. Le rapport contient les commandes et codes de retour réellement observés.
-6. **Travail utilisateur concurrent.** Modifier un fichier après proposition du patch ; aucune écriture silencieuse n'écrase la nouvelle version.
-7. **Starter organisationnel.** Remplacer le starter Java standard par un template GitLab signé ; le nouveau projet utilise le template sans nouvelle version du VSIX, conserve Maven et satisfait les commentaires.
-8. **Scans sans IA.** Sonar et Xray produisent des rapports réels sur un projet sans IA ; leurs demandes de remédiation restent refusées.
-9. **Reprise après crash.** Arrêter la gateway après un appel facturable ; la réconciliation n'efface pas les tokens ni ne relance aveuglément l'appel.
-10. **Installation hors sources.** Copier suiteInstall sur un environnement propre compatible ; installer VSIX et démarrer gateway avec configuration externe sans référence au checkout de développement.
-
-### 16.5. Risques et limites à suivre
-
-| Risque | Mesure prescrite | Limite résiduelle |
-|---|---|---|
-| Poste compromis | Contrôles serveur, refus par défaut, contexte renforcé | L'extension ne contrôle pas les autres logiciels installés |
-| Provenance locale falsifiée | Chemins réels, empreintes et mode serveur | Un texte libre arbitraire ne prouve jamais son origine |
-| Builds malveillants | Workspace Trust, permissions et runners isolés | Un build est du code exécutable ; isolation à qualifier |
-| API/licences hétérogènes | Adaptateurs versionnés et qualification | Fonctionnalités non disponibles signalées explicitement |
-| IA incorrecte | Diff, tests réels, références et revue | Les tests ne prouvent pas l'absence universelle de défaut |
-| Quotas et échecs réseau | Réservation, idempotence, réconciliation | Usage fournisseur tardif pouvant laisser un état provisoire |
-| Versions de templates mouvantes | Catalogue signé, versions et provenance | Services générateurs publics à mettre en cache pour reproduction |
-| Extension des fournisseurs IA | Port fournisseur et catalogue signé | Aucun nouveau fournisseur autorisé sans décision organisationnelle |
-
-<a id="section-17"></a>
-
-## 17. Références techniques et statut documentaire
-
-### 17.1. Documentation officielle consultée
-
-Les références confirment les mécanismes techniques ; elles ne constituent pas une configuration organisationnelle ni une promesse de compatibilité avec des serveurs non inspectés. Les versions correctives doivent être choisies et verrouillées lors de l'implémentation.
-
-| Sujet | Référence officielle | Usage dans la spécification |
-|---|---|---|
-| Génération Spring | [Spring Initializr Reference Guide](https://docs.spring.io/initializr/docs/current/reference/html/) | Générateur standard extensible, projet Maven |
-| Runtime Spring Boot | [Spring Boot System Requirements](https://docs.spring.io/spring-boot/system-requirements.html) | Vérification de compatibilité du socle choisi |
-| Angular | [Angular CLI — ng new](https://angular.dev/cli/new) | Création standard avec CLI officielle |
-| Python | [PyPA — Packaging Python Projects](https://packaging.python.org/en/latest/tutorials/packaging-projects/) | Package standard, pyproject et construction |
-| .NET | [Microsoft — dotnet new](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-new) | Templates SDK standards |
-| VS Code | [Workspace Trust](https://code.visualstudio.com/api/extension-guides/workspace-trust), [Webviews](https://code.visualstudio.com/api/extension-guides/webview) | Confiance workspace et sécurité de la présentation |
-| IPC | [JSON-RPC 2.0](https://www.jsonrpc.org/specification) | Enveloppes de requêtes/réponses ; framing ODS ajouté explicitement |
-| GitLab | [Repository Files API](https://docs.gitlab.com/api/repository_files/), [Merge Requests API](https://docs.gitlab.com/api/merge_requests/) | Lecture immuable de gouvernance et MR utilisateur |
-| Sonar | [SonarScanner for Maven](https://docs.sonarsource.com/sonarqube-server/analyzing-source-code/scanners/sonarscanner-for-maven) | Scanner effectif pour projets Maven |
-| JFrog | [Scan Your Source Code](https://docs.jfrog.com/security/docs/scan-your-source-code) | Audit de dépendances et options à qualifier |
-| Mistral | [Chat API](https://docs.mistral.ai/api/endpoint/chat) | Connecteur initial et capacités à qualifier par modèle |
-
-### 17.2. Statut des exemples et de l'application
-
-Ce document définit la solution cible. Le dossier analysé contenait uniquement le PDF source, sans repository Git, code applicatif, système de build ni tests d'application existants. La production de cette spécification et du prompt associé ne constitue donc ni un développement, ni un build, ni une release de l'application.
-
-Les JSON/YAML illustratifs doivent être validés par les futurs schémas applicatifs. Les placeholders doivent être remplacés uniquement par des valeurs réellement approuvées. Les exemples de code sont des unités pédagogiques isolées ; même lorsqu'ils sont vérifiés séparément, cela ne valide pas le produit complet. L'application devra satisfaire DEVAI-149 et DEVAI-150 avant toute déclaration de livraison opérationnelle.
-
-### 17.3. Contrôles effectués sur cette livraison documentaire
-
-La livraison documentaire 1.0 comprend `specification.md` et `prompt-developpement.md`. Le PDF d'entrée est conservé sans modification. Contrôles réalisés le 29 octobre 2026 :
-
-| Contrôle | Résultat observé |
-|---|---|
-| Numérotation et références | 160 exigences ordonnées, uniques, sans ID référencé inconnu ; origine, responsable et recette présents |
-| Diagrammes | 29 blocs Mermaid analysés avec succès par le parseur Mermaid 12.2.0 ; ce contrôle de syntaxe ne remplace pas le rendu du lecteur final |
-| Configurations | 3 blocs JSON et 5 blocs YAML parsés sans erreur ; validation sémantique des futurs schémas applicatifs non exécutée |
-| Exemple Java | Compilation isolée avec cible Java 21 ; 15 contrôles de bornes réussis |
-| Exemple Python | Analyse syntaxique et 4 tests réussis |
-| Exemple TypeScript | 10 contrôles d'exécution réussis sous Node avec suppression des annotations de type ; vérification statique TypeScript complète non exécutée |
-| Prompt autonome | Spécification intégrée à l'identique, contrôlée automatiquement |
-| Confidentialité documentaire | Recherche de motifs de secrets évidents et de chemins/informations du poste, sans détection ; ce contrôle n'est pas une preuve exhaustive |
-| Code applicatif / build / tests produit | NON EXÉCUTÉS : cette tâche porte sur les documents, aucune application n'est créée |
-| Git, backup, commit, push, tag | NON RÉALISÉS : aucun dépôt Git préexistant et aucune modification de code source |
-| suiteInstall / release / publication | NON RÉALISÉS : aucune livraison applicative dans cette tâche |
-
-Les contrôles d'exemples isolés ne constituent pas un build Maven du futur produit. Les recettes d'intégration Sonar, Xray, GitLab, OIDC et Mistral restent à exécuter lors du développement avec les environnements appropriés.
-
-### 17.4. Évolution documentaire 1.1
-
-Ajout de DEVAI-161 à DEVAI-166 : prompt système global, profils Java/Angular/Python/.NET, fichiers génériques utiles dès V1, livraison ultérieure des vrais fichiers organisationnels, substitution contrôlée, composition et provenance. Ajout d’un diagramme de séquence et d’un manifeste YAML ; mise à jour du prompt autonome et de la recette. Les 160 identifiants précédents sont conservés. Les résultats de la section 17.3 décrivent la livraison 1.0 ; cette modification ne change pas les exemples de code et ne constitue pas un build applicatif. Une copie locale des documents précédents est conservée hors du dossier de livraison, sans la présenter comme un backup Git distant.
-
-### 17.5. Évolution documentaire 1.2
-
-Prise en compte de la maquette utilisateur des cinq onglets, de la saisie IA, des tests de services simulés, du profil de compilation et de l’instantané exceptionnel de livraison. Les identifiants des 166 exigences sont conservés. Les constats documentaires initiaux de 17.2/17.3 sont historiques ; l’état applicatif courant est publié dans `docs/CONFORMITE.md` et `docs/VALIDATION.md`.
+
+## 13. VSIX administré et analyses locales — DEVAI-167 à DEVAI-179
+
+### DEVAI-167 - Configuration administrée au build
+
+Le profil fixe les URL GitLab, Mistral API, Mistral Vibe, Sonar et JFrog, les modes d'authentification et les comptes de service. Le VSIX expose seulement un état public sans éditeur de paramètres de service. Les références à des variables externes sont résolues explicitement au packaging embarqué ; une référence manquante bloque ce packaging. Les fichiers source ne sont pas réécrits avec ces secrets. Recette : variations de profil, priorité des valeurs et refus des références absentes ; aucune valeur sensible dans les sorties de build ou la webview.
+
+### DEVAI-168 - Gateway locale possédée par l'extension
+
+La gateway embarquée démarre automatiquement à l'activation, écoute uniquement sur loopback avec un port attribué dynamiquement et exige un jeton aléatoire propre au lancement. L'extension arrête son processus et ses descendants lors de sa désactivation ; la fermeture du canal parent arrête aussi la gateway. Plusieurs fenêtres ne partagent pas implicitement leurs sessions. Aucun processus préexistant n'est arrêté. Recette : démarrage, appels refusés sans jeton, arrêt normal et perte du parent.
+
+### DEVAI-169 - Identité Git sans connexion SSO
+
+Le parcours autonome ne comporte aucune connexion SSO. Avant de démarrer ou connecter la gateway pour un workspace, l'extension vérifie que son remote appartient au GitLab administré et effectue un accès Git réel avec les credentials déjà disponibles dans l'IDE ou Git. Un échec interdit la connexion à la gateway. Un changement de projet invalide cette autorisation ; un dossier non approuvé ne déclenche aucun accès Git. La lecture des projets et de la politique privée utilise le compte de gouvernance configuré au build. GitFlow conserve les credentials Git déjà disponibles au poste ; les MR nécessitent un jeton utilisateur obtenu par un fournisseur d'authentification VS Code ou le gestionnaire de credentials Git. Aucun compte technique n'est substitué pour publier au nom du développeur. En l'absence de credential utilisateur utilisable pour l'API, l'interface explique la limite sans afficher ni demander un secret de service. Le contrôle de l'interface reste contournable par le propriétaire du poste, conformément à la limite acceptée du mode autonome.
+
+### DEVAI-170 - Mistral API ou Vibe
+
+Le build sélectionne API ou VIBE_CLI, VIBE_CLI étant le défaut. Le mode API utilise la clé API administrée. Le mode Vibe accepte la clé API ou le credential Vibe administré selon le mode choisi, avec une URL fixée au build. Aucun fournisseur différent ni compte personnel n'est choisi silencieusement. Les règles, quotas, mesures d'usage et erreurs restent appliqués aux deux transports. Les credentials OAuth interactifs ne sont pas inventés ni assimilés à une clé API exportable.
+
+### DEVAI-171 - Distribution Vibe contrôlée
+
+Le code de la distribution officielle Vibe, sa version figée, ses dépendances et ses licences sont intégrés au VSIX lorsque ce transport est choisi. L'exécution utilise un environnement isolé du .vibe utilisateur et du workspace. Aucun hook, outil ou serveur MCP du projet n'est chargé implicitement. Les actions de l'agent restent soumises aux permissions, outils typés et confirmations ODS. Une dépendance manquante produit un diagnostic, jamais un faux résultat ou un repli silencieux vers l'API.
+
+### DEVAI-172 - SBOM CycloneDX du travail local
+
+Security propose Générer SBOM et permet d'enregistrer un fichier CycloneDX JSON. Java/Maven, .NET/NuGet, Python et Angular/npm sont couverts par leurs générateurs. Aucun commit ni push n'est exigé. Les buffers modifiés doivent être enregistrés avec accord explicite avant un outil qui lit le disque. Les limites du générateur, dépendances non résolues et outils absents sont rapportés. L'empreinte porte sur les entrées analysées et les sorties générées restent distinctes des sources.
+
+### DEVAI-173 - Xray Graph Scan et watch administré
+
+Générer rapport Xray soumet le graphe extrait du SBOM à POST /xray/api/v1/scan/graph?watch=...&scan_type=dependency puis interroge GET /xray/api/v1/scan/graph/{scan_id}?include_vulnerabilities=true&include_licenses=true. Le protocole reprend celui du projet scan-sbom-xray. Le watch est fixé au build. BASIC utilise username/password de service ; TOKEN utilise le token JFrog de service, avec username administratif associé. Le résultat conserve violations, CVE, composants, versions corrigées et chemins d'impact. Timeout, 202, refus, réponse invalide et annulation sont testés avec des doubles.
+
+### DEVAI-174 - Quality sur les sources locales
+
+Le bouton Analyser lance le scanner approprié sur le travail enregistré, y compris sans commit. Le compte Sonar, son token et l'URL proviennent du build. L'analyse n'est jamais simulée par une simple consultation d'un ancien rapport. Le résultat est relié à la tâche Sonar effectivement soumise et à l'empreinte locale. Ce parcours à la demande ne promet pas une analyse continue de chaque frappe comme SonarQube for IDE.
+
+### DEVAI-175 - Remédiation reliée au rapport
+
+Corriger les issues reste disponible pour Sonar et Xray sous réserve du droit IA du projet. Les issues sélectionnées, la provenance du rapport et les fichiers utiles sont transmis comme données non fiables au LLM. Une modification des entrées analysées invalide le rapport pour la remédiation et nécessite une nouvelle analyse. Les changements sont présentés en diff et validés par build/tests puis nouvelle analyse avant toute affirmation de correction.
+
+### DEVAI-176 - Secrets et processus
+
+Les secrets connus, leurs formes d'autorisation et les chemins privés sont filtrés dans les diagnostics. Les erreurs distantes ne recopient pas les corps fournisseurs. Les processus lancés dans un projet ne reçoivent pas les credentials Mistral, de gouvernance ou Xray. Un scanner reçoit uniquement les credentials nécessaires à sa tâche. Les secrets ne sont pas placés dans les arguments de commande ou la webview. Ces mesures limitent les fuites accidentelles sans garantir la confidentialité contre le propriétaire du poste.
+
+### DEVAI-177 - Doubles de tous les services
+
+Les tests remplacent GitLab, Mistral API, Vibe, Sonar, Xray et les processus de scanners par des doubles explicites pour les scénarios déterministes. Ils vérifient les requêtes, authentifications, refus, erreurs et résultats. Des tests de contrat utilisent le code réellement embarqué de Vibe avec un transport simulé. Aucun test ne contacte un service métier réel avec des credentials du poste. Les outils téléchargés pour construire le produit ne sont pas des intégrations métier qualifiées.
+
+### DEVAI-178 - Traçabilité des commentaires
+
+Chaque classe, constructeur et méthode Java/TypeScript/Python écrit pour ODS possède un commentaire explicatif et les identifiants d'exigence pertinents. Les vérificateurs contrôlent l'existence des identifiants dans la spécification ; une revue des responsabilités vérifie leur pertinence. Le code tiers Vibe conserve ses commentaires et sa licence, sans attribution artificielle d'exigences ODS à ses auteurs.
+
+### DEVAI-179 - Envoi effectif depuis IA
+
+Entrée soumet une seule demande non vide lorsque l'IA est autorisée ; Maj+Entrée ajoute une ligne ; la composition IME ne soumet pas. Le bouton Envoyer utilise le même parcours. Le texte reste présent en cas de refus et est effacé après acceptation. Un test traverse le contrôleur réel jusqu'au transport LLM simulé, en complément du test navigateur.
+
+## Prompt d'implémentation
+
+Lire specification.md et ce document, puis examiner les composants existants et les tests avant modification. Appliquer DEVAI-167 à DEVAI-179 et réviser les exigences antérieures incompatibles sans réutiliser leurs identifiants. Conserver la compatibilité VS Code 1.95.2 et les scripts batch sans PowerShell. Vérifier le protocole Xray dans scan-sbom-xray et les contrats officiels de la version Vibe figée. Implémenter les parcours complets : configuration au build, gateway automatique, credentials Git natifs, deux transports Mistral, SBOM quatre stacks, Graph Scan avec watch, Sonar local, remédiations et envoi Entrée. Documenter la limite de confidentialité acceptée, les prérequis et chaque cas non vérifiable. Ajouter les commentaires avec références pertinentes sur chaque nouveau symbole et corriger les commentaires devenus faux. Tester avec des doubles, exécuter le build complet, vérifier le VSIX installé et les arrêts de processus, actualiser le PDF, puis publier uniquement les sources et artefacts de démonstration validés sans secret réel.
+
+## 14. Contrats et preuves de réalisation
+
+Les contrats exécutables sont les sources du dépôt : `vscode-extension/src/protocol.ts`, les contrôleurs de `ods-gateway`, `scripts/local_analysis.py` et `scripts/vibe_bridge.py`. Les exemples administrateur se trouvent dans `config/organisations/demo`. Les procédures sont décrites dans `docs/CONFIGURATION.md`, `docs/INSTALLATION.md` et `docs/API.md`.
+
+La recette couvre le refus Git, le cycle de vie gateway, les deux transports Mistral, l’envoi Entrée, les quatre générateurs SBOM, les deux authentifications Xray, la pagination et la provenance Sonar, l’annulation et les rapports obsolètes. Tous les services métier sont remplacés par des doubles. Les tests avec instances organisationnelles, leurs licences, permissions et modèles approuvés doivent être distingués explicitement de ces tests simulés.
+
+Références de contrat : [Vibe](https://github.com/mistralai/mistral-vibe), [SonarScanner .NET](https://docs.sonarsource.com/sonarqube-server/analyzing-source-code/scanners/dotnet/using), [CycloneDX npm](https://github.com/CycloneDX/cyclonedx-node-npm), [CycloneDX Python](https://github.com/CycloneDX/cyclonedx-python), [CycloneDX .NET](https://github.com/CycloneDX/cyclonedx-dotnet). Le contrat Graph Scan est rapproché du code local de référence `scan-sbom-xray` sans modifier ce projet.

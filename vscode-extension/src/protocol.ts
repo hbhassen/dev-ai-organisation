@@ -11,7 +11,7 @@ export function repositoryPath(remote: string): string {
 export function validateMessage(message: unknown): Record<string, any> {
   if (!message || typeof message !== 'object' || Array.isArray(message)) throw new Error('Message invalide');
   const input = message as Record<string, any>;
-  if (!['attach', 'detach', 'refresh', 'root', 'signIn', 'signOut', 'gitlab', 'starter', 'chat', 'resume', 'newChat', 'stop', 'prompts', 'scan', 'report', 'remediate', 'git', 'mr', 'mrDescription', 'restore', 'deleteSession'].includes(input.type)) throw new Error('Commande inconnue');
+  if (!['attach', 'detach', 'refresh', 'root', 'signOut', 'sbom', 'downloadSbom', 'starter', 'chat', 'resume', 'newChat', 'stop', 'prompts', 'scan', 'report', 'remediate', 'git', 'mr', 'mrDescription', 'restore', 'deleteSession'].includes(input.type)) throw new Error('Commande inconnue');
   if (JSON.stringify(input).length > 100000) throw new Error('Message trop volumineux');
   return input;
 }
