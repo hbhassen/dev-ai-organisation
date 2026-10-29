@@ -1,0 +1,33 @@
+# DEVAI-085, DEVAI-096, DEVAI-128: install in a dedicated protected scanner project.
+stages: [fetch, build, scan]
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "api" && $ODS_TARGET_COMMIT'
+default:
+  image: $ODS_RUNNER_IMAGE
+  tags: [ods-isolated]
+  timeout: 15m
+fetch-source:
+  stage: fetch
+  environment: ods-fetch
+  script: ['python scripts/scan_runner.py fetch']
+  artifacts:
+    paths: [work/source/, work/provenance.json]
+    expire_in: 1 day
+build-source:
+  stage: build
+  environment: ods-build
+  needs: [fetch-source]
+  script: ['python scripts/scan_runner.py build']
+  artifacts:
+    paths: [work/binaries/, work/build-result.json]
+    expire_in: 1 day
+scan-source:
+  stage: scan
+  environment: ods-scanner
+  needs: [fetch-source, build-source]
+  script: ['python scripts/scan_runner.py scan']
+  artifacts:
+    when: always
+    paths: [work/scan-result.json, work/xray.json, work/provenance.json]
+    expire_in: 1 day
