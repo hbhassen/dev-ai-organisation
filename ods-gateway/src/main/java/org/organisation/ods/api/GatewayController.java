@@ -21,7 +21,7 @@ public class GatewayController {
     /** Injects authorization services rather than accepting a client-computed permission flag. Exigences : DEVAI-003. */
     public GatewayController(Settings settings,PolicyService policies,AiService ai,GitLabClient gitlab,ScanService scans,Store store,org.organisation.ods.ai.JobEvents events) { this.settings=settings; this.policies=policies; this.ai=ai; this.gitlab=gitlab; this.scans=scans; this.store=store; this.events=events; }
     /** Exposes process liveness without disclosing infrastructure or secrets. Exigences : DEVAI-129. */
-    @GetMapping("/health/live") public Map<String,Object> live() { return Map.of("status","UP","version","0.2.0"); }
+    @GetMapping("/health/live") public Map<String,Object> live() { return Map.of("status","UP","version","0.2.1"); }
     /** Clearly separates a running local gateway from configured AI readiness. Exigences : DEVAI-129. */
     @GetMapping("/health/ready") public ResponseEntity<?> ready() { boolean configured=!settings.get("oidc-issuer").isBlank()&&!settings.get("mistral-key").isBlank()&&!settings.get("governance-project-id").isBlank(); return ResponseEntity.status(configured?200:503).body(Map.of("status",configured?"CONFIGURED":"CONFIGURATION_REQUIRED","externalServicesVerified",false)); }
     /** Supplies public native-client OIDC metadata, never service credentials. Exigences : DEVAI-020. */

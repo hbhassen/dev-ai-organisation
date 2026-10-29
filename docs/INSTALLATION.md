@@ -1,12 +1,16 @@
-# Installation ODS 0.2.0
+# Installation ODS 0.2.1
 
 ## Prérequis de la machine cible
 
-Windows, VS Code 1.96 ou supérieur et Java 21 sur PATH. Les outils des projets ne sont pas embarqués : Git, Node/npm, Python, Maven Wrapper et SDK .NET selon la stack. Angular CLI 21.2.5 accepte notamment Node 24. Un simple runtime .NET ne suffit pas à créer un starter.
+Windows, VS Code Desktop 1.95.0 ou supérieur dans la série 1.x (dont 1.95.2) et Java 21 sur PATH. Les outils des projets ne sont pas embarqués : Git, Node/npm, Python, Maven Wrapper et SDK .NET selon la stack. Angular CLI 21.2.5 accepte notamment Node 24. Un simple runtime .NET ne suffit pas à créer un starter.
 
 ## Depuis suiteInstall
 
-1. Extraire `suiteInstall-0.2.0.zip` et conserver son dossier `suiteInstall/`.
+Le manifeste du VSIX déclare `engines.vscode: "^1.95.0"` : VS Code accepte son installation à partir de 1.95.0 et avant 2.0.0. Les versions antérieures restent exclues ; la compatibilité avec toutes les versions passées ou futures n'est pas garantie. Le code est compilé avec `@types/vscode` verrouillé à `1.95.0`, afin de détecter l'utilisation d'API VS Code plus récentes.
+
+Si VS Code 1.95.2 refuse l'ancien VSIX 0.2.0, installer le **VSIX 0.2.1 reconstruit** ci-dessous : modifier le manifeste du projet ne change pas une archive déjà créée. Depuis les sources, `generate-vsix.bat` recrée le VSIX après compilation et tests. Voir la [règle officielle de compatibilité](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#visual-studio-code-compatibility).
+
+1. Extraire `suiteInstall-0.2.1.zip` et conserver son dossier `suiteInstall/`.
 2. Exécuter `scripts\install-extension.bat` ou « Extensions: Install from VSIX » avec le fichier de `bin/`.
 3. Exécuter `scripts\start-gateway.bat`. Sans configuration privée, seul le démarrage local et les endpoints de santé sont disponibles.
 4. Pour les services réels, copier `config/gateway.env.example` en `config/gateway.env`, remplacer les exemples puis relancer la gateway. Protéger ce fichier ; ne jamais le commiter.

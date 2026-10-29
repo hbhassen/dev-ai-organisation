@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1 — 2026-10-29
+
+- Correction du refus d'installation sur VS Code 1.95.2 : minimum déclaré abaissé de 1.96.0 à 1.95.0, pour la série VS Code 1.x.
+- Compilation avec les définitions d'API `@types/vscode` 1.95.0 verrouillées, sans ajout d'API ni modification des fonctions de l'extension.
+- Documentation d'installation actualisée ; les anciens VSIX doivent être remplacés par le package reconstruit 0.2.1. Les versions antérieures à VS Code 1.95.0 ne sont pas prises en charge.
+
 ## 0.2.0 — 2026-10-29
 
 - Interface à cinq onglets avec icônes, badges, barre de quota et navigation clavier, adaptée aux panneaux étroits.

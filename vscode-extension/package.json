@@ -2,11 +2,11 @@
   "name": "organisation-development-standard",
   "displayName": "Organisation Development Standard",
   "description": "Five governed development views with Java engine, Mistral agent, quality, security and GitFlow.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "ods-internal",
   "license": "UNLICENSED",
   "engines": {
-    "vscode": "^1.96.0"
+    "vscode": "^1.95.0"
   },
   "categories": [
     "Other"
@@ -85,7 +85,7 @@
     "compile": "tsc -p .",
     "lint": "node scripts/check-docs.cjs",
     "test": "node --test test/*.test.cjs",
-    "package": "vsce package --no-dependencies --allow-missing-repository --skip-license --out ../.artifacts/organisation-development-standard-0.2.0.vsix",
+    "package": "vsce package --no-dependencies --allow-missing-repository --skip-license --out ../.artifacts/organisation-development-standard-0.2.1.vsix",
     "vscode:prepublish": "npm run compile && npm run lint",
     "test:ui": "playwright test",
     "browser:install": "playwright install chromium"
@@ -93,7 +93,7 @@
   "devDependencies": {
     "@playwright/test": "1.64.1",
     "@types/node": "22.19.1",
-    "@types/vscode": "1.96.0",
+    "@types/vscode": "1.95.0",
     "@vscode/vsce": "4.1.0",
     "typescript": "5.9.3"
   }

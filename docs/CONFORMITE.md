@@ -1,6 +1,6 @@
 # Matrice de réalisation — 166 exigences
 
-Version applicative **0.2.0**, état du 29 octobre 2026. Ce document ne prononce pas une conformité complète.
+Version applicative **0.2.1**, état du 29 octobre 2026. Ce document ne prononce pas une conformité complète.
 
 - **I** : mécanisme implémenté ; la présence de code ne vaut pas recette exhaustive.
 - **P** : couverture partielle ou vérification incomplète, avec travail restant indiqué.
@@ -177,4 +177,4 @@ Les liens ci-dessous sont des points de traçabilité réellement présents, dé
 | DEVAI-165 — Composition déterministe et gestion des contradictions | P | Composition déterministe et contradictions de contraintes structurées ; contradictions en prose soumises à revue humaine. | [PromptCatalog.java](../ods-java-core/src/main/java/org/organisation/ods/config/PromptCatalog.java) ; [BundleTest.java](../ods-java-core/src/test/java/org/organisation/ods/security/BundleTest.java) ; [AiService.java](../ods-gateway/src/main/java/org/organisation/ods/ai/AiService.java) |
 | DEVAI-166 — Provenance, inspection et recette des recommandations | I | Mécanisme présent ; voir les sources et le périmètre de validation. | [PromptCatalog.java](../ods-java-core/src/main/java/org/organisation/ods/config/PromptCatalog.java) ; [BundleTest.java](../ods-java-core/src/test/java/org/organisation/ods/security/BundleTest.java) ; [AiService.java](../ods-gateway/src/main/java/org/organisation/ods/ai/AiService.java) |
 
-La version 0.2.0 est un incrément de développement publié avec les écarts ci-dessus. Les tests avec mocks qualifient les contrats exercés et ne transforment pas une intégration externe E en recette de production.
+La version 0.2.1 corrige la compatibilité d'installation VS Code et conserve les écarts fonctionnels de l'incrément de développement 0.2.0. Les tests avec mocks qualifient les contrats exercés et ne transforment pas une intégration externe E en recette de production.
