@@ -87,6 +87,7 @@ export class ManagedGateway implements vscode.Disposable {
   private starting?: Promise<void>;
   private endpoint?: URL;
   private credential = '';
+  private disposed = false;
   /** Binds process resources and persistent local state to this installed extension. Exigences : DEVAI-168. */
   public constructor(private readonly context: vscode.ExtensionContext, private readonly config: Deployment, private readonly root: vscode.WorkspaceFolder, private readonly repository: string) {}
   /** Returns only a running loopback endpoint; services cannot be redirected by settings. Exigences : DEVAI-167, DEVAI-168. */
@@ -95,6 +96,7 @@ export class ManagedGateway implements vscode.Disposable {
   public token(): string { if (!this.credential || !this.endpoint) throw new Error('Gateway arrêtée'); return this.credential; }
   /** Starts a single owned process and waits for its actual HTTP listener to become ready. Exigences : DEVAI-168. */
   public async start(): Promise<void> {
+    if (this.disposed) throw new Error('Gateway arrêtée');
     if (this.endpoint) return;
     if (this.starting) return this.starting;
     this.starting = this.launch().finally(() => { this.starting = undefined; });
@@ -109,6 +111,7 @@ export class ManagedGateway implements vscode.Disposable {
     const storage = join(this.context.globalStorageUri.fsPath, rootHash); mkdirSync(storage, { recursive: true });
     let dataKey = this.config.environment.ODS_DATA_KEY_BASE64 || await this.context.secrets.get('ods.localDataKey');
     if (!dataKey) { dataKey = randomBytes(32).toString('base64'); await this.context.secrets.store('ods.localDataKey', dataKey); }
+    if (this.disposed) throw new Error('Démarrage de la gateway annulé');
     this.credential = randomBytes(32).toString('hex');
     const env: NodeJS.ProcessEnv = {};
     for (const key of ['PATH', 'Path', 'SystemRoot', 'SYSTEMROOT', 'WINDIR', 'TEMP', 'TMP', 'HOME', 'USERPROFILE', 'LANG']) if (process.env[key]) env[key] = process.env[key];
@@ -129,6 +132,7 @@ export class ManagedGateway implements vscode.Disposable {
   }
   /** Closes the parent channel and terminates only owned descendants if graceful shutdown stalls. Exigences : DEVAI-168. */
   public dispose(): void {
+    this.disposed = true;
     const child = this.child; this.child = undefined; this.endpoint = undefined; this.credential = '';
     if (!child) return; child.stdin.end();
     const timer = setTimeout(() => {

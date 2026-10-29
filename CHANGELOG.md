@@ -3,7 +3,7 @@
 
 ## 0.3.0 — 2026-10-29
 
-- Connexion du VSIX sans SSO : contrôle Git réel avant démarrage du gateway embarqué, session privée loopback et arrêt possédé.
+- Connexion du VSIX sans SSO : contrôle Git réel avant démarrage du gateway embarqué, session privée loopback et arrêt possédé, y compris si la fermeture intervient pendant une connexion en cours.
 - Configuration organisationnelle et credentials embarqués au build, interface verrouillée et masquage ; extractibilité des secrets explicitement acceptée.
 - Choix Mistral API ou adaptateur CLI utilisant le backend officiel Vibe 3.0.3 embarqué, Vibe par défaut.
 - SBOM CycloneDX Java, Angular, Python et .NET exportable sans commit ; Graph Scan Xray avec watch et authentification Basic ou token.

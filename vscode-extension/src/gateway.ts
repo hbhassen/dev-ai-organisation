@@ -8,18 +8,21 @@ export class GatewayClient implements vscode.Disposable {
   private runtime?: ManagedGateway;
   private root?: vscode.WorkspaceFolder;
   private repository?: string;
+  private generation = 0;
   private readonly git = new GitAccess();
   /** Keeps service configuration in the native host, outside all editable webview state. Exigences : DEVAI-167, DEVAI-176. */
   public constructor(private readonly context: vscode.ExtensionContext) {}
   /** Revalidates repository access on refresh and starts the gateway after successful Git verification. Exigences : DEVAI-169. */
   public async connect(root: vscode.WorkspaceFolder): Promise<void> {
+    const generation = this.generation;
     this.config ??= deployment(this.context.extensionPath);
     let verified: { path: string; remote: string };
     try { verified = await this.git.verify(root, this.config.environment.ODS_GITLAB_URL); }
     catch (error) { this.dispose(); throw error; }
+    if (generation !== this.generation) throw new Error('Connexion annulée pendant la vérification Git');
     if (this.root && (this.root.uri.toString() !== root.uri.toString() || this.repository !== verified.path)) this.dispose();
     this.root = root; this.repository = verified.path; this.runtime ??= new ManagedGateway(this.context, this.config, root, verified.path);
-    await this.runtime.start();
+    try { await this.runtime.start(); } catch (error) { this.dispose(); throw error; }
   }
   /** Returns the actual private listener rather than a developer-editable endpoint. Exigences : DEVAI-167, DEVAI-168. */
   public base(): URL { if (!this.runtime) throw new Error('Accès Git vérifié requis avant la connexion'); return this.runtime.base(); }
@@ -62,5 +65,5 @@ export class GatewayClient implements vscode.Disposable {
   /** Stops the owned gateway without deleting the developer's existing Git credentials. Exigences : DEVAI-168, DEVAI-169. */
   public async signOut(): Promise<void> { this.dispose(); }
   /** Releases the local process when its extension or workspace is closed. Exigences : DEVAI-168. */
-  public dispose(): void { this.runtime?.dispose(); this.runtime = undefined; this.root = undefined; }
+  public dispose(): void { this.generation++; this.runtime?.dispose(); this.runtime = undefined; this.root = undefined; }
 }
