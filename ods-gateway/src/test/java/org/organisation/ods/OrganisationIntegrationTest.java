@@ -93,6 +93,12 @@ class OrganisationIntegrationTest {
                 if(path.equals("/api/v4/user")) { reply(exchange,200,Map.of("id",7)); return; }
                 if(path.equals("/api/v4/projects/1042")||path.equals("/api/v4/projects/demo/payment-service")) { reply(exchange,failure.get().equals("gitlab")?403:200,Map.of("id",1042,"path_with_namespace","demo/payment-service","default_branch","main")); return; }
                 if(path.contains("/repository/commits/")) { reply(exchange,200,Map.of("id",COMMIT)); return; }
+                if(path.contains("/repository/branches/")) { reply(exchange,200,Map.of("commit",Map.of("id",path.endsWith("develop")?"b".repeat(40):COMMIT))); return; }
+                if(path.endsWith("/repository/compare")) {
+                    if(!query.contains("from="+"b".repeat(40))||!query.contains("to="+COMMIT)||!query.contains("straight=false")) contractErrors.add("Review did not pin merge-base comparison");
+                    String file=failure.get().equals("secret-path")?".env":"src/App.java";
+                    reply(exchange,200,Map.of("compare_timeout",failure.get().equals("compare-timeout"),"diffs",List.of(Map.of("new_path",file,"old_path",file,"diff",failure.get().equals("large-diff")?"x".repeat(13000):"@@ -1 +1 @@\n-old\n+new","too_large",failure.get().equals("too-large"),"collapsed",failure.get().equals("collapsed"))))); return;
+                }
                 if(path.contains("/repository/files/")) { String value=path.endsWith(".sig")?policySignature:signedPolicy; reply(exchange,200,Map.of("content",Base64.getEncoder().encodeToString(value.getBytes(StandardCharsets.UTF_8)))); return; }
                 if(path.endsWith("/repository/tree")) { reply(exchange,200,List.of(Map.of("path","pom.xml","type","blob"))); return; }
                 if(path.endsWith("/pipeline")&&method.equals("POST")) { JsonNode body=Json.parse(new String(exchange.getRequestBody().readAllBytes(),StandardCharsets.UTF_8)); if(!Json.write(body).contains(COMMIT)||!body.path("ref").asText().equals("main")) contractErrors.add("Runner lost immutable commit"); pipelines.incrementAndGet(); reply(exchange,201,Map.of("id",73)); return; }
@@ -149,6 +155,21 @@ class OrganisationIntegrationTest {
     }
     /** Publishes a reviewed MR through the delegated GitLab identity and verifies its provider result. Exigences : DEVAI-023, DEVAI-112. */
     @Test void gitflowTab() throws Exception { JsonNode mr=ok("POST","/api/v1/git/merge-requests",Map.of("projectId",1042,"sourceBranch","feat/test","targetBranch","develop","title","Synthetic MR","description","Integration test only")); assertEquals(18,mr.path("iid").asInt()); assertEquals(1,mrCreates.get()); }
+    /** Verifies the real HTTP comparison contract, size/secret limits and stale-head publication protection. Exigences : DEVAI-037, DEVAI-112, DEVAI-113. */
+    @Test void gitflowPreReviewEvidence() throws Exception {
+        String route="/api/v1/git/mr-context?projectId=1042&sourceBranch=feat%2Ftest&targetBranch=develop";
+        JsonNode evidence=ok("GET",route,null);
+        assertEquals(COMMIT,evidence.path("sourceCommit").asText()); assertEquals("b".repeat(40),evidence.path("targetCommit").asText());
+        assertEquals("src/App.java",evidence.path("files").get(0).path("path").asText());
+        for(String scenario:List.of("compare-timeout","too-large","collapsed","secret-path","large-diff")) {
+            failure.set(scenario); assertTrue(request("GET",route,null,token("ods-gateway","7")).statusCode()>=400,scenario);
+        }
+        failure.set("");
+        assertTrue(request("POST","/api/v1/git/merge-requests",Map.of("projectId",1042,"sourceBranch","feat/test","targetBranch","develop","title","Stale MR","description","Review","sourceCommit","c".repeat(40),"targetCommit","b".repeat(40)),token("ods-gateway","7")).statusCode()>=400);
+        assertEquals(0,mrCreates.get());
+        assertEquals(18,ok("POST","/api/v1/git/merge-requests",Map.of("projectId",1042,"sourceBranch","feat/test","targetBranch","develop","title","Reviewed MR","description","Review","sourceCommit",COMMIT,"targetCommit","b".repeat(40))).path("iid").asInt());
+        assertEquals(1,mrCreates.get()); assertEquals(0,modelCalls.get());
+    }
     /** Checks real JWT audience, identity mismatch and forbidden providers without trusting mock success defaults. Exigences : DEVAI-020, DEVAI-022, DEVAI-026, DEVAI-125. */
     @Test void authenticationAndProviderFailures() throws Exception {
         assertEquals(401,request("GET","/api/v1/capabilities?projectId=1042",null,token("wrong-audience","7")).statusCode());

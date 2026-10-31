@@ -127,12 +127,70 @@ test('DEVAI-072: changing plan scope revokes prior command and edit grants', asy
   await view.tool('plan_update', { steps: [{ title: 'Publish remotely', status: 'pending' }] }); assert.equal(view.grants.size, 0);
 });
 
-test('DEVAI-113: MR creation prefills a matching draft and requires reviewed publication', async () => {
-  const inputs = []; let published;
-  const api = { workspace: { isTrusted: true }, window: { showInputBox: async options => { inputs.push(options); return options.value || 'Reviewed title'; }, showWarningMessage: async () => 'Publier' } };
-  const view = createView(api, { call: async () => ({ commit: 'revision', branch: 'feat/example' }) }, { request: async (route, method, body) => { published = body; return {}; } });
-  view.mrDraft = { text: 'Draft from the governed prompt', commit: 'revision', branch: 'feat/example' }; await view.mr();
-  assert.equal(inputs[2].value, 'Draft from the governed prompt'); assert.equal(published.description, 'Draft from the governed prompt');
+/** Exercises MR preparation, model completion, preview and publication with synthetic external services only. Exigences : DEVAI-113, DEVAI-135. */
+function mrFixture(options = {}) {
+  const calls = [], previews = [];
+  const evidence = { sourceCommit: 'a'.repeat(40), targetCommit: 'b'.repeat(40), files: [
+    { path: 'src/App.java', oldPath: 'src/App.java', status: 'modified', diff: '@@ -1 +1 @@\n-old\n+new' },
+    { path: 'new.txt', oldPath: 'old.txt', status: 'renamed', diff: '' }
+  ] };
+  const response = { summary: 'Changement observé', files: evidence.files.map(file => ({ path: file.path, summary: file.status, recommendation: 'Vérifier les appelants et les liens.', needsClarification: file.status === 'renamed', clarification: file.status === 'renamed' ? 'Les consommateurs utilisent-ils encore old.txt ?' : 'Intention explicite dans le diff.', suggestedTest: 'Exécuter les tests existants.' })) };
+  const api = { Uri: { parse: uri }, workspace: { isTrusted: true, openTextDocument: async value => { previews.push(view.provideTextDocumentContent(value)); return {}; } }, window: {
+    showInputBox: async spec => spec.title === 'Branche cible' ? 'develop' : spec.title.startsWith('Titre') ? 'Titre MR' : options.cancelComments ? undefined : 'Commentaires existants',
+    showTextDocument: async () => {}, showWarningMessage: async () => { if (options.stop) view.stopped = true; if (options.changeHead) head = 'c'.repeat(40); return options.cancel ? undefined : 'Publier'; }
+  } };
+  let head = evidence.sourceCommit;
+  const engine = { call: async method => { assert.equal(method, 'project.inspect'); return { commit: head, branch: 'feat/example', stacks: ['JAVA'] }; } };
+  const gateway = { request: async (route, method, body) => {
+    calls.push({ route, body });
+    if (route.startsWith('/api/v1/git/mr-context?')) return { ...evidence, sourceCommit: options.unpushed ? 'd'.repeat(40) : evidence.sourceCommit };
+    if (route === '/api/v1/ai/chat') { assert.equal(body.mode, 'QUESTION'); assert.equal(body.task, 'gitlab-mr-description'); assert.deepEqual(body.context, []); assert.match(body.message, /old.txt/); if (options.failure) throw new Error('Model unavailable'); return { jobId: 'review-job' }; }
+    if (route.startsWith('/api/v1/ai/usage')) return {};
+    if (route === '/api/v1/git/merge-requests') { assert.equal(previews.length > 0, true); return { iid: 1 }; }
+    throw new Error(route);
+  } };
+  const view = createView(api, engine, gateway);
+  view.capabilities = { rule: { aiEnabled: true, allowedActions: ['MR_DESCRIPTION'] } };
+  view.approval = async () => !options.refuseContext;
+  view.waitJob = async () => ({ status: 'SUCCEEDED', result: { message: { content: options.invalid ? '{}' : JSON.stringify(response) } } });
+  return { view, calls, previews, response, evidence };
+}
+
+test('DEVAI-113: create MR automatically includes comments and a complete file-by-file pre-review', async () => {
+  const state = mrFixture(); await state.view.mr();
+  const published = state.calls.find(call => call.route === '/api/v1/git/merge-requests').body;
+  assert.match(published.description, /Commentaires existants/); assert.match(published.description, /src\/App.java/);
+  assert.match(published.description, /Clarification requise/); assert.match(published.description, /Clarification non requise/);
+  assert.match(published.description, /Aucun test exécuté/); assert.equal(published.sourceCommit, state.evidence.sourceCommit);
+  assert.equal(published.description, state.previews[0]); assert.equal(state.view.mrBusy, false);
+});
+
+test('DEVAI-113: preparing then creating reuses the same immutable review without another model call', async () => {
+  const state = mrFixture(); await state.view.mrDescription();
+  assert.equal(state.calls.some(call => call.route === '/api/v1/git/merge-requests'), false);
+  await state.view.mr(); assert.equal(state.calls.filter(call => call.route === '/api/v1/ai/chat').length, 1);
+  state.evidence.targetCommit = 'e'.repeat(40); await state.view.mr();
+  assert.equal(state.calls.filter(call => call.route === '/api/v1/ai/chat').length, 2);
+});
+
+for (const scenario of ['cancel', 'cancelComments', 'refuseContext', 'stop', 'changeHead', 'failure', 'invalid', 'unpushed']) {
+  test(`DEVAI-113: ${scenario} never publishes a partial or stale pre-review`, async () => {
+    const state = mrFixture({ [scenario]: true });
+    if (['cancel', 'cancelComments'].includes(scenario)) await state.view.mr(); else await assert.rejects(() => state.view.mr());
+    assert.equal(state.calls.some(call => call.route === '/api/v1/git/merge-requests'), false); assert.equal(state.view.mrBusy, false);
+  });
+}
+
+test('DEVAI-113: incomplete, duplicate, invented paths and missing clarification are rejected', () => {
+  const { renderMrReview } = require('../dist/mrReview');
+  for (const mutate of [review => review.files.pop(), review => review.files[1].path = review.files[0].path, review => review.files[0].path = 'invented', review => delete review.files[0].clarification, review => delete review.files[0].needsClarification]) {
+    const state = mrFixture(); mutate(state.response); assert.throws(() => renderMrReview(JSON.stringify(state.response), state.evidence));
+  }
+});
+
+test('DEVAI-113: policy denial prevents even fetching the review evidence', async () => {
+  const state = mrFixture(); state.view.capabilities.rule.allowedActions = [];
+  await assert.rejects(() => state.view.mr(), /MR_DESCRIPTION/); assert.equal(state.calls.length, 0);
 });
 
 test('DEVAI-024/077: closing a root during job submission cancels the accepted job and clears native state', async () => {

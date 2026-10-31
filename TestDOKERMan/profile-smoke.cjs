@@ -20,10 +20,10 @@ async function run() {
   let engine, gateway;
   try {
     const extension = vscode.extensions.getExtension('ods-local.ods-docker-manual');
-    assert.ok(extension); assert.equal(extension.packageJSON.version, '0.3.2');
+    assert.ok(extension); assert.equal(extension.packageJSON.version, '0.4.0');
     await extension.activate();
     assert.ok((await vscode.commands.getCommands(true)).includes('ods.open'));
-    evidence.checks.push('VSIX 0.3.2 activation in real VS Code extension host');
+    evidence.checks.push('VSIX 0.4.0 activation in real VS Code extension host');
     const extensionPath = fs.readFileSync(path.join(local, 'automation-stage.txt'), 'utf8').trim();
     // Explicitly use the isolated synthetic fixture, never the installed provider credentials.
     const deployment = JSON.parse(fs.readFileSync(path.join(extensionPath, 'runtime/deployment.json')));
@@ -74,8 +74,21 @@ async function run() {
       assert.ok(!JSON.stringify(messages.slice(start)).includes('synthetic-private-provider-detail'));
       evidence.checks.push('IA native message -> gateway -> real Vibe CLI -> presentation: ' + mode);
     }
+    const inspection = await engine.call('project.inspect');
+    const mrEvidence = await gateway.request('/api/v1/git/mr-context?projectId=' + capabilities.projectId + '&sourceBranch=' + encodeURIComponent(inspection.branch) + '&targetBranch=main');
+    assert.equal(mrEvidence.sourceCommit, inspection.commit); assert.ok(mrEvidence.files.length > 0);
+    const { mrReviewPrompt, renderMrReview } = require(path.join(extension.extensionPath, 'dist/mrReview.js'));
+    fs.writeFileSync(path.join(extensionPath, 'runtime/fixture-mode.txt'), 'pre-review');
+    view.conversation = undefined; view.mrDraft = undefined; view.mrBusy = true;
+    try { await view.chat({ mode: 'QUESTION', task: 'gitlab-mr-description', message: mrReviewPrompt(mrEvidence) }); }
+    finally { view.mrBusy = false; }
+    assert.ok(view.mrDraft?.text);
+    const renderedReview = renderMrReview(view.mrDraft.text, mrEvidence);
+    for (const file of mrEvidence.files) assert.ok(renderedReview.includes(file.path));
+    assert.ok(renderedReview.includes('Aucun test exécuté'));
+    evidence.checks.push('real GitLab immutable diff -> native MR task -> gateway/Vibe synthetic JSON -> complete per-file pre-review; no MR published');
     const calls = fs.readFileSync(path.join(extensionPath, 'runtime/fixture-calls.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
-    assert.equal(calls.length, 6); assert.ok(calls.every(call => call.synthetic));
+    assert.equal(calls.length, 7); assert.ok(calls.every(call => call.synthetic));
     evidence.syntheticHttpCalls = calls.length;
     if (process.env.ODS_MANUAL_REAL_MISTRAL === '1') {
       const real = new GatewayClient({...context, extensionPath: extension.extensionPath,

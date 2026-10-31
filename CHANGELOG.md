@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0 — 2026-10-31
+
+- GitFlow : « Créer une MR » génère une pré-revue Mistral et l’ajoute aux commentaires du développeur dans la description, avec aperçu complet avant publication.
+- Chaque fichier modifié reçoit un résumé, une recommandation au reviewer, une question au développeur si une clarification est nécessaire, et une vérification suggérée explicitement non exécutée.
+- Comparaison des commits publiés sur GitLab ; refus des diffs tronqués, sensibles ou dépassant 30 fichiers / 12 000 caractères. Les fichiers non textuels sont signalés comme limites de revue.
+- Réutilisation du brouillon si les deux branches sont inchangées ; blocage des réponses incomplètes et des commits obsolètes. Une MR déjà ouverte n’est pas écrasée.
+- Tests de la création automatique, annulations, refus, erreurs du modèle, couverture des fichiers et contrat HTTP GitLab, sans appel Mistral réel.
+
 ## 0.3.2 — 2026-10-31
 
 - Quality et Security : « Corriger les issues » lance directement l’agent Mistral pour les issues sélectionnées, applique le correctif avec checkpoint récupérable puis ouvre le diff, sans consigne complémentaire ni validation du patch.

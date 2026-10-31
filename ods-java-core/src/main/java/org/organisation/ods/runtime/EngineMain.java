@@ -16,7 +16,7 @@ public final class EngineMain {
     private boolean trusted;
     /** Starts the protocol reader or prints a minimal version for package smoke tests. Exigences : DEVAI-014, DEVAI-145. */
     public static void main(String[] args) throws Exception {
-        if(args.length==1&&args[0].equals("--version")) { System.out.println("ODS Engine 0.3.2 / protocol 1 / Java 21"); return; }
+        if(args.length==1&&args[0].equals("--version")) { System.out.println("ODS Engine 0.4.0 / protocol 1 / Java 21"); return; }
         new EngineMain().serve(System.in,System.out);
     }
     /** Reads at most 8 MiB per frame and releases owned processes on EOF. Exigences : DEVAI-014, DEVAI-015. */
@@ -46,7 +46,7 @@ public final class EngineMain {
     private Object dispatch(String method,JsonNode p) throws Exception {
         if(method.equals("initialize")) {
             if(p.path("protocolVersion").asInt()!=1) throw new OdsException("PROTOCOL_INCOMPATIBLE","Version IPC incompatible");
-            return Map.of("protocolVersion",1,"engineVersion","0.3.2");
+            return Map.of("protocolVersion",1,"engineVersion","0.4.0");
         }
         if(method.equals("workspace.open")) { trusted=p.path("trusted").asBoolean(false); workspace=new WorkspaceTools(Path.of(Json.text(p,"root")),processes); return Map.of("ready",true,"trusted",trusted); }
         if(method.equals("starters.list")) return new StarterService(processes).catalog();

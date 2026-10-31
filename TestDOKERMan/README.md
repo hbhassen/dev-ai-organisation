@@ -1,6 +1,6 @@
-# Banc Docker pour les tests manuels ODS 0.3.2
+# Banc Docker pour les tests manuels ODS 0.4.0
 
-Ce dossier contient le banc local de l'extension et les tests de régression 0.3.2. Le build utilise le profil d'organisation déjà pris en charge par le projet. Les validations ne génèrent aucun appel Mistral réel par défaut ; l'option explicite `--real-mistral` ajoute une unique soumission courte au test du profil.
+Ce dossier contient le banc local de l'extension et les tests de régression 0.4.0. Le build utilise le profil d'organisation déjà pris en charge par le projet. Les validations ne génèrent aucun appel Mistral réel par défaut ; l'option explicite `--real-mistral` ajoute une unique soumission courte au test du profil.
 
 | Service | Adresse locale | Nature |
 |---|---|---|
@@ -54,7 +54,9 @@ Pour reconstruire et réinstaller après un changement de connexion ou de clé :
 ./TestDOKERMan/start.ps1 -Build -Install -Open
 ```
 
-Le build exécute les contrôles, tests et packaging existants. Le profil privé se trouve dans `.local/profile/organisation.json`. La version applicative est `0.3.2`.
+Le build exécute les contrôles, tests et packaging existants. Le profil privé se trouve dans `.local/profile/organisation.json`. La version applicative est `0.4.0`.
+
+GitFlow : après push, **Créer une MR** prépare automatiquement la pré-revue par fichier avec Mistral, ajoute les commentaires facultatifs et affiche le texte avant publication. Le test du profil vérifie le vrai diff GitLab et sa génération structurée avec une réponse fournisseur synthétique, sans publier de MR ni appeler réellement Mistral. Voir les limites et le parcours dans `docs/INSTALLATION.md` à la racine du dépôt.
 
 Depuis 0.3.2, les boutons « Corriger les issues » de Quality et Security lancent l’agent sans consigne complémentaire. Valider les issues sélectionnées autorise la lecture des sources et l’application du correctif avec sauvegarde, puis le diff s’affiche. Les commandes de validation peuvent demander leur autorisation native ; relancer une analyse après correction. Les tests de régression de ce parcours simulent Mistral et ne consomment aucun token fournisseur.
 

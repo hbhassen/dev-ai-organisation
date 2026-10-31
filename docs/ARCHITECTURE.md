@@ -1,4 +1,6 @@
-# Architecture 0.3.0
+# Architecture 0.4.0
+
+La pré-revue GitFlow utilise `GET /api/v1/git/mr-context` : contrôle d’accès GitLab, résolution des deux branches en SHA immuables, puis comparaison avec leur base commune. Seuls chemins, statuts et diffs sont conservés ; les métadonnées personnelles des commits ne sont pas transmises. Les limites et contrôles de secrets s’appliquent avant l’appel au modèle. Le client lance la tâche gouvernée `gitlab-mr-description` en mode Question, valide une réponse structurée couvrant exactement les fichiers et produit un aperçu Markdown. Le POST de création transmet aussi les SHA source/cible, vérifiés à nouveau avant publication. Un changement distant après cette dernière vérification reste possible : les SHA figurent donc explicitement dans la description. Le contrat de comparaison suit l’[API officielle GitLab](https://docs.gitlab.com/api/repositories/#compare-branches-tags-or-commits). Exigences : DEVAI-037, DEVAI-112, DEVAI-113.
 
 ```mermaid
 flowchart TD

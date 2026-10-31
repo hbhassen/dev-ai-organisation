@@ -1,4 +1,8 @@
-# Installation du VSIX autonome 0.3.2
+# Installation du VSIX autonome 0.4.0
+
+Dans GitFlow, pousser la branche source puis utiliser **Créer une MR**. Choisir la cible, le titre et les commentaires facultatifs ; la pré-revue Mistral se génère automatiquement. Lire l’aperçu Markdown complet puis confirmer **Publier**. La description conserve les commentaires et contient, pour chaque fichier, une recommandation au reviewer, une éventuelle question au développeur et un test suggéré. La pré-revue ne vaut pas approbation et n’exécute aucun test.
+
+La politique doit autoriser `MR_DESCRIPTION`. **Préparer la description IA** génère le même aperçu sans publier ; sa réutilisation évite un appel fournisseur si les branches sont inchangées. Seuls les commits poussés sont analysés. Un diff GitLab tronqué, sensible, supérieur à 30 fichiers ou à 12 000 caractères bloque la génération : découper alors la MR. Un fichier binaire ou un changement de métadonnées sans diff textuel exige une vérification humaine. Une réponse IA incomplète ou un changement de branche bloque la publication. Si une MR existe déjà, elle est signalée et conservée sans modification ; le nouveau texte reste dans l’aperçu.
 
 1. Installer VS Code Desktop 1.95.0 ou supérieur dans la série 1.x, Java 21, Git et Python 3.12. Vérifier `java -version`, `git --version` et, sous Windows, `py -3.12 --version`. Utiliser le VSIX construit pour le système et l’architecture du poste.
 2. Installer le VSIX fourni par l’organisation via « Extensions: Install from VSIX » ou `suiteInstall/scripts/install-extension.bat`. La configuration des services est déjà compilée ; aucune URL ou clé n’est à saisir dans l’extension.

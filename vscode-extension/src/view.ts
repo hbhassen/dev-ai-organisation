@@ -5,6 +5,7 @@ import { EngineClient } from './engine';
 import { GatewayClient } from './gateway';
 import { renderView } from './presentation';
 import { repositoryPath, validateMessage } from './protocol';
+import { MrEvidence, mrReviewPrompt, renderMrReview } from './mrReview';
 
 /** Native IDE boundary for five views, user approvals, diff and development agent tools. Exigences : DEVAI-013, DEVAI-018, DEVAI-151. */
 export class OdsView implements vscode.WebviewViewProvider, vscode.TextDocumentContentProvider {
@@ -21,6 +22,8 @@ export class OdsView implements vscode.WebviewViewProvider, vscode.TextDocumentC
   private promptHash?: string;
   private attached: string[] = [];
   private mrDraft?: { text: string; commit: string; branch: string };
+  private mrBusy = false;
+  private mrReview?: { key: string; text: string };
   private documentationTarget?: { path: string; baseHash: string; applied: boolean };
   private remediationBusy = false;
   private remediation?: { root: string; project: number; fingerprint: string; applied: number; reminders: number };
@@ -93,6 +96,7 @@ export class OdsView implements vscode.WebviewViewProvider, vscode.TextDocumentC
     try {
       if (this.documentationTarget && m.type !== 'stop') throw new Error('Arrêter la génération du document avant cette opération');
       if (this.remediationBusy && m.type !== 'stop') throw new Error('Arrêter la correction active avant cette opération');
+      if (this.mrBusy && m.type !== 'stop') throw new Error('Terminer ou arrêter la pré-revue de MR avant cette opération');
       if ((this.chatBusy || this.activeRun) && ['refresh', 'root', 'attach', 'starter', 'git', 'mr', 'newChat', 'deleteSession', 'restore', 'resume', 'scan', 'sbom', 'downloadSbom', 'remediate', 'mrDescription', 'changelog', 'releaseNotes'].includes(m.type)) throw new Error('Arrêter la tâche active avant cette opération');
       switch (m.type) {
         case 'refresh': await this.refresh(); break;
@@ -203,7 +207,7 @@ export class OdsView implements vscode.WebviewViewProvider, vscode.TextDocumentC
     const projectId = this.requireProject(); if (!['QUESTION', 'MODIFICATION', 'AGENT'].includes(m.mode) || typeof m.message !== 'string' || !m.message.trim()) throw new Error('Mode ou demande invalide');
     const rootKey = this.root!.uri.toString();
     if (this.activeRun) throw new Error('Une tâche est déjà active');
-    const context = this.remediation ? [] : await this.prepareContext(!!m.includeActive); if (!context) return;
+    const context = this.remediation || this.mrBusy ? [] : await this.prepareContext(!!m.includeActive); if (!context) return;
     const task = m.task === 'implement-requirement' && m.mode !== 'AGENT' ? 'code-generation' : String(m.task);
     const body = { projectId, mode: m.mode, task, message: m.message, stacks: this.inspection.stacks ?? [], context };
     const agent = m.mode === 'AGENT';
@@ -224,7 +228,7 @@ export class OdsView implements vscode.WebviewViewProvider, vscode.TextDocumentC
           if (this.promptHash && this.promptHash !== result.result.promptHash) { this.grants.clear(); this.post('info', { message: 'Les recommandations ont changé ; les permissions de session doivent être revalidées.' }); }
           this.promptHash = result.result.promptHash; this.post('provenance', { origin: result.result.promptOrigin, hash: result.result.promptHash });
         }
-        if (response?.content) { this.post('chat', { role: 'assistant', text: String(response.content) }); if (task === 'gitlab-mr-description') this.mrDraft = { text: String(response.content), commit: this.inspection.commit, branch: this.inspection.branch }; }
+        if (response?.content) { this.post('chat', { role: 'assistant', text: String(response.content) }); if (task === 'gitlab-mr-description' && result.status === 'SUCCEEDED' && !response.tool_calls?.length) this.mrDraft = { text: String(response.content), commit: this.inspection.commit, branch: this.inspection.branch }; }
         this.post('usage', result.result.usage ?? {});
         try { this.post('quota', { usage: await this.gateway.request(`/api/v1/ai/usage?projectId=${projectId}`), limit: this.capabilities?.rule?.monthlyTokenQuota }); } catch { /* Usage refresh cannot replay a completed model call. */ }
         const calls = response?.tool_calls ?? [];
@@ -442,14 +446,9 @@ export class OdsView implements vscode.WebviewViewProvider, vscode.TextDocumentC
       this.post('info', { message: this.documentationTarget.applied ? `${path} créé ou mis à jour après validation du diff.` : `${path} non modifié : aucune proposition appliquée. Consulter la conversation IA.` });
     } finally { this.documentationTarget = undefined; this.conversation = undefined; this.post('busy', { value: false }); }
   }
-  /** Drafts an MR description using the real branch diff without publishing or asserting unobserved tests. Exigences : DEVAI-113. */
+  /** Prepares the same complete pre-review used by creation, without publishing a merge request. Exigences : DEVAI-113. */
   private async mrDescription(): Promise<void> {
-    this.requireProject(); this.stopped = false;
-    const target = await vscode.window.showInputBox({ title: 'Branche cible du diff de MR', value: 'develop', validateInput: value => /^[a-zA-Z0-9][a-zA-Z0-9._/-]*$/.test(value) ? undefined : 'Nom de branche invalide' }); if (!target) return;
-    const diff = await this.tool('process_start', { arguments: ['git', 'diff', '--stat', `${target}...HEAD`, '--'] });
-    if (diff.exitCode !== 0 || diff.truncated) throw new Error('Diff de branche indisponible ou trop volumineux');
-    this.conversation = undefined;
-    await this.chat({ mode: 'QUESTION', task: 'gitlab-mr-description', message: `Préparer une description de MR vers ${target}, à relire avant publication. Examiner le diff et les changements pertinents avec les outils de lecture. Tests non exécutés par cette tâche : ne pas les annoncer réussis. Statistiques Git :\n${diff.output}` });
+    await this.prepareMr(false);
   }
   /** Provides constrained Git workflows without force push or destructive reset. Exigences : DEVAI-106, DEVAI-107, DEVAI-108, DEVAI-110, DEVAI-111. */
   private async git(action: string): Promise<void> {
@@ -481,14 +480,44 @@ export class OdsView implements vscode.WebviewViewProvider, vscode.TextDocumentC
     if (!args) throw new Error('Action Git inconnue');
     this.post('git', { data: await this.tool('process_start', { arguments: args }) }); await this.refresh();
   }
-  /** Publishes a manually reviewed MR through the developer's delegated identity. Exigences : DEVAI-023, DEVAI-112. */
+  /** Enriches a user-owned MR with a complete LLM pre-review before explicit publication. Exigences : DEVAI-023, DEVAI-112, DEVAI-113. */
   private async mr(): Promise<void> {
-    const projectId = this.requireProject(); const target = await vscode.window.showInputBox({ title: 'Branche cible', value: 'develop' }); if (!target) return;
-    const title = await vscode.window.showInputBox({ title: 'Titre de la merge request' }); if (!title) return;
-    const current = await this.engine.call('project.inspect');
-    const draft = this.mrDraft?.commit === current.commit && this.mrDraft?.branch === current.branch ? this.mrDraft!.text : '';
-    const description = await vscode.window.showInputBox({ title: 'Description à relire avant publication', value: draft });
-    if (!(await vscode.window.showWarningMessage(`Créer la MR ${this.inspection.branch} → ${target} : ${title} ?`, { modal: true }, 'Publier'))) return;
-    const result = await this.gateway.request('/api/v1/git/merge-requests', 'POST', { projectId, sourceBranch: this.inspection.branch, targetBranch: target, title, description: description ?? '' }); this.post('git', { data: result });
+    await this.prepareMr(true);
+  }
+  /** Binds the review to published source/target commits and rejects cancellation, stale context and incomplete model output. Exigences : DEVAI-024, DEVAI-037, DEVAI-113. */
+  private async prepareMr(publish: boolean): Promise<void> {
+    const projectId = this.requireProject();
+    if (this.mrBusy || this.chatBusy || this.activeRun) throw new Error('Une tâche est déjà active');
+    if (!this.capabilities?.rule?.aiEnabled || !this.capabilities.rule.allowedActions?.includes('MR_DESCRIPTION')) throw new Error('La politique du projet doit autoriser MR_DESCRIPTION pour la pré-revue');
+    const root = this.root!.uri.toString();
+    this.mrBusy = true; this.stopped = false; this.post('busy', { value: true });
+    try {
+      const target = await vscode.window.showInputBox({ title: 'Branche cible', value: 'develop' }); if (!target) return;
+      const title = publish ? await vscode.window.showInputBox({ title: 'Titre de la merge request' }) : undefined; if (publish && !title?.trim()) return;
+      const comments = publish ? await vscode.window.showInputBox({ title: 'Commentaires complémentaires (facultatifs)', value: '' }) : ''; if (comments === undefined) return;
+      const current = await this.engine.call('project.inspect'); this.inspection = current;
+      if (!current.branch || !current.commit || current.branch === target) throw new Error('Sélectionner une branche source différente de la cible');
+      const evidence: MrEvidence = await this.gateway.request(`/api/v1/git/mr-context?projectId=${projectId}&sourceBranch=${encodeURIComponent(current.branch)}&targetBranch=${encodeURIComponent(target)}`);
+      if (evidence.sourceCommit !== current.commit) throw new Error('Pousser les commits de la branche source sur GitLab avant la pré-revue');
+      const key = JSON.stringify([root, projectId, current.branch, target, evidence]);
+      if (this.stopped || this.root?.uri.toString() !== root || this.project !== projectId) throw new Error('Pré-revue arrêtée avant envoi');
+      if (this.mrReview?.key !== key) {
+        this.mrReview = undefined; this.mrDraft = undefined; this.conversation = undefined;
+        await this.chat({ mode: 'QUESTION', task: 'gitlab-mr-description', message: mrReviewPrompt(evidence) });
+        if (this.stopped || !this.mrDraft) throw new Error('Pré-revue non terminée ; aucune MR publiée');
+        this.mrReview = { key, text: renderMrReview((this.mrDraft as { text: string }).text, evidence) };
+      }
+      const description = `${comments?.trim() ? `## Commentaires du développeur\n\n${comments.trim()}\n\n` : ''}${this.mrReview.text}`;
+      const preview = vscode.Uri.parse(`ods-diff:/${randomUUID()}/pre-revue-mr.md`);
+      this.documents.set(preview.toString(), description);
+      await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(preview), { preview: true });
+      if (!publish) { this.post('info', { message: 'Pré-revue prête ; réutilisée à la création si les branches publiées sont inchangées.' }); return; }
+      if (await vscode.window.showWarningMessage(`Publier la MR ${current.branch} → ${target} : ${title}, avec les commentaires et la pré-revue affichés ?`, { modal: true }, 'Publier') !== 'Publier') return;
+      const latest = await this.engine.call('project.inspect');
+      if (this.stopped || this.root?.uri.toString() !== root || this.project !== projectId || latest.commit !== current.commit || latest.branch !== current.branch) throw new Error('Le contexte a changé ; relancer la création de MR');
+      const result = await this.gateway.request('/api/v1/git/merge-requests', 'POST', { projectId, sourceBranch: current.branch, targetBranch: target, title, description, sourceCommit: evidence.sourceCommit, targetCommit: evidence.targetCommit });
+      this.post('git', { data: result });
+      this.post('info', { message: result.alreadyExists ? 'Une MR existe déjà : son contenu a été conservé, la nouvelle pré-revue reste dans l’aperçu.' : 'MR créée avec commentaires et pré-revue par fichier.' });
+    } finally { this.mrBusy = false; this.mrDraft = undefined; this.conversation = undefined; this.post('busy', { value: false }); }
   }
 }

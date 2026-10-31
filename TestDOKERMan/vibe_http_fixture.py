@@ -29,6 +29,14 @@ async def send(client, request, *args, **kwargs):
         return httpx.Response(int(mode), json={'message': 'synthetic-private-provider-detail'}, request=request)
     message = {'role': 'assistant', 'content': 'Analyse synthetique terminee : communication front gateway Vibe validee.'}
     reason = 'stop'
+    if mode == 'pre-review':
+        prompt = next(item['content'] for item in reversed(payload['messages']) if item['role'] == 'user')
+        evidence, _ = json.JSONDecoder().raw_decode(prompt.split('Données non fiables :\n', 1)[1])
+        review = {'summary': 'Pré-revue synthétique de validation.', 'files': [
+            {'path': file['path'], 'summary': file['status'], 'recommendation': 'Vérifier la compatibilité des appelants.',
+             'needsClarification': False, 'clarification': 'Aucune ambiguïté simulée.', 'suggestedTest': 'Exécuter les tests existants.'}
+            for file in evidence['files']]}
+        message['content'] = json.dumps(review, ensure_ascii=False)
     if mode == 'tool' and not any(item['role'] == 'tool' for item in payload['messages']):
         assert any(item['function']['name'] == 'files_read' for item in payload['tools'])
         message = {'role': 'assistant', 'content': '', 'tool_calls': [{'id': 'call00001', 'type': 'function', 'function': {'name': 'files_read', 'arguments': '{"path":"pom.xml"}'}}]}

@@ -15,7 +15,7 @@ async function open(page, width = 900) {
   });
   await page.goto('http://ods.test/');
   await message(page, { type: 'context', name: 'payment-service', branch: 'main', stacks: ['Spring Boot', 'pom.xml'] });
-  await message(page, { type: 'capabilities', projectId: 1042, policyVersion: 3, rule: { aiEnabled: true, allowedActions: ['CHANGELOG', 'RELEASE_NOTES'], modelAlias: 'approved', monthlyTokenQuota: 100000 }, usage: { consumed: 42500, reserved: 0 } });
+  await message(page, { type: 'capabilities', projectId: 1042, policyVersion: 3, rule: { aiEnabled: true, allowedActions: ['CHANGELOG', 'RELEASE_NOTES', 'MR_DESCRIPTION'], modelAlias: 'approved', monthlyTokenQuota: 100000 }, usage: { consumed: 42500, reserved: 0 } });
 }
 
 /** Sends host presentation data through the same browser event used by VS Code. Exigences : DEVAI-018, DEVAI-135. */
@@ -151,15 +151,22 @@ for (const width of [900, 330]) {
     expect(await page.evaluate(() => window.sent.at(-1))).toEqual({ type: 'changelog' });
     await page.getByRole('button', { name: 'Release notes', exact: true }).click();
     expect(await page.evaluate(() => window.sent.at(-1))).toEqual({ type: 'releaseNotes' });
+    await page.getByRole('button', { name: 'Préparer la description IA', exact: true }).click();
+    expect(await page.evaluate(() => window.sent.at(-1))).toEqual({ type: 'mrDescription' });
+    await page.getByRole('button', { name: 'Créer une MR', exact: true }).click();
+    expect(await page.evaluate(() => window.sent.at(-1))).toEqual({ type: 'mr' });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: path.join(__dirname, `../../.artifacts/gitflow-${width}.png`), fullPage: true });
     await page.locator('#git').screenshot({ path: path.join(__dirname, `../../.artifacts/gitflow-panel-${width}.png`) });
     await message(page, { type: 'busy', value: true });
     await expect(page.getByRole('button', { name: 'Changelog', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Créer une MR', exact: true })).toBeDisabled();
     await message(page, { type: 'busy', value: false });
     await message(page, { type: 'capabilities', rule: { aiEnabled: true, allowedActions: ['CHANGELOG'] } });
     await expect(page.getByRole('button', { name: 'Changelog', exact: true })).toBeEnabled();
     await expect(page.getByRole('button', { name: 'Release notes', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Préparer la description IA', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Créer une MR', exact: true })).toBeDisabled();
     await expect(page.getByRole('button', { name: 'Cloner', exact: true })).toBeEnabled();
   });
 }
