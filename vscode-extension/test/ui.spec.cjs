@@ -21,6 +21,21 @@ async function open(page, width = 900) {
 /** Sends host presentation data through the same browser event used by VS Code. Exigences : DEVAI-018, DEVAI-135. */
 async function message(page, data) { await page.evaluate(value => window.postMessage(value, '*'), data); }
 
+for (const source of ['SONAR', 'XRAY']) test(`DEVAI-090/098: ${source} correction switches to Agent and disables concurrent scans`, async ({ page }) => {
+  await open(page);
+  const task = source === 'SONAR' ? 'sonar-remediation' : 'xray-remediation';
+  await message(page, { type: 'tasks', tasks: [{ id: task, label: 'Correction' }] });
+  await page.getByRole('tab', { name: source === 'SONAR' ? 'Quality' : 'Security', exact: true }).click();
+  await page.locator(`[data-remediate="${source}"]`).click();
+  expect(await page.evaluate(() => window.sent.at(-1))).toEqual({ type: 'remediate', source });
+  await message(page, { type: 'busy', value: true });
+  await message(page, { type: 'remediation', mode: 'AGENT', task });
+  await expect(page.locator('#ai')).toBeVisible(); await expect(page.locator('#mode')).toHaveValue('AGENT'); await expect(page.locator('#task')).toHaveValue(task);
+  for (const button of await page.locator('[data-scan], [data-remediate]').all()) await expect(button).toBeDisabled();
+  await message(page, { type: 'busy', value: false });
+  await expect(page.locator(`[data-remediate="${source}"]`)).toBeEnabled();
+});
+
 for (const width of [900, 330]) {
   test(`DEVAI-013/019: five equal icon tabs and keyboard navigation at ${width}px`, async ({ page }) => {
     await open(page, width);

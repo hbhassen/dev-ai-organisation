@@ -1,4 +1,4 @@
-# Configuration administrée au build — 0.3.1
+# Configuration administrée au build — 0.3.2
 
 Les corrections 0.3.1 ne changent pas le format du profil : conserver les URL et secrets administrés, reconstruire le VSIX puis recharger VS Code. Les erreurs de clé, quota et modèle sont maintenant distinguées d'une absence du runtime Vibe ; voir [Diagnostic](INSTALLATION.md#diagnostic-et-limites).
 

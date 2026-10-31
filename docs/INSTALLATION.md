@@ -1,4 +1,4 @@
-# Installation du VSIX autonome 0.3.1
+# Installation du VSIX autonome 0.3.2
 
 1. Installer VS Code Desktop 1.95.0 ou supérieur dans la série 1.x, Java 21, Git et Python 3.12. Vérifier `java -version`, `git --version` et, sous Windows, `py -3.12 --version`. Utiliser le VSIX construit pour le système et l’architecture du poste.
 2. Installer le VSIX fourni par l’organisation via « Extensions: Install from VSIX » ou `suiteInstall/scripts/install-extension.bat`. La configuration des services est déjà compilée ; aucune URL ou clé n’est à saisir dans l’extension.
@@ -12,7 +12,9 @@
 
 Enregistrer les fichiers lorsque la boîte de dialogue le propose. Security → Générer SBOM lance le générateur de la stack choisie et propose l’export CycloneDX JSON. Télécharger SBOM réexporte le même document. Générer rapport Xray soumet le graphe au watch organisationnel. Le téléchargement est proposé hors du dépôt pour ne pas modifier son empreinte ; si un fichier est ajouté au dépôt entre deux étapes, régénérer le SBOM.
 
-Quality → Analyser exécute le scanner sur les sources enregistrées et attend la tâche Sonar correspondante. Il s’agit d’une analyse à la demande, pas d’un diagnostic continu à chaque frappe comme SonarQube for IDE. Les issues sélectionnées peuvent être corrigées via le LLM, avec diff relu et validations. Un rapport devenu obsolète est refusé ; relancer l’analyse après modification.
+Quality → Analyser exécute le scanner sur les sources enregistrées et attend la tâche Sonar correspondante. Il s’agit d’une analyse à la demande, pas d’un diagnostic continu à chaque frappe comme SonarQube for IDE. Un rapport devenu obsolète est refusé ; relancer l’analyse après modification.
+
+Dans Quality et Security, **Corriger les issues** propose les issues du dernier rapport. Valider cette sélection autorise Mistral à lire les sources utiles et à appliquer les correctifs de cette tâche. Le mode Agent est sélectionné automatiquement : aucune consigne complémentaire n’est nécessaire. Les fichiers sont sauvegardés dans un checkpoint récupérable, modifiés, puis le diff avant/après s’ouvre. Les buffers non enregistrés et les empreintes obsolètes bloquent l’écriture. Les commandes de build/tests conservent leurs autorisations natives. Relancer ensuite Sonar ou générer un nouveau SBOM et rapport Xray pour vérifier les issues ; appliquer un patch ne prouve pas leur résolution. Une réponse sans patch déclenche au maximum deux relances automatiques ; si aucun changement n’est appliqué, un message l’indique. Le bouton Arrêter interrompt le parcours ; les modifications déjà appliquées restent restaurables via le checkpoint. Les autres tâches IA conservent la validation du diff avant application.
 
 | Stack | Génération SBOM | Analyse qualité |
 |---|---|---|

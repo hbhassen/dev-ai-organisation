@@ -16,6 +16,81 @@ function createView(api, engine, gateway = {}) {
   return view;
 }
 
+/** Drives both remediation buttons through the real tool loop without network or paid model calls. Exigences : DEVAI-090, DEVAI-098, DEVAI-175. */
+function remediationFixture(source, options = {}) {
+  const events = [], calls = [], order = [], documents = [];
+  let content = 'before', turn = 0, picks = 0;
+  const change = { path: 'src/App.java', baseHash: 'original-hash', content: 'after', requirements: ['DEVAI-090'] };
+  const api = { Uri: { joinPath: (base, path) => uri(base.fsPath + '/' + path), parse: uri }, workspace: { isTrusted: true, textDocuments: documents }, commands: { executeCommand: async command => { assert.equal(command, 'vscode.diff'); assert.equal(content, 'after'); order.push('diff'); if (options.diffFailure) throw new Error('diff unavailable'); } }, window: {
+    showQuickPick: async values => { picks++; if (options.cancel) return undefined; if (options.stop) view.stopped = true; return values; },
+    showWarningMessage: async () => { throw new Error('Unexpected secondary approval'); }
+  } };
+  const engine = { call: async (method, args) => {
+    calls.push({ method, args });
+    if (method === 'changes.propose') { if (options.dirty) documents.push({ uri: uri('/project/src/App.java'), isDirty: true }); return { changes: args.changes, planHash: 'validated-plan' }; }
+    if (method === 'files.read') return { content, sha256: 'original-hash' };
+    if (method === 'changes.apply') { assert.equal(args.planHash, 'validated-plan'); assert.equal(args.approved, true); content = 'after'; order.push('apply'); return { applied: 1, backup: 'recoverable-checkpoint' }; }
+    throw new Error(method);
+  } };
+  const gateway = { progress: async () => {}, request: async (route, method, body) => {
+    calls.push({ route, body });
+    if (route.includes('/fingerprint')) return { fingerprint: options.stale || (options.changedDuringCorrection && turn > 0) ? 'changed' : 'original' };
+    if (route === '/api/v1/ai/agents/run') { assert.equal(body.mode, 'AGENT'); assert.equal(body.task, source === 'SONAR' ? 'sonar-remediation' : 'xray-remediation'); assert.match(body.message, /changes_propose/); return { jobId: 'fix-run' }; }
+    if (route === '/api/v1/jobs/fix-run') return { status: turn === 1 && !options.noPatch ? 'WAITING_APPROVAL' : 'SUCCEEDED', result: { message: turn === 1 && !options.noPatch ? { tool_calls: [{ id: 'patch', function: { name: 'changes_propose', arguments: JSON.stringify({ changes: [change] }) } }] } : { content: 'Proposition textuelle du modèle.' } } };
+    if (route.endsWith('/turns')) { turn++; return {}; }
+    return {};
+  } };
+  const view = createView(api, engine, gateway);
+  view.view = { webview: { postMessage: message => events.push(message) } };
+  view.reports.set(source, { fingerprint: 'original', issues: [{ message: 'Finding', severity: 'MAJOR' }] });
+  return { view, events, calls, order, content: () => content, picks: () => picks };
+}
+
+for (const source of ['SONAR', 'XRAY']) {
+  test(`DEVAI-090/098: ${source} corrects automatically after a text-only answer, then displays the applied diff`, async () => {
+    const state = remediationFixture(source);
+    await state.view.remediate(source);
+    assert.deepEqual(state.order, ['apply', 'diff']); assert.equal(state.content(), 'after'); assert.equal(state.picks(), 1);
+    assert.equal(state.calls.filter(call => call.route?.endsWith('/turns') && call.body.message).length, 1);
+    assert.ok(state.events.some(event => event.type === 'remediation' && event.mode === 'AGENT'));
+    assert.ok(state.events.some(event => event.message?.includes('recoverable-checkpoint')));
+    assert.equal(state.view.remediation, undefined); assert.equal(state.view.remediationBusy, false); assert.equal(state.view.conversation, undefined);
+    assert.equal(state.view.grants.size, 0);
+  });
+}
+
+test('DEVAI-090/098: text-only responses stop after two automatic reminders without claiming an applied fix', async () => {
+  const state = remediationFixture('SONAR', { noPatch: true });
+  await assert.rejects(() => state.view.remediate('SONAR'), /Aucun correctif appliqué/);
+  assert.equal(state.calls.filter(call => call.route?.endsWith('/turns')).length, 2); assert.equal(state.content(), 'before'); assert.equal(state.view.remediationBusy, false);
+});
+
+for (const option of ['stale', 'dirty', 'changedDuringCorrection']) test(`DEVAI-175/069: ${option} prevents automatic application`, async () => {
+  const state = remediationFixture('XRAY', { [option]: true });
+  await assert.rejects(() => state.view.remediate('XRAY'), /sources ont changé|Aucun correctif appliqué/);
+  assert.equal(state.content(), 'before'); assert.deepEqual(state.order, []); assert.equal(state.view.remediation, undefined);
+});
+
+for (const option of ['cancel', 'stop']) test(`DEVAI-077: ${option} during issue selection never contacts Mistral`, async () => {
+  const state = remediationFixture('SONAR', { [option]: true });
+  if (option === 'stop') await assert.rejects(() => state.view.remediate('SONAR'), /arrêtée avant envoi/); else await state.view.remediate('SONAR');
+  assert.equal(state.calls.some(call => call.route?.includes('/ai/')), false); assert.equal(state.view.remediationBusy, false);
+});
+
+test('DEVAI-068: an unavailable diff viewer retains the successful application and checkpoint without replay', async () => {
+  const state = remediationFixture('SONAR', { diffFailure: true });
+  await state.view.remediate('SONAR');
+  assert.equal(state.calls.filter(call => call.method === 'changes.apply').length, 1);
+  assert.ok(state.events.some(event => event.message?.includes('ouverture du diff impossible')));
+});
+
+test('DEVAI-077: a second correction is rejected while the issue picker is pending', async () => {
+  const state = remediationFixture('SONAR');
+  const first = state.view.remediate('SONAR');
+  await assert.rejects(() => state.view.remediate('SONAR'), /déjà active/);
+  await first;
+});
+
 test('DEVAI-042/065: multifile preview sends exactly the approved content and no context after refusal', async () => {
   let preview, approve = true;
   const api = { Uri: { joinPath: (base, path) => uri(base.fsPath + '/' + path) }, workspace: { textDocuments: [], openTextDocument: async data => { preview = data.content; return data; } }, window: { showTextDocument: async () => {}, showInformationMessage: async () => approve ? 'Transmettre' : undefined } };

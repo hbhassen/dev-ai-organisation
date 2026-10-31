@@ -20,10 +20,10 @@ async function run() {
   let engine, gateway;
   try {
     const extension = vscode.extensions.getExtension('ods-local.ods-docker-manual');
-    assert.ok(extension); assert.equal(extension.packageJSON.version, '0.3.1');
+    assert.ok(extension); assert.equal(extension.packageJSON.version, '0.3.2');
     await extension.activate();
     assert.ok((await vscode.commands.getCommands(true)).includes('ods.open'));
-    evidence.checks.push('VSIX 0.3.1 activation in real VS Code extension host');
+    evidence.checks.push('VSIX 0.3.2 activation in real VS Code extension host');
     const extensionPath = fs.readFileSync(path.join(local, 'automation-stage.txt'), 'utf8').trim();
     // Explicitly use the isolated synthetic fixture, never the installed provider credentials.
     const deployment = JSON.parse(fs.readFileSync(path.join(extensionPath, 'runtime/deployment.json')));

@@ -18,12 +18,12 @@ import runtime_bundle
 
 def main():
     log = ROOT / '.artifacts/manual-build.log'
-    if not log.exists() or 'SUCCESS: Build 0.3.1' not in log.read_text(encoding='utf-16' if log.read_bytes().startswith(b'\xff\xfe') else 'utf8', errors='replace'):
+    if not log.exists() or 'SUCCESS: Build 0.3.2' not in log.read_text(encoding='utf-16' if log.read_bytes().startswith(b'\xff\xfe') else 'utf8', errors='replace'):
         raise RuntimeError('A successful current full Build must be recorded in .artifacts/manual-build.log')
     source_paths = ['pom.xml', 'ods-contracts', 'ods-java-core', 'ods-gateway', 'vscode-extension', 'tools', 'scripts', 'config', 'prompt-content']
     subprocess.run(['git', 'diff', 'HEAD', '--exit-code', '--', *source_paths], cwd=ROOT, check=True, stdout=subprocess.DEVNULL)
-    engine = ROOT / 'ods-java-core/target/ods-java-core-0.3.1-engine.jar'
-    gateway = ROOT / 'ods-gateway/target/ods-gateway-0.3.1.jar'
+    engine = ROOT / 'ods-java-core/target/ods-java-core-0.3.2-engine.jar'
+    gateway = ROOT / 'ods-gateway/target/ods-gateway-0.3.2.jar'
     for artifact in (engine, gateway):
         if not artifact.is_file() or artifact.stat().st_size < 10000 or artifact.stat().st_mtime > log.stat().st_mtime:
             raise RuntimeError('Missing artifact or artifact newer than validation evidence')
@@ -44,10 +44,10 @@ def main():
     build.run(['node', extension / 'test/runtime-smoke.cjs', stage])
     build.run([*runtime_bundle.python_command(), '-B', ROOT / 'tools/vibe_contract.py', stage / 'runtime'])
     build.validate_private_package(stage)
-    vsix = ROOT / '.artifacts/ods-docker-manual-0.3.1.vsix'
+    vsix = ROOT / '.artifacts/ods-docker-manual-0.3.2.vsix'
     build.run([extension / 'node_modules/.bin/vsce.cmd', 'package', '--target', runtime_bundle.target(), '--no-dependencies',
         '--allow-package-all-secrets', '--allow-package-env-file', '--allow-missing-repository', '--skip-license', '--out', vsix], cwd=stage)
-    build.verify_vsix(vsix, '0.3.1', engine)
+    build.verify_vsix(vsix, '0.3.2', engine)
     suite = HERE / 'suiteInstall'
     if suite.exists():
         previous = HERE / '.local' / ('previous-suite-' + uuid.uuid4().hex)
@@ -62,13 +62,13 @@ def main():
     shutil.copy2(HERE / 'VALIDATION.md', suite / 'docs/VALIDATION-LOCAL.md')
     for name in ('INSTALLATION.md', 'CONFIGURATION.md'):
         shutil.copy2(ROOT / 'docs' / name, suite / 'docs' / name)
-    (suite / 'VERSION').write_text('0.3.1\n')
-    identity = build.identity(ROOT) | {'version': '0.3.1', 'profileId': data['id'], 'builtAtUtc': datetime.now(timezone.utc).isoformat(), 'distribution': 'PRIVATE_LOCAL_TEST_ONLY'}
+    (suite / 'VERSION').write_text('0.3.2\n')
+    identity = build.identity(ROOT) | {'version': '0.3.2', 'profileId': data['id'], 'builtAtUtc': datetime.now(timezone.utc).isoformat(), 'distribution': 'PRIVATE_LOCAL_TEST_ONLY'}
     (suite / 'BUILD.json').write_text(json.dumps(identity, indent=2))
-    (suite / 'README.md').write_text('# ODS 0.3.1 - livraison privee de test local\n\nInstaller bin/ods-docker-manual-0.3.1.vsix dans le profil Test. Les services attendus sont sur localhost. Voir docs/MANUAL-TESTS.md. Le VSIX contient les credentials du banc : ne pas publier cette archive. Le poste cible doit disposer de Java 21, Python 3.12 et des outils Maven/Git, et approuver config/ca.crt dans le JDK utilise. Aucun service Docker ni secret de signature prive ne figure dans cette livraison.\n')
+    (suite / 'README.md').write_text('# ODS 0.3.2 - livraison privee de test local\n\nInstaller bin/ods-docker-manual-0.3.2.vsix dans le profil Test. Les services attendus sont sur localhost. Voir docs/MANUAL-TESTS.md. Le VSIX contient les credentials du banc : ne pas publier cette archive. Le poste cible doit disposer de Java 21, Python 3.12 et des outils Maven/Git, et approuver config/ca.crt dans le JDK utilise. Aucun service Docker ni secret de signature prive ne figure dans cette livraison.\n')
     (suite / 'SHA256SUMS').write_text(''.join(build.digest(p) + '  bin/' + p.name + '\n' for p in sorted((suite / 'bin').iterdir())))
     build.test_delivery(HERE / '.local/jdk/bin/java.exe', suite / 'bin' / engine.name, suite / 'bin' / gateway.name)
-    archive = HERE / 'suiteInstall-0.3.1.zip'
+    archive = HERE / 'suiteInstall-0.3.2.zip'
     if archive.exists():
         shutil.copy2(archive, HERE / '.local' / ('previous-suite-' + uuid.uuid4().hex + '.zip'))
     with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as output:
@@ -76,7 +76,7 @@ def main():
             if file.is_file():
                 output.write(file, file.relative_to(HERE))
     (HERE / '.local/stage-path.txt').write_text(str(stage))
-    print('Private VSIX and suiteInstall-0.3.1.zip verified. No remote publication.')
+    print('Private VSIX and suiteInstall-0.3.2.zip verified. No remote publication.')
 
 
 if __name__ == '__main__':

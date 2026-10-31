@@ -56,7 +56,7 @@ def seed_project(project, files):
 
 
 def publish_policy(state):
-    engine = ROOT.parent / 'ods-java-core/target/ods-java-core-0.3.1-engine.jar'
+    engine = ROOT.parent / 'ods-java-core/target/ods-java-core-0.3.2-engine.jar'
     java = LOCAL / 'jdk/bin/java.exe'
     keys = LOCAL / 'governance'
     keys.mkdir(exist_ok=True)

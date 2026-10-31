@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.2 — 2026-10-31
+
+- Quality et Security : « Corriger les issues » lance directement l’agent Mistral pour les issues sélectionnées, applique le correctif avec checkpoint récupérable puis ouvre le diff, sans consigne complémentaire ni validation du patch.
+- Deux relances automatiques au maximum si Mistral répond sans appliquer de correctif ; absence de changement et erreurs signalées explicitement.
+- Protection contre les corrections concurrentes, les rapports obsolètes et les buffers modifiés ; synchronisation du mode Agent et de l’onglet IA.
+- Tests sans appel fournisseur pour les deux parcours, annulation, conflits, absence de patch et échec d’ouverture du diff. Les autres tâches conservent leur revue avant application.
+
 ## 0.3.1 — 2026-10-31
 
 - Correction du bridge Vibe sous Windows : restauration du répertoire courant avant suppression du dossier temporaire ; une réponse réussie n'est plus perdue pendant le nettoyage.
