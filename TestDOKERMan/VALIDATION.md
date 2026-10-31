@@ -1,6 +1,6 @@
 # Validation du banc et des corrections ODS 0.3.1 — 31 octobre 2026
 
-Les deux défauts reproduits ont été corrigés à la demande de l'utilisateur. La version 0.3.1 est installée dans le profil VS Code `Test`. Les validations ci-dessous ont réellement été exécutées sur Windows. Un seul appel Mistral réel a été effectué après autorisation explicite ; les autres appels fournisseur ont été simulés.
+Les deux défauts reproduits ont été corrigés à la demande de l'utilisateur. La version 0.3.1 est installée dans le profil VS Code `Test`. Les validations ci-dessous ont réellement été exécutées sur Windows. La validation initiale comprenait un seul appel Mistral réel ; le parcours Quality ajouté en fin de document comprend ensuite une correction générée par Mistral.
 
 ## Corrections vérifiées
 
@@ -63,4 +63,23 @@ Sauvegarde distante préalable : `backup/chore/docker-manual-tests-0.3.0-2026103
 
 Le package privé contient les credentials administrés selon le mécanisme existant : il reste ignoré par Git et n'est pas publié. Aucun merge sur main, tag ou GitHub Release n'est effectué pour cette livraison locale. Les résultats de CI distante sont indiqués séparément dans le rapport final.
 
-Aucun échec ne reste dans les contrôles exécutés. L'authenticité d'une détection JFrog Xray n'est pas vérifiée : le service est volontairement un mock. L'analyse de projets autres que le projet Java de démonstration, les actions d'écriture, les MR et la publication de releases n'ont pas été rejouées contre les services réels. Les avertissements existants H2/Flyway, Mockito et VS Code n'ont pas empêché la réussite des tests.
+Aucun échec ne reste dans les contrôles initiaux exécutés. L'authenticité d'une détection JFrog Xray n'est pas vérifiée : le service est volontairement un mock. L'analyse de projets autres que le projet Java de démonstration, les MR et la publication de releases n'ont pas été rejouées contre les services réels. Une écriture réelle est maintenant couverte par le parcours ci-dessous. Les avertissements existants H2/Flyway, Mockito et VS Code n'ont pas empêché la réussite des tests.
+
+
+## Parcours Quality dans la vraie interface — 31 octobre 2026
+
+Le profil `Test` a été ouvert dans une instance isolée de VS Code Insiders 1.145.0, avec l'extension privée 0.3.1 déjà construite. Cette instance a permis de piloter la fenêtre malgré une erreur d'identification de l'installation portable stable et une mise à jour bloquante de l'installation principale. Le code de l'extension n'a pas été modifié pendant ce parcours.
+
+1. **Analyser dans Quality** a exécuté le build Maven et une analyse sur le vrai SonarQube Docker. Le rapport contenait une seule issue `java:S106`, dans `src/main/java/local/manual/Calculator.java`, ligne 6.
+2. **Corriger les issues** a lancé une tâche Mistral réelle. La première réponse a décrit une solution sans proposer de diff. Une consigne complémentaire en mode Agent a demandé l'utilisation de `changes_propose` et du logger standard Java, sans nouvelle dépendance.
+3. **Mistral Medium 3.5** (`mistral-medium-3-5`) a généré le contenu de `Calculator.java`. Le diff a été relu puis appliqué depuis la confirmation native de l'extension. Le calcul `left + right` et le test existant sont préservés ; `System.out.println` est remplacé par `LOGGER.info` et des commentaires Javadoc ont été ajoutés. Le moteur a créé un checkpoint récupérable.
+4. **Analyser à nouveau dans Quality** a exécuté `mvn -B -ntp verify`, puis SonarScanner Maven. Le rapport affiché contient `issues: []` et une Quality Gate `OK`. La lecture de l'API Sonar confirme **0 issue ouverte**. Certaines conditions de la gate sont ignorées par Sonar sur ce petit projet ; cela ne constitue pas une preuve de couverture exhaustive.
+5. Le rapport Surefire confirme **1 test, 0 échec, 0 erreur, 0 test ignoré**. Le JAR `target/demo-1.0.0.jar` a été généré et son bytecode contient bien l'appel à `java.util.logging.Logger.info`.
+
+La correction fonctionnelle a été écrite par Mistral via l'extension, sans édition manuelle du fichier Java par l'agent de pilotage. Aucun appel Mistral n'a été utilisé pour les scans ni pour la vérification finale. La première réponse du modèle a nécessité une relance explicite : le scénario ne démontre pas une correction complète en un seul clic.
+
+Deux analyses intermédiaires ont échoué lors de lancements qui se chevauchaient pendant le pilotage partagé. Une relance unique a réussi avant la correction, puis le scan après correction a réussi. Aucun défaut de l'extension n'a été corrigé dans cette étape ; la gestion de clics concurrents et la continuation autonome du modèle restent des points à améliorer. Le diff Java généré contient trois lignes de Javadoc avec espaces finaux, signalées par `git diff --check` et conservées sans retouche manuelle.
+
+Le clone de démonstration dispose de la sauvegarde GitLab `backup/develop-1.0.0-20261031022516` et de la branche `fix/sonar-quality-manual`. La documentation du banc dispose de la sauvegarde GitHub `backup/fix/vibe-runtime-and-gateway-0.3.1-20261031024501`.
+
+La vidéo privée `.local/recordings/quality-mistral-final.mp4` enregistre uniquement la fenêtre Test, sans audio, en 1920 × 1008 à 10 images/s pendant 7 min 27,8 s. Le décodage intégral a réussi ; les images de contrôle et l'écran final ont été relus. Elle montre la génération du diff, son application et le rapport final sans issue. Les tentatives et temps d'attente sont conservés. La vidéo, les preuves JSON et les outils de capture restent ignorés par Git. Aucun nouvel artefact d'extension, tag ou release n'est créé pour ce test ; la livraison privée 0.3.1 existante reste inchangée.
