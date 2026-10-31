@@ -6,6 +6,7 @@
 - Deux relances automatiques au maximum si Mistral répond sans appliquer de correctif ; absence de changement et erreurs signalées explicitement.
 - Protection contre les corrections concurrentes, les rapports obsolètes et les buffers modifiés ; synchronisation du mode Agent et de l’onglet IA.
 - Tests sans appel fournisseur pour les deux parcours, annulation, conflits, absence de patch et échec d’ouverture du diff. Les autres tâches conservent leur revue avant application.
+- L’agent peut exécuter Maven installé (`mvn`) pour les projets sans wrapper, avec l’adaptation Windows et les mêmes contrôles d’autorisation et de métacaractères que les autres commandes.
 
 ## 0.3.1 — 2026-10-31
 

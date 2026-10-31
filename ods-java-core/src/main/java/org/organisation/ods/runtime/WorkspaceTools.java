@@ -126,7 +126,7 @@ public final class WorkspaceTools {
     }
     /** Starts a requested development command from a narrow executable allowlist. Exigences : DEVAI-073, DEVAI-155. */
     public String execute(List<String> arguments) throws IOException {
-        if (arguments.isEmpty() || !Set.of("git","java","python","dotnet","node","npm","mvnw").contains(arguments.getFirst())) throw new OdsException("ACTION_DENIED", "Exécutable non autorisé");
+        if (arguments.isEmpty() || !Set.of("git","java","python","dotnet","node","npm","mvn","mvnw").contains(arguments.getFirst())) throw new OdsException("ACTION_DENIED", "Exécutable non autorisé");
         if (arguments.stream().anyMatch(a -> a.matches("(?s).*[&|<>^%!\\r\\n].*"))) throw new OdsException("ACTION_DENIED", "Métacaractères interdits");
         if(arguments.getFirst().equals("git")) {
             if(arguments.size()<2||!Set.of("status","diff","fetch","pull","push","switch","branch","add","commit","log","show","rev-parse","remote").contains(arguments.get(1))) throw new OdsException("ACTION_DENIED","Sous-commande Git non autorisée");
@@ -146,7 +146,7 @@ public final class WorkspaceTools {
         }
         List<String> command = new ArrayList<>(arguments);
         if (command.getFirst().equals("mvnw")) command.set(0, System.getProperty("os.name").startsWith("Windows") ? "mvnw.cmd" : "./mvnw");
-        if (System.getProperty("os.name").startsWith("Windows") && Set.of("npm","mvnw.cmd").contains(command.getFirst())) { command.addAll(0, List.of("cmd.exe","/d","/c")); }
+        if (System.getProperty("os.name").startsWith("Windows") && Set.of("npm","mvn","mvnw.cmd").contains(command.getFirst())) { command.addAll(0, List.of("cmd.exe","/d","/c")); }
         return runner.start(guard.root(), command, Duration.ofMinutes(10), Map.of());
     }
 }

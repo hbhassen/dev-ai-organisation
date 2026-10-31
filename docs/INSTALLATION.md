@@ -16,6 +16,8 @@ Quality → Analyser exécute le scanner sur les sources enregistrées et attend
 
 Dans Quality et Security, **Corriger les issues** propose les issues du dernier rapport. Valider cette sélection autorise Mistral à lire les sources utiles et à appliquer les correctifs de cette tâche. Le mode Agent est sélectionné automatiquement : aucune consigne complémentaire n’est nécessaire. Les fichiers sont sauvegardés dans un checkpoint récupérable, modifiés, puis le diff avant/après s’ouvre. Les buffers non enregistrés et les empreintes obsolètes bloquent l’écriture. Les commandes de build/tests conservent leurs autorisations natives. Relancer ensuite Sonar ou générer un nouveau SBOM et rapport Xray pour vérifier les issues ; appliquer un patch ne prouve pas leur résolution. Une réponse sans patch déclenche au maximum deux relances automatiques ; si aucun changement n’est appliqué, un message l’indique. Le bouton Arrêter interrompt le parcours ; les modifications déjà appliquées restent restaurables via le checkpoint. Les autres tâches IA conservent la validation du diff avant application.
 
+Pour les projets Maven sans wrapper, l’agent peut utiliser `mvn` installé sur le `PATH`. Les projets qui fournissent leur wrapper peuvent continuer à utiliser `mvnw`. Ces commandes demandent l’autorisation native d’exécution ; aucun shell libre n’est ajouté à la liste des outils autorisés.
+
 | Stack | Génération SBOM | Analyse qualité |
 |---|---|---|
 | Java | Maven sur PATH, `pom.xml`, plugin CycloneDX 2.9.1 téléchargé au besoin | `mvn verify`, puis plugin Sonar Maven 5.0.0.4389 |

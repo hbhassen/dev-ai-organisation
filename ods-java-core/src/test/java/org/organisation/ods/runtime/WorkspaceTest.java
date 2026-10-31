@@ -45,6 +45,21 @@ class WorkspaceTest {
             assertThrows(OdsException.class,()->tools.execute(List.of("git","add","-A")));
         }
     }
+    /** Runs installed Maven through the actual agent boundary without requiring a project wrapper or permitting shell chaining. Exigences : DEVAI-073, DEVAI-155. */
+    @Test void installedMavenWithoutWrapper() throws Exception {
+        try(ProcessRunner runner=new ProcessRunner()) {
+            WorkspaceTools tools=new WorkspaceTools(root,runner);
+            assertFalse(Files.exists(root.resolve("mvnw"))); assertFalse(Files.exists(root.resolve("mvnw.cmd")));
+            String id=tools.execute(List.of("mvn","--version"));
+            long deadline=System.nanoTime()+java.time.Duration.ofSeconds(30).toNanos();
+            Map<String,Object> result=runner.output(id);
+            while(Boolean.TRUE.equals(result.get("running"))&&System.nanoTime()<deadline) { Thread.sleep(50); result=runner.output(id); }
+            assertEquals(false,result.get("running")); assertEquals(0,result.get("exitCode"),result.get("output").toString());
+            assertTrue(result.get("output").toString().contains("Apache Maven"));
+            assertThrows(OdsException.class,()->tools.execute(List.of("mvn","--version","&","echo","injected")));
+            assertThrows(OdsException.class,()->tools.execute(List.of("cmd.exe","/c","echo","injected")));
+        }
+    }
     /** Stops zip-slip before any file can escape the generation directory. Exigences : DEVAI-054. */
     @Test void rejectsArchiveTraversal() throws Exception {
         ByteArrayOutputStream bytes=new ByteArrayOutputStream();

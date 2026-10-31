@@ -1,6 +1,6 @@
 # Banc Docker pour les tests manuels ODS 0.3.2
 
-Ce dossier contient le banc local de l'extension et les tests de régression 0.3.1. Le build utilise le profil d'organisation déjà pris en charge par le projet. Les validations ne génèrent aucun appel Mistral réel par défaut ; l'option explicite `--real-mistral` ajoute une unique soumission courte au test du profil.
+Ce dossier contient le banc local de l'extension et les tests de régression 0.3.2. Le build utilise le profil d'organisation déjà pris en charge par le projet. Les validations ne génèrent aucun appel Mistral réel par défaut ; l'option explicite `--real-mistral` ajoute une unique soumission courte au test du profil.
 
 | Service | Adresse locale | Nature |
 |---|---|---|
@@ -36,7 +36,7 @@ Sur ce poste, le lanceur utilise la copie **VS Code 1.95.2** déjà disponible, 
 7. Ouvrir `.local/workspaces/demo-denied` dans le même profil. Git est accessible, mais les actions IA sont refusées par la politique signée.
 8. Quand vous le décidez, effectuer un petit appel IA sur le projet autorisé. Le modèle configuré est **Mistral Medium 3.5**, identifiant `mistral-medium-3-5`. Ce parcours consomme votre quota ; il reste volontairement hors des tests automatiques.
 
-La [fiche officielle Mistral](https://docs.mistral.ai/models/mistral-medium-3-5-26-04) indique une dépréciation au 31 octobre 2026. Le modèle demandé est conservé ; la validité de la clé, le quota et la disponibilité effective du modèle ne sont pas vérifiés par un appel payant.
+Le modèle demandé est conservé. Les tests automatiques ne vérifient pas sa disponibilité par un appel payant ; les essais réels et leur résultat sont consignés dans [VALIDATION](VALIDATION.md).
 
 ## Reprendre une séance
 
