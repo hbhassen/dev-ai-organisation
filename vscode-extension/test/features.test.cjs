@@ -7,6 +7,7 @@ function uri(value) { return { fsPath: value, toString: () => value }; }
 /** Loads the actual controller against explicit native API test doubles. Exigences : DEVAI-042, DEVAI-068, DEVAI-135. */
 function createView(api, engine, gateway = {}) {
   gateway.dispose ??= () => {};
+  gateway.safe ??= text => text;
   const original = Module._load;
   Module._load = /** Injects only the VS Code API; application methods remain unchanged. Exigences : DEVAI-135. */ function load(request, parent, main) { return request === 'vscode' ? api : original.call(this, request, parent, main); };
   let View; try { delete require.cache[require.resolve('../dist/view')]; View = require('../dist/view').OdsView; } finally { Module._load = original; }
@@ -54,6 +55,13 @@ function remediationFixture(source, options = {}) {
   view.reports.set(source, { profile: 'JAVA', fingerprint: 'original', analysisId: 'initial-analysis', issues: [{ key: 'issue-one', path: 'src/App.java', message: 'Finding', severity: 'MAJOR' }], coverage: options.coverage ? { coverage: 20, lines_to_cover: 10, files: [{ path: 'src/App.java', coverage: 20, lines_to_cover: 10, uncovered_lines: 8 }] } : undefined });
   return { view, events, calls, order, content: () => content, outcome: () => events.findLast(event => event.type === 'correctionReport')?.data };
 }
+test('DEVAI-090: model explanation without an applied patch remains unimplemented', async () => {
+  const state = remediationFixture('SONAR');
+  state.view.chat = async () => { state.view.remediation.report.items[0].explanation = 'Proposed but not applied'; };
+  await state.view.remediate('SONAR');
+  assert.equal(state.outcome().items[0].status, 'unimplemented');
+  assert.equal(state.outcome().files.length, 0);
+});
 for (const source of ['SONAR', 'XRAY']) test(`DEVAI-090/098: ${source} branches, applies, validates and rescans before diff`, async () => {
   const state = remediationFixture(source); await state.view.remediate(source);
   assert.deepEqual(state.order, ['branch', 'apply', 'build', ...(source === 'XRAY' ? ['sbom'] : []), 'scan', 'diff']);

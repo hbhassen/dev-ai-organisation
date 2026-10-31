@@ -14,6 +14,21 @@ import static org.junit.jupiter.api.Assertions.*;
 /** Exercises reversible edits, IPC trust, malicious archives and generated Python code. Exigences : DEVAI-014, DEVAI-054, DEVAI-069. */
 class WorkspaceTest {
     @TempDir Path root;
+    /** Keeps UTF-8 patches and approval hashes intact even with a Windows legacy stdout charset. Exigences : DEVAI-014, DEVAI-069. */
+    @Test void utf8ProposalSurvivesLegacyConsoleEncoding() throws Exception {
+        String content="// Méthode corrigée — 日本語\n";
+        var change=Map.of("path","new.txt","baseHash","MISSING","content",content,"requirements",List.of("DEVAI-069"));
+        String open=Json.write(Map.of("jsonrpc","2.0","id",1,"method","workspace.open","params",Map.of("root",root.toString(),"trusted",true)));
+        String propose=Json.write(Map.of("jsonrpc","2.0","id",2,"method","changes.propose","params",Map.of("changes",List.of(change))));
+        var bytes=new ByteArrayOutputStream();
+        new EngineMain().serve(new ByteArrayInputStream((open+"\n"+propose+"\n").getBytes(java.nio.charset.StandardCharsets.UTF_8)),new PrintStream(bytes,true,"windows-1252"));
+        var result=Json.parse(bytes.toString(java.nio.charset.StandardCharsets.UTF_8).split("\n")[1]).path("result");
+        assertEquals(content,result.path("changes").get(0).path("content").asText());
+        try(ProcessRunner runner=new ProcessRunner()) {
+            var applied=new WorkspaceTools(root,runner).apply(result.path("changes"),result.path("planHash").asText());
+            assertEquals(1,applied.get("applied")); assertEquals(content,Files.readString(root.resolve("new.txt")));
+        }
+    }
     /** Ensures a stale proposal never overwrites a subsequent developer edit. Exigences : DEVAI-069. */
     @Test void stalePatchPreservesUserChanges() throws Exception {
         Files.writeString(root.resolve("a.txt"),"before");

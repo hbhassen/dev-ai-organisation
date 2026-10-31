@@ -250,7 +250,12 @@ export class OdsView implements vscode.WebviewViewProvider, vscode.TextDocumentC
         for (const call of calls) {
           let output: unknown;
           try { output = await this.tool(call.function.name, JSON.parse(call.function.arguments)); }
-          catch (error) { output = { error: (error as Error).message }; }
+          catch (error) {
+            const message = this.gateway.safe((error as Error).message);
+            output = { error: message };
+            this.post('info', { message: `Outil ${call.function.name} : ${message}` });
+            if (this.remediation) this.remediation.report.validationLog += `\nOutil ${call.function.name} : ${message}`;
+          }
           await this.gateway.request(`/api/v1/ai/agents/${this.activeRun}/tool-results`, 'POST', { toolCallId: call.id, result: output });
           if (this.stopped) break;
         }
@@ -526,7 +531,7 @@ export class OdsView implements vscode.WebviewViewProvider, vscode.TextDocumentC
       outcome.validated = false; outcome.message = (error as Error).message;
     } finally {
       if (outcome) {
-        if (!outcome.validated) for (const item of outcome.items) { item.status = outcome.files.some(path => path === item.path) || item.explanation ? 'partial' : 'unimplemented'; item.description = 'Résolution non validée. ' + outcome.message; }
+        if (!outcome.validated) for (const item of outcome.items) { item.status = outcome.files.some(path => path === item.path) || (target !== undefined && outcome.files.length > 0) ? 'partial' : 'unimplemented'; item.description = 'Résolution non validée. ' + outcome.message; }
         this.post('correctionReport', { source, data: outcome });
       }
       this.remediation = undefined; this.remediationBusy = false; this.conversation = undefined; this.post('busy', { value: false });

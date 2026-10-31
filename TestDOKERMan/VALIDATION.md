@@ -101,3 +101,12 @@ Après la correction Maven, le build complet a été relancé : **59 tests Java,
 La vidéo `.local/recordings/quality-automatic-0.3.2.mp4` contient **4 615 images à 10 images/s**, soit **7 min 41,5 s**, en 1920 × 1008, sans audio et limitée à la fenêtre Test. Son décodage intégral et les images de contrôle ont été vérifiés. Elle conserve les attentes et la tentative Maven décrite ci-dessus. Les preuves techniques sont dans `.local/automatic-ui-validation.json`, ignoré par Git.
 
 Branche applicative : `fix/automatic-issue-remediation`. Sauvegardes GitHub : `backup/fix/vibe-runtime-and-gateway-0.3.1-20261031025924` avant le parcours automatique et `backup/fix/automatic-issue-remediation-0.3.2-20261031032136` avant la correction Maven. La livraison privée reste locale ; aucun merge vers main, tag ni GitHub Release n’est créé pour ce banc.
+
+
+## Validation 0.5.0 dans Test1 ? 31 octobre 2026
+
+Le profil isol? `Test1` utilise le clone `test1-corrections`, avec SonarQube, GitLab et mockXray locaux, et Mistral Medium 3.5. Le nombre maximal de tentatives est configurable de 1 ? 100 (valeur initiale 3). La valeur 2 saisie dans Quality a ?t? conserv?e apr?s rechargement de la fen?tre. Les tests automatis?s v?rifient le respect de cette limite et le refus des valeurs invalides.
+
+Le parcours r?el Quality a corrig? `java:S106` dans Calculator : Mistral a remplac? la sortie console par un logger, sur une branche d?di?e. Compilation et test ont r?ussi, le nouveau scan Sonar ne contenait plus l?anomalie et le diff a ?t? ouvert apr?s validation. Le rapport PDF a ?t? export? depuis le bouton natif. Le premier export a r?v?l? des chemins Windows ?chapp?s dans les logs ; leur masquage a ?t? corrig? et test?. Cette premi?re preuve PDF priv?e a ?t? expurg?e apr?s export.
+
+Le parcours de couverture a r?v?l? un d?faut IPC Windows : les accents du correctif ?taient alt?r?s par l?encodage de stdout, puis le contr?le d?empreinte refusait l?application. Les r?ponses du moteur sont d?sormais explicitement UTF-8. Un test passe volontairement un PrintStream Windows-1252, v?rifie les caract?res fran?ais et japonais, puis applique le correctif avec son empreinte intacte. Les erreurs d?outil sont affich?es et conserv?es dans le rapport ; une explication du mod?le sans fichier appliqu? reste ? non impl?ment? ?.

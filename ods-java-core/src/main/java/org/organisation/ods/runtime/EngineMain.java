@@ -24,7 +24,7 @@ public final class EngineMain {
         try(processes; BufferedInputStream in=new BufferedInputStream(input)) {
             ByteArrayOutputStream frame=new ByteArrayOutputStream(); int b;
             while((b=in.read())!=-1) {
-                if(b=='\n') { if(frame.size()>0) output.println(handle(frame.toString(StandardCharsets.UTF_8))); frame.reset(); }
+                if(b=='\n') { if(frame.size()>0) { output.write((handle(frame.toString(StandardCharsets.UTF_8))+"\n").getBytes(StandardCharsets.UTF_8)); output.flush(); } frame.reset(); }
                 else { if(frame.size()>=8_388_608) throw new IOException("IPC frame too large"); frame.write(b); }
             }
         }

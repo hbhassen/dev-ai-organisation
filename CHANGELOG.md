@@ -6,6 +6,8 @@
 - Nombre maximal de tentatives configurable dans chaque onglet et mémorisé pour le workspace (1 à 100, valeur initiale 3) ; arrêt et quotas conservés.
 - Objectif de couverture Sonar configurable, ajout de tests et réévaluation des métriques ; contrôle des exclusions et du périmètre mesuré.
 - Rapport par anomalie initiale : état vérifié, explication Mistral, criticité, changements et export PDF.
+- Une proposition non appliquée reste « non implémentée » ; les erreurs des outils sont visibles dans le parcours et le rapport de correction.
+- IPC Java : réponses UTF-8 explicites sous Windows, préservant les accents des correctifs et leur empreinte d’approbation.
 - Mock Xray local : anomalie synthétique sur commons-lang3 3.17.0, absente après mise à niveau vers 3.18.0.
 
 ## 0.4.0 — 2026-10-31

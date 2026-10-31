@@ -79,7 +79,9 @@ async function main() {
           console.log('Starting simulated Xray Graph Scan.');
           await probe('frontend GatewayClient -> gateway -> HTTPS mockXray -> normalized report', async () => {
             const scan = await waitJob(client, await client.request('/api/v1/security/scans', 'POST', {projectId: project.projectId, profile: 'JAVA', sbomJobId: bom.jobId}));
-            assert.ok(scan.result.issues.some(issue => issue.key === 'XRAY-MOCK-0001'));
+            const affected = bom.result.sbom.components.some(component => component.group === 'org.apache.commons' && component.name === 'commons-lang3' && component.version === '3.17.0');
+            assert.equal(scan.result.issues.some(issue => issue.key === 'XRAY-MOCK-0001'), affected);
+            assert.equal(scan.result.issues.length, affected ? 2 : 0);
           });
         }
         console.log('Starting real SonarScanner and SonarQube analysis.');
