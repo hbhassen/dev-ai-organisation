@@ -1,4 +1,4 @@
-# Installation du VSIX autonome 0.3.0
+# Installation du VSIX autonome 0.3.1
 
 1. Installer VS Code Desktop 1.95.0 ou supérieur dans la série 1.x, Java 21, Git et Python 3.12. Vérifier `java -version`, `git --version` et, sous Windows, `py -3.12 --version`. Utiliser le VSIX construit pour le système et l’architecture du poste.
 2. Installer le VSIX fourni par l’organisation via « Extensions: Install from VSIX » ou `suiteInstall/scripts/install-extension.bat`. La configuration des services est déjà compilée ; aucune URL ou clé n’est à saisir dans l’extension.
@@ -24,6 +24,10 @@ Quality → Analyser exécute le scanner sur les sources enregistrées et attend
 Installer les versions de scanners qualifiées pour le serveur organisationnel. Le produit ne prétend pas que ces outils sont présents : une absence ou un échec empêche la création d’un rapport valide. Le compte Sonar doit pouvoir exécuter une analyse ; le compte Xray doit pouvoir lancer un Graph Scan sur le watch configuré. Les builds de projet exécutent du code et demandent une approbation native.
 
 ## Diagnostic et limites
+
+Depuis 0.3.1, le bridge Vibe restaure son répertoire courant avant de supprimer son dossier temporaire sous Windows. La version 0.3.0 pouvait perdre une réponse réussie pendant ce nettoyage et afficher à tort « Vibe indisponible ». Réinstaller le VSIX 0.3.1 et recharger la fenêtre pour appliquer la correction.
+
+`MODEL_AUTHENTICATION_FAILED` indique un refus de la clé administrée ; `MODEL_RATE_LIMITED`, une limite de débit ou de quota ; `MODEL_UNAVAILABLE`, un modèle ou endpoint indisponible. `DEPENDENCY_UNAVAILABLE` reste utilisé pour un runtime manquant ou une autre panne du bridge. Le détail privé des réponses fournisseur n'est jamais affiché.
 
 « Accès Git refusé » : vérifier l’identité déjà configurée dans Git/IDE et la lecture du remote ; Actualiser renouvelle le contrôle. « Configuration requise » : faire corriger le profil par l’administrateur puis réinstaller le VSIX. Les exemples `*.organisation.example` sont inopérants.
 

@@ -1,4 +1,6 @@
-# Configuration administrée au build — 0.3.0
+# Configuration administrée au build — 0.3.1
+
+Les corrections 0.3.1 ne changent pas le format du profil : conserver les URL et secrets administrés, reconstruire le VSIX puis recharger VS Code. Les erreurs de clé, quota et modèle sont maintenant distinguées d'une absence du runtime Vibe ; voir [Diagnostic](INSTALLATION.md#diagnostic-et-limites).
 
 Le VSIX autonome ne demande aucune connexion SSO. L’extension vérifie le remote et exécute `git ls-remote` avec l’identité Git existante avant de démarrer le gateway. Un accès refusé ou un dossier non approuvé interdit la connexion. Le compte technique de gouvernance lit ensuite les métadonnées du dépôt vérifié et les politiques privées.
 

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0">
   <modelVersion>4.0.0</modelVersion>
-  <parent><groupId>org.organisation.ods</groupId><artifactId>ods-parent</artifactId><version>0.3.0</version></parent>
+  <parent><groupId>org.organisation.ods</groupId><artifactId>ods-parent</artifactId><version>0.3.1</version></parent>
   <artifactId>ods-java-core</artifactId>
   <dependencies>
     <dependency><groupId>org.organisation.ods</groupId><artifactId>ods-contracts</artifactId></dependency>

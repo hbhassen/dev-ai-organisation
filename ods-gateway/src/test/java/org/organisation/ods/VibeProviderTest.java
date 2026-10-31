@@ -40,4 +40,14 @@ class VibeProviderTest {
         var error=assertThrows(OdsException.class,()->new VibeProvider(settings("API_KEY")).complete(List.of(),List.of(),10));
         assertEquals("DEPENDENCY_UNAVAILABLE",error.code()); assertFalse(error.getMessage().contains("synthetic-api"));
     }
+    /** Maps only reviewed bridge failure codes while keeping provider bodies and credentials private. Exigences : DEVAI-170, DEVAI-176, DEVAI-177. */
+    @Test void structuredFailuresAreAllowlisted() throws Exception {
+        for(String code:List.of("MODEL_AUTHENTICATION_FAILED","MODEL_RATE_LIMITED","MODEL_UNAVAILABLE","VIBE_RUNTIME_UNAVAILABLE","UNTRUSTED_CODE")) {
+            Files.writeString(temporary.resolve("vibe_bridge.py"),"import json,sys\nprint(json.dumps({'error':{'code':'"+code+"','message':'synthetic-api private body'}}))\nsys.exit(1)\n");
+            var error=assertThrows(OdsException.class,()->new VibeProvider(settings("API_KEY")).complete(List.of(),List.of(),10));
+            assertEquals(code.startsWith("MODEL_")?code:"DEPENDENCY_UNAVAILABLE",error.code());
+            assertFalse(error.getMessage().contains("synthetic-api")); assertFalse(error.getMessage().contains("private body"));
+            if(code.startsWith("MODEL_")) assertFalse(error.getMessage().contains("Python"));
+        }
+    }
 }

@@ -1,4 +1,4 @@
-# Banc Docker pour les tests manuels ODS 0.3.0
+# Banc Docker pour les tests manuels ODS 0.3.1
 
 Ce dossier ajoute un environnement de test sans modifier les sources existantes de l'extension, du moteur Java ou du gateway. Le build utilise le profil d'organisation déjà pris en charge par le projet. Aucun appel de génération Mistral n'est effectué par les scripts de validation de ce dossier.
 
@@ -54,7 +54,7 @@ Pour reconstruire et réinstaller après un changement de connexion ou de clé :
 ./TestDOKERMan/start.ps1 -Build -Install -Open
 ```
 
-Le build exécute les contrôles, tests et packaging existants. Le profil privé se trouve dans `.local/profile/organisation.json`. La version applicative reste `0.3.0`.
+Le build exécute les contrôles, tests et packaging existants. Le profil privé se trouve dans `.local/profile/organisation.json`. La version applicative reste `0.3.1`.
 
 ## Reproduction initiale
 
@@ -78,4 +78,8 @@ Le mock suit les [structures Graph Scan du client officiel JFrog](https://github
 
 Le script `native-smoke.cjs` écrit son résultat effectif dans `.local/native-smoke-result.json`. Consulter `VALIDATION.md` pour le bilan réellement exécuté. Ce banc local n'est pas une release de production.
 
-**Défaut existant reproduit :** `GET /api/v1/workspace/fingerprint` renvoie les propriétés internes d'un nœud Jackson au lieu du champ `fingerprint`. Le contrôle de fraîcheur du front avant une correction IA ne peut donc pas aboutir. Les sources applicatives sont conservées telles quelles ; le test d'intégration enregistre cet échec et sort avec le code 1. Les scans indépendants restent vérifiés séparément.
+Les corrections 0.3.1 concernent le nettoyage du bridge Vibe sous Windows, les messages d'erreur fournisseur et le contrat JSON `workspace/fingerprint`. Les sources applicatives ont été modifiées à la demande de l'utilisateur après reproduction des défauts.
+
+Après fermeture de la fenêtre Test, `python TestDOKERMan/profile_test.py <EXTENSION_INSTALLEE>` lance le véritable hôte VS Code dans ce profil. Il vérifie l'activation et le contrôleur natif avec les vrais moteur, gateway, GitLab et SDK Vibe. La présentation est capturée par le test ; le transport HTTP Mistral est simulé dans une copie privée du runtime. Le VSIX installé conserve sa configuration réelle. Les appels fournisseur réels sont désactivés par défaut ; `--real-mistral` autorise une unique soumission courte supplémentaire, sans relance ni traitement des outils proposés.
+
+Le résultat est enregistré dans `.local/profile-smoke-result.json`. `python TestDOKERMan/vscode.py open` rouvre ensuite le profil pour les essais manuels. Le contrat CLI Vibe est aussi vérifié au packaging : succès, erreurs HTTP et nettoyage du dossier temporaire, sans appel fournisseur.

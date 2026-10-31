@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1 — 2026-10-31
+
+- Correction du bridge Vibe sous Windows : restauration du répertoire courant avant suppression du dossier temporaire ; une réponse réussie n'est plus perdue pendant le nettoyage.
+- Erreurs de clé, quota et modèle distinguées des erreurs de runtime, sans exposer les diagnostics privés du fournisseur.
+- Correction du contrat JSON HTTP de `workspace/fingerprint`, utilisé par les contrôles avant remédiation.
+- Tests de régression du point d'entrée CLI Vibe et de la sérialisation HTTP du gateway ; simulations réseau sans appel Mistral réel par défaut.
+
 ## Banc de test Docker local — 2026-10-31 (base 0.3.0, sans release)
 
 - Ajout de `TestDOKERMan/` : GitLab CE, SonarQube et mock Graph Scan Xray en HTTPS local, avec comptes, projets de démonstration autorisé/refusé et politique Ed25519 renouvelable.

@@ -33,11 +33,24 @@ public final class VibeProvider implements ModelProvider {
             });
             try(var input=child.getOutputStream()) { input.write(Json.write(request).getBytes(java.nio.charset.StandardCharsets.UTF_8)); }
             if(!child.waitFor(135,TimeUnit.SECONDS)) throw new OdsException("DEPENDENCY_TIMEOUT","Vibe a dépassé le délai autorisé");
-            if(child.exitValue()!=0) throw new OdsException("DEPENDENCY_UNAVAILABLE","Vibe indisponible ; vérifier Python 3.12 et la configuration administrée");
-            return Json.parse(new String(output.get(5,TimeUnit.SECONDS),java.nio.charset.StandardCharsets.UTF_8));
+            byte[] response=output.get(5,TimeUnit.SECONDS);
+            if(child.exitValue()!=0) throw failure(response);
+            return Json.parse(new String(response,java.nio.charset.StandardCharsets.UTF_8));
         } catch(OdsException e) { throw e; }
         catch(InterruptedException e) { Thread.currentThread().interrupt(); throw new OdsException("CANCELLED","Appel Vibe interrompu"); }
         catch(Exception e) { throw new OdsException("DEPENDENCY_UNAVAILABLE","Runtime Vibe embarqué indisponible"); }
         finally { if(child!=null&&child.isAlive()) { child.descendants().forEach(ProcessHandle::destroyForcibly); child.destroyForcibly(); } }
+    }
+    /** Maps only allowlisted bridge codes to public diagnostics, never trusting provider bodies or private child messages. Exigences : DEVAI-170, DEVAI-176. */
+    private OdsException failure(byte[] response) {
+        String code="";
+        try { code=Json.parse(new String(response,java.nio.charset.StandardCharsets.UTF_8)).path("error").path("code").asText(); } catch(Exception ignored) { /* Older or broken bridges retain a secret-free generic failure. */ }
+        return switch(code) {
+            case "MODEL_AUTHENTICATION_FAILED" -> new OdsException(code,"Authentification Mistral refusée ; vérifier la clé administrée");
+            case "MODEL_RATE_LIMITED" -> new OdsException(code,"Quota ou limite de débit Mistral atteint ; vérifier le compte fournisseur");
+            case "MODEL_UNAVAILABLE" -> new OdsException(code,"Modèle Mistral indisponible pour cette configuration administrée");
+            case "VIBE_RUNTIME_UNAVAILABLE" -> new OdsException("DEPENDENCY_UNAVAILABLE","Runtime Vibe incomplet ; vérifier Python 3.12 et réinstaller le VSIX administré");
+            default -> new OdsException("DEPENDENCY_UNAVAILABLE","Appel Vibe échoué ; vérifier la connexion et la configuration administrée");
+        };
     }
 }

@@ -44,7 +44,7 @@ def main():
             file.write_text(json.dumps(settings, indent=2))
         print('Isolated VS Code profile configured with private Java trust.')
     elif args.action in ('install', 'list'):
-        options = ['--list-extensions', '--show-versions'] if args.action == 'list' else ['--install-extension', str(ROOT.parent / '.artifacts/ods-docker-manual-0.3.0.vsix'), '--force']
+        options = ['--list-extensions', '--show-versions'] if args.action == 'list' else ['--install-extension', str(ROOT.parent / '.artifacts/ods-docker-manual-0.3.1.vsix'), '--force']
         subprocess.run([str(exe.parent / 'bin/code.cmd'), *common, *options], check=True)
     else:
         env = dict(os.environ)

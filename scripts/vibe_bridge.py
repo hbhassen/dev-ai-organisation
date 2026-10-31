@@ -50,11 +50,24 @@ def main():
             os.environ["VIBE_HOME"] = isolated
             os.environ["OTEL_SDK_DISABLED"] = "true"
             os.environ["DO_NOT_TRACK"] = "1"
-            os.chdir(isolated)
-            result = asyncio.run(complete(json.loads(payload)))
+            previous_directory = Path.cwd()
+            try:
+                os.chdir(isolated)
+                result = asyncio.run(complete(json.loads(payload)))
+            finally:
+                os.chdir(previous_directory)
         sys.stdout.write(json.dumps(result, ensure_ascii=True))
         return 0
-    except Exception:
+    except Exception as error:
+        status = getattr(error, "status", None)
+        code = "VIBE_RUNTIME_UNAVAILABLE" if isinstance(error, ImportError) else "VIBE_REQUEST_FAILED"
+        if status in (401, 403):
+            code = "MODEL_AUTHENTICATION_FAILED"
+        elif status == 429:
+            code = "MODEL_RATE_LIMITED"
+        elif status == 404 or getattr(error, "is_invalid_model", False):
+            code = "MODEL_UNAVAILABLE"
+        sys.stdout.write(json.dumps({"error": {"code": code}}))
         sys.stderr.write("Managed Vibe request failed; verify packaged runtime and organisation configuration.\n")
         return 1
 
