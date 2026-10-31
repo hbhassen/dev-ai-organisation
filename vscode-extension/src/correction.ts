@@ -1,6 +1,6 @@
 /** Evidence retained for one finding from the original provider report. Exigences : DEVAI-090, DEVAI-098. */
 export interface CorrectionItem { key: string; title: string; severity: string; path: string; status: 'corrected' | 'partial' | 'unimplemented'; description: string; explanation?: string; initial: any }
-/** Downloadable outcome never infers validation from model prose. Exigences : DEVAI-090, DEVAI-098, DEVAI-175. */
+/** Downloadable outcome never infers validation from model prose. Exigences : DEVAI-090, DEVAI-098, DEVAI-175, DEVAI-184. */
 export interface CorrectionReport { source: string; branch: string; created: string; initialFingerprint: string; finalFingerprint?: string; initialAnalysis?: string; finalAnalysis?: string; rounds: number; validated: boolean; target?: number; before?: number; after?: number; files: string[]; checkpoints: string[]; items: CorrectionItem[]; newFindings?: any[]; message: string; modelSummary: string; validationLog: string }
 /** Matches original findings across line movements without confusing similar rules in different files. Exigences : DEVAI-090, DEVAI-098. */
 export function stillPresent(original: any, findings: any[]): boolean {

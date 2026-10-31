@@ -1,4 +1,4 @@
-"""Wait for local services and create accounts once, without logging credentials."""
+"""Wait for local services and create accounts once, without logging credentials. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
 import json
 from pathlib import Path
 import shutil
@@ -12,6 +12,7 @@ LOCAL = ROOT / '.local'
 
 
 def main():
+    """Initialise les comptes GitLab du banc local. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
     context = ssl.create_default_context(cafile=str(LOCAL / 'tls/ca.crt'))
     pending = {'GitLab': 'https://localhost:18443/users/sign_in', 'SonarQube': 'https://localhost:19443/api/system/status'}
     deadline = time.monotonic() + 1200

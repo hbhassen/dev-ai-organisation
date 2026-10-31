@@ -1,4 +1,4 @@
-"""Package an already validated build with the existing ODS packaging helpers."""
+"""Package an already validated build with the existing ODS packaging helpers. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -17,6 +17,7 @@ import runtime_bundle
 
 
 def main():
+    """Assemble la livraison privee a partir des artefacts existants. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
     log = ROOT / '.artifacts/manual-build.log'
     if not log.exists() or 'SUCCESS: Build 0.5.0' not in log.read_text(encoding='utf-16' if log.read_bytes().startswith(b'\xff\xfe') else 'utf8', errors='replace'):
         raise RuntimeError('A successful current full Build must be recorded in .artifacts/manual-build.log')

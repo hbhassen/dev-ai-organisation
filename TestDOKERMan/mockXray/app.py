@@ -1,4 +1,4 @@
-"""Local Graph Scan simulator; response fields follow jfrog-client-go/xray/services/scan.go."""
+"""Local Graph Scan simulator; response fields follow jfrog-client-go/xray/services/scan.go. Exigences : DEVAI-173, DEVAI-177."""
 import base64
 import hmac
 import json
@@ -15,7 +15,7 @@ PREFIX = '/xray/api/v1/scan/graph'
 
 
 def report(scan_id, graph, watch):
-    """Generate explicit synthetic findings for submitted components using the Xray schema."""
+    """Generate explicit synthetic findings for submitted components using the Xray schema. Exigences : DEVAI-173, DEVAI-177."""
     nodes = list(graph['nodes'])
     affected = []
     while nodes:
@@ -35,12 +35,14 @@ def report(scan_id, graph, watch):
 
 
 class Handler(BaseHTTPRequestHandler):
-    """Accept authenticated Graph Scan requests and emulate asynchronous HTTP 202 polling."""
+    """Accept authenticated Graph Scan requests and emulate asynchronous HTTP 202 polling. Exigences : DEVAI-173, DEVAI-177."""
     def log_message(self, fmt, *args):
         # Avoid credentials, payloads and query parameters in logs.
+        """Journalise la route et la methode sans credential ni contenu prive. Exigences : DEVAI-173, DEVAI-177."""
         print(json.dumps({'method': self.command, 'path': urlsplit(self.path).path}), flush=True)
 
     def send_json(self, status, body):
+        """Serialise une reponse JSON avec son statut et ses en-tetes HTTP. Exigences : DEVAI-173, DEVAI-177."""
         data = json.dumps(body).encode()
         self.send_response(status)
         self.send_header('Content-Type', 'application/json')
@@ -49,6 +51,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def authorized(self):
+        """Compare les credentials Bearer ou Basic aux valeurs administrees. Exigences : DEVAI-173, DEVAI-177."""
         token = os.environ.get('MOCK_XRAY_TOKEN', '')
         basic = base64.b64encode((os.environ.get('MOCK_XRAY_USER', '') + ':' + os.environ.get('MOCK_XRAY_PASSWORD', '')).encode()).decode()
         supplied = self.headers.get('Authorization', '')
@@ -56,6 +59,7 @@ class Handler(BaseHTTPRequestHandler):
             bool(os.environ.get('MOCK_XRAY_PASSWORD')) and hmac.compare_digest(supplied, 'Basic ' + basic))
 
     def do_GET(self):
+        """Retourne la sante du mock ou le resultat du scan identifie. Exigences : DEVAI-173, DEVAI-177."""
         path = urlsplit(self.path).path
         if path == '/health':
             return self.send_json(200, {'status': 'UP', 'service': 'mockXray', 'simulated': True})
@@ -72,6 +76,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_json(404, {'error': 'Not found'})
 
     def do_POST(self):
+        """Valide le graphe et le watch puis cree un scan asynchrone. Exigences : DEVAI-173, DEVAI-177."""
         if not self.authorized():
             return self.send_json(401, {'error': 'Unauthorized'})
         route = urlsplit(self.path)

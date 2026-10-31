@@ -19,7 +19,7 @@ public final class EngineMain {
         if(args.length==1&&args[0].equals("--version")) { System.out.println("ODS Engine 0.5.0 / protocol 1 / Java 21"); return; }
         new EngineMain().serve(System.in,System.out);
     }
-    /** Reads at most 8 MiB per frame and releases owned processes on EOF. Exigences : DEVAI-014, DEVAI-015. */
+    /** Reads UTF-8 frames of at most 8 MiB and releases owned processes on EOF. Exigences : DEVAI-014, DEVAI-015, DEVAI-187. */
     public void serve(InputStream input,PrintStream output) throws IOException {
         try(processes; BufferedInputStream in=new BufferedInputStream(input)) {
             ByteArrayOutputStream frame=new ByteArrayOutputStream(); int b;

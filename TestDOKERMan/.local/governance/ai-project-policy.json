@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": 1793479770,
+  "issuedAt": "2026-10-31T20:49:30.592059+00:00",
+  "expiresAt": "2026-11-01T20:48:30.592059+00:00",
+  "gitlabInstance": "https://localhost:18443",
+  "defaultEffect": "DENY",
+  "allowedProviders": [
+    "MISTRAL"
+  ],
+  "models": [
+    {
+      "alias": "manual-coding",
+      "provider": "MISTRAL",
+      "model": "mistral-medium-3-5",
+      "tools": true
+    }
+  ],
+  "projects": [
+    {
+      "projectId": 2,
+      "aiEnabled": true,
+      "allowedActions": [
+        "CHAT",
+        "CODE_GENERATION",
+        "SONAR_REMEDIATION",
+        "XRAY_REMEDIATION",
+        "MR_DESCRIPTION",
+        "AGENT_RUN",
+        "CHANGELOG",
+        "RELEASE_NOTES"
+      ],
+      "modelAlias": "manual-coding",
+      "monthlyTokenQuota": 1000000,
+      "monthlyUserTokenQuota": 250000,
+      "allowedAgents": [
+        "implement-requirement"
+      ],
+      "contextMode": "LOCAL_GOVERNED",
+      "allowFreeText": true
+    },
+    {
+      "projectId": 3,
+      "aiEnabled": false,
+      "allowedActions": [],
+      "monthlyTokenQuota": 0
+    }
+  ]
+}

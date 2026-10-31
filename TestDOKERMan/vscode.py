@@ -1,4 +1,4 @@
-"""Install/configure/open only the isolated VS Code Test profile."""
+"""Install/configure/open only the isolated VS Code Test profile. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
 import argparse
 import json
 import os
@@ -11,6 +11,7 @@ LOCAL = ROOT / '.local'
 
 
 def executable():
+    """Resout un executable VS Code existant et refuse une cible absente. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
     selected = LOCAL / 'vscode-executable.txt'
     if selected.exists():
         result = Path(selected.read_text().strip())
@@ -25,6 +26,7 @@ def executable():
 
 
 def main():
+    """Configure, installe ou ouvre le profil VS Code demande. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
     parser = argparse.ArgumentParser()
     parser.add_argument('action', choices=['open', 'install', 'configure', 'list'])
     parser.add_argument('--profile', choices=['Test', 'Test1'], default='Test')

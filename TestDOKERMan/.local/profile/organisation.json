@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "ods-docker-manual",
+  "extension": {
+    "name": "ods-docker-manual",
+    "publisher": "ods-local",
+    "displayName": "ODS Docker Manual Test"
+  },
+  "gatewayUrl": "http://127.0.0.1:8080",
+  "envFiles": [
+    "gateway.env"
+  ],
+  "environment": {},
+  "files": [
+    {
+      "source": "application-organisation.properties",
+      "target": "application-organisation.properties"
+    }
+  ]
+}

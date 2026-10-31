@@ -1,0 +1,32 @@
+{
+  "id": "ods-docker-manual",
+  "extension": {
+    "name": "ods-docker-manual",
+    "publisher": "ods-local",
+    "displayName": "ODS Docker Manual Test"
+  },
+  "gatewayUrl": "http://127.0.0.1:8080",
+  "profileSha256": "20e8b512d92e59fb7f334e66833193b0bf2811d1ff0219b9cd8798b0b03ee68e",
+  "environmentKeys": [
+    "ODS_GITLAB_URL",
+    "ODS_GOVERNANCE_PROJECT_ID",
+    "ODS_GOVERNANCE_REF",
+    "ODS_GOVERNANCE_TOKEN",
+    "ODS_JFROG_AUTH",
+    "ODS_JFROG_PASSWORD",
+    "ODS_JFROG_URL",
+    "ODS_JFROG_USERNAME",
+    "ODS_JFROG_WATCH",
+    "ODS_LLM_TRANSPORT",
+    "ODS_MISTRAL_API_KEY",
+    "ODS_MISTRAL_MODEL",
+    "ODS_MISTRAL_URL",
+    "ODS_MODEL_ALIAS",
+    "ODS_POLICY_PUBLIC_KEY",
+    "ODS_SONAR_TOKEN",
+    "ODS_SONAR_URL",
+    "ODS_SONAR_USERNAME",
+    "ODS_VIBE_AUTH",
+    "ODS_VIBE_URL"
+  ]
+}

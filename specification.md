@@ -1943,7 +1943,35 @@ GitFlow expose un bouton Release notes. La tâche administrée git-release-notes
 
 Lire specification.md et ce document, puis examiner les composants existants et les tests avant modification. Appliquer DEVAI-167 à DEVAI-181 et réviser les exigences antérieures incompatibles sans réutiliser leurs identifiants. Conserver la compatibilité VS Code 1.95.2 et les scripts batch sans PowerShell. Vérifier le protocole Xray dans scan-sbom-xray et les contrats officiels de la version Vibe figée. Implémenter les parcours complets : configuration au build, gateway automatique, credentials Git natifs, deux transports Mistral, SBOM quatre stacks, Graph Scan avec watch, Sonar local, remédiations, envoi Entrée et génération contrôlée de CHANGELOG.md / RELEASE_NOTES.md. Documenter la limite de confidentialité acceptée, les prérequis et chaque cas non vérifiable. Ajouter les commentaires avec références pertinentes sur chaque nouveau symbole et corriger les commentaires devenus faux. Tester avec des doubles, exécuter le build complet, vérifier le VSIX installé et les arrêts de processus, actualiser le PDF, puis publier uniquement les sources et artefacts de démonstration validés sans secret réel.
 
-## 14. Contrats et preuves de réalisation
+## 14. Évolution réalisée 0.5.0
+
+### DEVAI-182 - Correction automatique validée
+
+Dans Quality et Security, Corriger les issues lance l'agent sur les anomalies du rapport initial sans consigne complémentaire ni sélection manuelle du patch. Le projet doit être propre dans Git et son empreinte identique au rapport. Une nouvelle branche `fix/ods-*` et des checkpoints conservent les changements. Le LLM applique les propositions ; le contrôleur exécute ensuite compilation, tests et nouveau scan. En cas d'échec, la tentative suivante reçoit le rapport initial et les diagnostics. Le diff n'est ouvert qu'après validation de la compilation et des tests. Une annulation conserve les modifications ; aucun commit ni push automatique n'est créé. Les conflits de branche, buffers ou sources interrompent le parcours.
+
+### DEVAI-183 - Augmentation de couverture mesurée
+
+Quality propose un objectif de couverture et le bouton Augmenter la couverture. Les mesures agrégées et par fichier proviennent du rapport Sonar réel ; une mesure absente n'est pas remplacée par zéro. L'agent modifie les tests et leur instrumentation, sans réécrire le code de production pour augmenter artificiellement le taux. Compilation, tests et nouvelle mesure sont exécutés après application. Si l'objectif n'est pas atteint, les mesures actualisées alimentent la tentative suivante. Les fichiers initialement couverts et leurs dénominateurs sont contrôlés ; les exclusions et désactivations de tests sont refusées.
+
+### DEVAI-184 - Rapport de correction et PDF
+
+Chaque anomalie, vulnérabilité ou lacune de couverture initiale conserve son identifiant, sa criticité et son constat. Le bilan distingue corrigé, corrigé partiellement et non implémenté. Les explications déclaratives du LLM restent distinctes des preuves de compilation, tests et scan. Une proposition non appliquée n'est pas présentée comme une correction partielle. Le rapport affiche les fichiers, la branche, les tentatives et les diagnostics ; des icônes et libellés rendent les états compréhensibles. Le téléchargement PDF utilise les données détenues par le contrôleur natif, avec masquage des secrets et chemins privés. Le rapport reste en mémoire jusqu'au rechargement de la fenêtre ; le PDF exporté constitue la copie conservable.
+
+### DEVAI-185 - Plafond de tentatives utilisateur
+
+Les onglets Quality et Security exposent un nombre maximal de tentatives entier de 1 à 100, initialement 3 et mémorisé dans le workspace. La correction et l'augmentation de couverture utilisent cette valeur, sans plafond fixe de cinq tentatives. Une tentative peut comporter plusieurs échanges d'outils Mistral ; ce nombre ne représente donc pas un nombre d'appels API. Arrêt utilisateur, quotas, conflits et erreurs bloquantes peuvent terminer le parcours avant le plafond. L'atteinte de la limite produit un bilan honnête des problèmes restants.
+
+### DEVAI-186 - Pré-revue de Merge Request
+
+GitFlow alimente la description de MR avec les commentaires du développeur et une pré-revue LLM par fichier modifié : résumé, recommandation au reviewer, clarification demandée au développeur si nécessaire et vérification suggérée. Le contexte provient des commits publiés et de leur comparaison GitLab. La réponse doit couvrir exactement les fichiers retenus ; le texte est présenté avant publication. Les SHA source et cible sont revérifiés, les brouillons obsolètes refusés et les MR existantes ne sont pas écrasées. Les tests suggérés ne sont jamais présentés comme exécutés.
+
+### DEVAI-187 - Intégrité UTF-8 des propositions
+
+Le protocole JSON-RPC du moteur utilise explicitement UTF-8 en entrée et en sortie, indépendamment de l'encodage de console Windows. Accents et caractères non latins doivent être conservés entre proposition et application pour que l'empreinte approuvée reste valide. Les erreurs d'outils sont visibles et intégrées aux diagnostics du rapport après filtrage.
+
+Ces exigences précisent DEVAI-175 et remplacent, pour les boutons de correction automatique, les anciens passages imposant une sélection du mode ou du patch. Les parcours manuels de modification et de documents GitFlow conservent leurs confirmations propres. Le banc Test1 a été validé avec Mistral Medium 3.5, SonarQube local et mockXray ; les résultats historiques sont dans `TestDOKERMan/VALIDATION.md`. Aucune nouvelle exécution de tests n'est requise pour cette mise à jour documentaire exceptionnelle demandée par l'utilisateur.
+
+## 15. Contrats et preuves de réalisation
 
 Les contrats exécutables sont les sources du dépôt : `vscode-extension/src/protocol.ts`, les contrôleurs de `ods-gateway`, `scripts/local_analysis.py` et `scripts/vibe_bridge.py`. Les exemples administrateur se trouvent dans `config/organisations/demo`. Les procédures sont décrites dans `docs/CONFIGURATION.md`, `docs/INSTALLATION.md` et `docs/API.md`.
 

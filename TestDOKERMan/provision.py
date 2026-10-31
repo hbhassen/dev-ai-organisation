@@ -1,4 +1,4 @@
-"""Provision isolated test projects, signed governance and Sonar through local APIs only."""
+"""Provision isolated test projects, signed governance and Sonar through local APIs only. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
 import base64
 from datetime import datetime, timedelta, timezone
 import json
@@ -18,6 +18,7 @@ SONAR = 'https://localhost:19443'
 
 
 def api(base, route, token=None, data=None, basic=None, method=None):
+    """Envoie une requete authentifiee au service local avec verification TLS. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
     headers = {}
     if token:
         headers['Authorization'] = 'Bearer ' + token
@@ -43,11 +44,13 @@ def api(base, route, token=None, data=None, basic=None, method=None):
 
 
 def gitlab(route, data=None):
+    """Adresse une requete a GitLab avec le credential du banc. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
     accounts = json.loads((LOCAL / 'accounts.json').read_text())
     return api(GITLAB, '/api/v4/' + route, accounts['root']['token'], data)
 
 
 def seed_project(project, files):
+    """Initialise le depot de demonstration et ses fichiers de reference. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
     existing = gitlab(f'projects/{project}/repository/tree')
     if any(item['path'] == 'pom.xml' for item in existing):
         return
@@ -56,6 +59,7 @@ def seed_project(project, files):
 
 
 def publish_policy(state):
+    """Publie la politique IA signee pour les projets du banc. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
     engine = ROOT.parent / 'ods-java-core/target/ods-java-core-0.5.0-engine.jar'
     java = LOCAL / 'jdk/bin/java.exe'
     keys = LOCAL / 'governance'
@@ -89,6 +93,7 @@ def publish_policy(state):
 
 
 def main():
+    """Configure les projets, la politique signee et les services locaux. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
     accounts = json.loads((LOCAL / 'accounts.json').read_text())
     state_file = LOCAL / 'state.json'
     state = json.loads(state_file.read_text()) if state_file.exists() else {}

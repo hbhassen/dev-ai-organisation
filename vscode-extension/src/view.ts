@@ -447,7 +447,7 @@ export class OdsView implements vscode.WebviewViewProvider, vscode.TextDocumentC
       return { ...job.result, jobId: started.jobId };
     } finally { this.activeRun = undefined; }
   }
-  /** Repairs against immutable initial evidence, then validates and rescans before exposing the final diff. Exigences : DEVAI-090, DEVAI-098, DEVAI-175. */
+  /** Repairs against immutable initial evidence, then validates and rescans before exposing the final diff. Exigences : DEVAI-090, DEVAI-098, DEVAI-175, DEVAI-182, DEVAI-183, DEVAI-185. */
   private async remediate(source: string, target?: number, attempts?: number): Promise<void> {
     const maxAttempts = attempts ?? this.context.workspaceState.get<number>('ods.correction.maxAttempts') ?? 3;
     if (!Number.isSafeInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 100) throw new Error('Nombre maximal de tentatives : entier entre 1 et 100');
@@ -598,7 +598,7 @@ export class OdsView implements vscode.WebviewViewProvider, vscode.TextDocumentC
     if (!args) throw new Error('Action Git inconnue');
     this.post('git', { data: await this.tool('process_start', { arguments: args }) }); await this.refresh();
   }
-  /** Enriches a user-owned MR with a complete LLM pre-review before explicit publication. Exigences : DEVAI-023, DEVAI-112, DEVAI-113. */
+  /** Enriches a user-owned MR with a complete LLM pre-review before explicit publication. Exigences : DEVAI-023, DEVAI-112, DEVAI-113, DEVAI-186. */
   private async mr(): Promise<void> {
     await this.prepareMr(true);
   }

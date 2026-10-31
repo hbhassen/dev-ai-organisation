@@ -1,0 +1,5 @@
+﻿GitLab organisation (local Docker)
+URL : https://localhost:18443
+Utilisateur : serviceExtebtion
+Mot de passe : LIkYgQkmQ00xqZuA7qx3s9J8u2FiswGk
+

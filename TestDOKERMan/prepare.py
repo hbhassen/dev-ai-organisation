@@ -1,4 +1,4 @@
-"""Prepare private local configuration and TLS without changing application sources."""
+"""Prepare private local configuration and TLS without changing application sources. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
 import json
 import os
 from pathlib import Path
@@ -11,10 +11,12 @@ LOCAL = ROOT / '.local'
 
 
 def run(*args):
+    """Execute la commande du banc avec controle de son resultat. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
     subprocess.run([str(a) for a in args], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
 
 def main():
+    """Prepare les fichiers et prerequis du banc Docker. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
     LOCAL.mkdir(exist_ok=True)
     tls = LOCAL / 'tls'
     tls.mkdir(exist_ok=True)

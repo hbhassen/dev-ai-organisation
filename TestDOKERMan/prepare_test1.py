@@ -1,4 +1,4 @@
-"""Create a separate clean Git fixture for native Test1 correction and coverage checks."""
+"""Create a separate clean Git fixture for native Test1 correction and coverage checks. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
 from pathlib import Path
 import shutil
 import subprocess
@@ -9,7 +9,7 @@ LOCAL = HERE / '.local'
 
 
 def main():
-    """Keep existing manual workspaces intact and seed only a new dedicated clone."""
+    """Keep existing manual workspaces intact and seed only a new dedicated clone. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
     target = LOCAL / 'workspaces/test1-corrections'
     if target.exists():
         raise RuntimeError('Test1 fixture already exists; preserve its changes and reports')

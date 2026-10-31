@@ -1,4 +1,4 @@
-"""Run the installed extension in VS Code Test with an isolated, synthetic-only provider runtime."""
+"""Run the installed extension in VS Code Test with an isolated, synthetic-only provider runtime. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
 import hashlib
 import json
 import os
@@ -16,7 +16,7 @@ from runtime_bundle import extended
 
 
 def immutable_library(source, target):
-    """Reuse unchanged library bytes on the same volume; fall back to copying across filesystems."""
+    """Reuse unchanged library bytes on the same volume; fall back to copying across filesystems. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
     try:
         os.link(source, target)
         return target
@@ -25,6 +25,7 @@ def immutable_library(source, target):
 
 
 def main():
+    """Lance le scenario de validation du profil isole. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
     installed = Path(sys.argv[1]).resolve()
     manifest = json.loads((installed / 'package.json').read_text(encoding='utf8'))
     if manifest['publisher'] != 'ods-local' or manifest['name'] != 'ods-docker-manual':

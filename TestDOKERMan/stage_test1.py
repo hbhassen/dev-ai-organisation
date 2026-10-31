@@ -1,4 +1,4 @@
-"""Stage current compiled code against the private runtime and open only the Test1 profile."""
+"""Stage current compiled code against the private runtime and open only the Test1 profile. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
 import hashlib
 import json
 import os
@@ -17,7 +17,7 @@ from runtime_bundle import extended, inventory
 
 
 def main():
-    """Preserve installed Test versions while staging a disposable extension development host."""
+    """Preserve installed Test versions while staging a disposable extension development host. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
     source = Path((LOCAL / 'stage-path.txt').read_text().strip())
     stage = ROOT / '.artifacts' / ('test1-stage-' + uuid.uuid4().hex[:12])
     shutil.copytree(extended(source), extended(stage), ignore=shutil.ignore_patterns('vibe', '__pycache__', '*.pyc'))

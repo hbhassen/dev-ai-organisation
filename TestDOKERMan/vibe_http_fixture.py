@@ -1,4 +1,4 @@
-"""Test-only launcher for the unmodified bridge with synthetic HTTP responses; never used in the delivered VSIX."""
+"""Test-only launcher for the unmodified bridge with synthetic HTTP responses; never used in the delivered VSIX. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
 import importlib.util
 import json
 import os
@@ -18,6 +18,7 @@ import httpx2
 
 
 async def send(client, request, *args, **kwargs):
+    """Simule les reponses Mistral et les appels outils sans joindre le fournisseur. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
     assert str(request.url) == 'https://mistral.invalid/v1/chat/completions'
     assert request.headers['authorization'] == 'Bearer synthetic-profile-test'
     payload = json.loads(request.content)

@@ -1,4 +1,4 @@
-"""Exercise Graph Scan over real HTTP, including authentication and pending responses."""
+"""Exercise Graph Scan over real HTTP, including authentication and pending responses. Exigences : DEVAI-173, DEVAI-177."""
 import base64
 import json
 import os
@@ -11,8 +11,10 @@ import app
 
 
 class GraphScanTest(unittest.TestCase):
+    """Definit les scenarios de contrat HTTP du simulateur Xray. Exigences : DEVAI-173, DEVAI-177."""
     @classmethod
     def setUpClass(cls):
+        """Demarre le serveur HTTP isole et configure ses credentials synthetiques. Exigences : DEVAI-173, DEVAI-177."""
         os.environ.update(MOCK_XRAY_USER='test', MOCK_XRAY_PASSWORD='test-only', MOCK_XRAY_TOKEN='test-token')
         cls.server = ThreadingHTTPServer(('127.0.0.1', 0), app.Handler)
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
@@ -21,11 +23,13 @@ class GraphScanTest(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        """Arrete le serveur HTTP et restaure les ressources du scenario. Exigences : DEVAI-173, DEVAI-177."""
         cls.server.shutdown()
         cls.server.server_close()
         cls.thread.join()
 
     def request(self, route, data=None, authorization='Bearer test-token'):
+        """Envoie une requete HTTP au serveur de test et lit sa reponse. Exigences : DEVAI-173, DEVAI-177."""
         req = urllib.request.Request(self.url + route, json.dumps(data).encode() if data is not None else None,
             {'Authorization': authorization, 'Content-Type': 'application/json'})
         try:
@@ -35,15 +39,18 @@ class GraphScanTest(unittest.TestCase):
             return error.code, json.load(error)
 
     def test_rejects_missing_auth_and_unknown_watch(self):
+        """Verifie le scenario rejects missing auth and unknown watch. Exigences : DEVAI-173, DEVAI-177."""
         graph = {'component_id': 'root-node', 'nodes': []}
         self.assertEqual(401, self.request(app.PREFIX, graph, '')[0])
         self.assertEqual(403, self.request(app.PREFIX + '?watch=wrong&scan_type=dependency', graph)[0])
 
     def test_invalid_graph_and_unknown_scan(self):
+        """Verifie le scenario invalid graph and unknown scan. Exigences : DEVAI-173, DEVAI-177."""
         self.assertEqual(400, self.request(app.PREFIX, {'nodes': []})[0])
         self.assertEqual(404, self.request(app.PREFIX + '/unknown')[0])
 
     def test_graph_scan_contract_and_async_lifecycle(self):
+        """Verifie le scenario graph scan contract and async lifecycle. Exigences : DEVAI-173, DEVAI-177."""
         component = 'gav://org.apache.commons:commons-lang3:3.17.0'
         graph = {'component_id': 'root-node', 'nodes': [{'component_id': component, 'nodes': []}]}
         auth = 'Basic ' + base64.b64encode(b'test:test-only').decode()
@@ -64,6 +71,7 @@ class GraphScanTest(unittest.TestCase):
         self.assertIn('license_key', result['licenses'][0])
 
     def test_corrected_dependency_clears_synthetic_finding(self):
+        """Verifie le scenario corrected dependency clears synthetic finding. Exigences : DEVAI-173, DEVAI-177."""
         graph = {'component_id': 'root-node', 'nodes': [{'component_id': 'gav://org.apache.commons:commons-lang3:3.18.0', 'nodes': []}]}
         result = app.report('fixed', graph, 'manual-test-watch')
         self.assertEqual([], result['vulnerabilities'])

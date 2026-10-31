@@ -1,5 +1,12 @@
 # Changelog
 
+## Snapshot TestOK — 2026-10-31
+
+- Architecture et spécification alignées sur les parcours 0.5.0 (DEVAI-182 à 187).
+- Commentaires de traçabilité complétés ; guide du banc local avec valeurs réelles sur demande explicite.
+- Aucun changement fonctionnel, aucune compilation ni aucun test relancé. Binaires issus de la validation antérieure 0.5.0.
+
+
 ## 0.5.0 — 2026-10-31
 
 - Corrections Quality/Security sur une branche dédiée, avec compilation, tests et nouveau scan avant affichage du diff ; relances alimentées par le rapport initial et les erreurs constatées.

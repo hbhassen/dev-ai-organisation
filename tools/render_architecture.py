@@ -44,7 +44,7 @@ def footer(canvas, document):
     canvas.line(60, 45, 535, 45)
     canvas.setFillColor(NAVY)
     canvas.setFont("Helvetica", 8)
-    canvas.drawString(60, 30, "Version documentaire 1.4  |  Produit 0.3.0  |  29 octobre 2026")
+    canvas.drawString(60, 30, "Version documentaire 1.5  |  Produit 0.5.0  |  31 octobre 2026")
     canvas.drawRightString(535, 30, str(document.page))
     canvas.restoreState()
 
@@ -67,7 +67,7 @@ def architecture():
 
 
 def build():
-    """Produce fourteen coherent architecture pages from the revised requirements, preserving a reproducible source. Exigences : DEVAI-133, DEVAI-167, DEVAI-178."""
+    """Produce the maintained architecture pages from the revised requirements, preserving a reproducible source. Exigences : DEVAI-133, DEVAI-167, DEVAI-178."""
     story = []
 
     def page(title, reference):
@@ -81,13 +81,13 @@ def build():
         """Append one readable paragraph without embedding untrusted markup. Exigences : DEVAI-133."""
         story.append(paragraph(content))
 
-    page("Organisation Development Standard", "Architecture technique et interface • Évolution 0.3.0")
+    page("Organisation Development Standard", "Architecture technique et interface • Évolution 0.5.0")
     text("Un environnement de développement gouverné dans VS Code : Starter, IA, Quality, Security et GitFlow. Cette édition remplace les parcours SSO et scans liés à un commit par une connexion Git native et des analyses des sources enregistrées.")
     story.append(Spacer(1, 22))
     story.append(table([["Décision", "Comportement cible"], ["Sans SSO", "Le développeur utilise l’accès Git déjà disponible dans son IDE. Un refus Git interdit la connexion au gateway."], ["Configuration au build", "L’organisation fournit URL, comptes de service, transport Mistral, watch Xray et mappings Sonar. L’interface utilisateur ne les modifie pas."], ["Analyses locales", "SBOM CycloneDX, Graph Scan Xray et scanner Sonar fonctionnent sans attendre un commit."], ["Cycle de vie", "Le gateway embarqué démarre après le contrôle Git et s’arrête avec l’extension ou la fermeture du canal parent."]]))
     story.append(Spacer(1, 20))
     text("Limite acceptée : les secrets distribués dans un VSIX autonome restent extractibles par le propriétaire du poste. Le verrouillage de l’interface, les empreintes et le masquage des logs ne garantissent pas leur confidentialité contre lui.")
-    text("Référentiel : specification.md, exigences DEVAI-001 à DEVAI-181. Les résultats réellement exécutés sont séparés des objectifs de recette dans docs/VALIDATION.md.")
+    text("Référentiel : specification.md, exigences DEVAI-001 à DEVAI-187. Les résultats réellement exécutés sont séparés des objectifs de recette dans docs/VALIDATION.md.")
 
     page("1. Architecture et responsabilités", "DEVAI-002, 003, 168, 169")
     story.append(architecture())
@@ -140,7 +140,7 @@ def build():
 
     page("9. IA : envoi et remédiation", "DEVAI-068, 090, 098, 151 à 160, 175, 179")
     text("Entrée envoie une seule demande non vide lorsque l’IA est autorisée. Maj+Entrée ajoute une ligne ; une composition IME ne soumet pas. Le bouton Envoyer suit le même contrôleur. Le brouillon est conservé après refus et effacé après acceptation du job.")
-    story.append(table([["Remédiation", "Condition"], ["Sélection", "Choisir les issues du rapport Sonar ou Xray, puis le mode Modification ou Agent."], ["Fraîcheur", "L’empreinte actuelle doit être égale à celle du rapport ; sinon une nouvelle analyse est exigée."], ["Autorisation IA", "La politique signée doit autoriser la tâche de remédiation pour le projet et le modèle."], ["Traitement", "Le rapport est une donnée non fiable, jamais une instruction privilégiée. Inspecter les sources pertinentes."], ["Validation", "Diff relu, modifications acceptées, builds et tests autorisés, puis nouveau scan avant d’annoncer la correction."]]))
+    story.append(table([["Remédiation", "Condition"], ["Sélection", "Cliquer sur Corriger les issues : le rapport initial fournit la consigne, sans saisie complémentaire."], ["Fraîcheur", "L’empreinte actuelle doit être égale à celle du rapport ; sinon une nouvelle analyse est exigée."], ["Autorisation IA", "La politique signée doit autoriser la tâche de remédiation pour le projet et le modèle."], ["Traitement", "Le rapport est une donnée non fiable, jamais une instruction privilégiée. Inspecter les sources pertinentes."], ["Validation", "Branche dédiée, correctif appliqué automatiquement, compilation et tests, puis nouveau scan. Les erreurs alimentent une nouvelle tentative avant le diff final."]]))
     text("L’agent conserve ses outils typés, permissions de session, checkpoints et annulation. Une nouvelle intention ou un changement de contexte invalide les permissions concernées. Aucun commit ou push ne résulte implicitement d’une correction.")
     text("Les tests traversent le compositeur réel, le contrôleur natif et le client HTTP jusqu’à une réponse LLM simulée. Ils n’utilisent pas les credentials du poste.")
 
@@ -164,12 +164,25 @@ def build():
     story.append(table([["Bouton", "Contrat"], ["Changelog", "CHANGELOG.md ; tâche git-changelog ; droit CHANGELOG."], ["Release notes", "RELEASE_NOTES.md ; tâche git-release-notes ; droit RELEASE_NOTES."], ["Contexte", "Mode Modification, gouvernance LOCAL_GOVERNED, contenu existant, état local et 30 derniers commits au maximum."], ["Mise à jour", "Conserver les anciennes sections, éviter les doublons et maintenir un brouillon Non publié sans release confirmée."], ["Application", "Une seule cible autorisée, jamais de suppression ; diff natif, accord utilisateur, empreinte et checkpoint."], ["Refus ou panne", "Aucune modification annoncée sans application effective. Consulter la conversation IA."]]))
     text("Les anciens profils doivent accorder ces droits explicitement. Les fichiers du dépôt et les messages Git restent des données non fiables. Un test avec LLM simulé couvre création, mise à jour, refus, erreur fournisseur et tentative de modification hors cible.")
 
-    page("13. Traçabilité de l’évolution", "Référentiel de mise en œuvre et de revue")
+    page("13. Corrections et couverture", "DEVAI-182, 183, 185, 187")
+    text("Quality et Security utilisent une branche Git dédiée. Le dépôt doit être propre et le rapport correspondre aux sources. Les checkpoints conservent les changements ; aucun commit ni push automatique ne suit la correction.")
+    text("Le LLM applique le correctif, puis compilation, tests et nouvelle analyse sont exécutés. En cas d’échec, le rapport initial et les erreurs alimentent la tentative suivante. Le diff suit cette validation ; atteindre la limite ne transforme jamais un échec en succès.")
+    text("Le maximum de tentatives est configurable de 1 à 100 dans chaque onglet et mémorisé pour le workspace ; valeur initiale : 3. Une tentative peut comporter plusieurs appels Mistral. Annulation, quotas ou conflit peuvent interrompre le parcours avant la limite.")
+    text("Augmenter la couverture utilise l’objectif saisi et les métriques Sonar globales et par fichier. Le LLM ajoute les tests et leur instrumentation, puis compilation, tests et analyse Sonar sont relancés. Une couverture absente ne vaut pas zéro. Le périmètre, les exclusions et le dénominateur sont contrôlés.")
+    text("Le canal JSON-RPC Java utilise UTF-8 explicitement, préservant accents et empreintes des correctifs sur Windows.")
+
+    page("14. Rapport et pré-revue MR", "DEVAI-184, 186")
+    text("Chaque anomalie initiale reçoit un état : corrigée, corrigée partiellement ou non implémentée. La vue présente criticité, état, explication du LLM, fichiers, branche et validation. Une proposition non appliquée reste non implémentée. Le récit du modèle ne constitue pas une preuve.")
+    text("Le PDF de correction est produit nativement avec masquage des secrets et chemins personnels. Le rapport reste en mémoire jusqu’au rechargement de la vue.")
+    text("Créer une MR conserve les commentaires du développeur et ajoute une pré-revue pour chaque fichier du diff GitLab : résumé, recommandation au reviewer, clarification éventuelle et vérification suggérée. Un aperçu précède la publication. Complétude et fraîcheur des commits sont contrôlées ; une MR existante n’est pas écrasée. Les tests suggérés ne sont pas présentés comme exécutés.")
+    text("La recette réelle Test1 antérieure utilise Sonar, le mock Xray et Mistral Medium 3.5 ; ses preuves figurent dans TestDOKERMan/VALIDATION.md. Le snapshot documentaire TestOK ne relance ni compilation ni tests.")
+
+    page("15. Traçabilité de l’évolution", "Référentiel de mise en œuvre et de revue")
     story.append(table([["Exigence", "Évolution"], ["DEVAI-167", "Configuration et secrets administrés au build."], ["DEVAI-168", "Gateway embarqué, jeton privé et durée de vie possédée."], ["DEVAI-169", "Accès Git existant avant connexion, aucun SSO dans le VSIX."], ["DEVAI-170 / 171", "Mistral API ou Vibe, code et dépendances embarqués."], ["DEVAI-172 / 173", "SBOM quatre stacks et Graph Scan Xray avec watch."], ["DEVAI-174 / 175", "Qualité locale, provenance et correction liée au rapport."], ["DEVAI-176", "Masquage, isolation des credentials et limite d’extractabilité."], ["DEVAI-177", "Doubles de toutes les intégrations métier."], ["DEVAI-178", "Commentaires explicatifs et numéros d’exigence vérifiés."], ["DEVAI-179", "Envoi effectif du compositeur jusqu’au transport LLM simulé."], ["DEVAI-180 / 181", "Changelog et notes de release créés ou actualisés via le LLM."]]))
     text("Documents associés : specification.md ; prompt-developpement.md ; docs/CONFIGURATION.md ; docs/INSTALLATION.md ; docs/API.md ; docs/VALIDATION.md. Le prompt demande d’examiner le code existant, de maintenir les commentaires, d’implémenter les parcours complets et de distinguer les validations exécutées des éléments non vérifiables.")
     text("Les capacités du serveur séparé historique sont conservées pour non-régression. Son authentification OIDC et ses runners ne constituent pas un prérequis du parcours autonome décrit ici.")
     destination = ROOT / "Organisation_Development_Standard_Architecture_avec_Interface.pdf"
-    document = SimpleDocTemplate(str(destination), pagesize=A4, rightMargin=60, leftMargin=60, topMargin=65, bottomMargin=65, title="ODS - Architecture et interface 0.3.0", author="Organisation Development Standard", subject="VSIX autonome, accès Git sans SSO et analyses locales")
+    document = SimpleDocTemplate(str(destination), pagesize=A4, rightMargin=60, leftMargin=60, topMargin=65, bottomMargin=65, title="ODS - Architecture et interface 0.5.0", author="Organisation Development Standard", subject="VSIX autonome, accès Git sans SSO et analyses locales")
     document.build(story, onFirstPage=footer, onLaterPages=footer)
     print("Architecture PDF generated")
 
