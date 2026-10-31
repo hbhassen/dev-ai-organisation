@@ -11,6 +11,17 @@ from vscode import executable
 
 HERE = Path(__file__).resolve().parent
 LOCAL = HERE / '.local'
+sys.path.insert(0, str(HERE.parent / 'tools'))
+from runtime_bundle import extended
+
+
+def immutable_library(source, target):
+    """Reuse unchanged library bytes on the same volume; fall back to copying across filesystems."""
+    try:
+        os.link(source, target)
+        return target
+    except OSError:
+        return shutil.copy2(source, target)
 
 
 def main():
@@ -19,8 +30,10 @@ def main():
     if manifest['publisher'] != 'ods-local' or manifest['name'] != 'ods-docker-manual':
         raise RuntimeError('The installed private manual-test extension is required')
     stage = LOCAL / ('automation-stage-' + uuid.uuid4().hex[:12])
-    shutil.copytree(installed, stage, ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
+    shutil.copytree(extended(installed), extended(stage), ignore=shutil.ignore_patterns('vibe', '__pycache__', '*.pyc'))
     runtime = stage / 'runtime'
+    shutil.copytree(extended(installed / 'runtime/vibe'), extended(runtime / 'vibe'),
+        copy_function=immutable_library, ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
     shutil.copy2(runtime / 'vibe_bridge.py', runtime / 'vibe_bridge_actual.py')
     shutil.copy2(HERE / 'vibe_http_fixture.py', runtime / 'vibe_bridge.py')
     (runtime / 'fixture-mode.txt').write_text('success')

@@ -6,6 +6,8 @@ from pathlib import Path
 import sys
 from unittest.mock import patch
 
+sys.dont_write_bytecode = True
+
 RUNTIME = Path(__file__).resolve().parent
 LIBRARY = str(RUNTIME / 'vibe')
 if os.name == 'nt':

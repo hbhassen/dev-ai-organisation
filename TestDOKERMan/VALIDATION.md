@@ -1,69 +1,66 @@
-# Validation du banc local 0.3.0 — 31 octobre 2026
+# Validation du banc et des corrections ODS 0.3.1 — 31 octobre 2026
 
-Les sources existantes du moteur, du gateway et de l'extension sont inchangées. Ce banc utilise la version applicative 0.3.0 ; il ne constitue pas une nouvelle release. Aucun appel de génération Mistral n'a été effectué par nos validations.
+Les deux défauts reproduits ont été corrigés à la demande de l'utilisateur. La version 0.3.1 est installée dans le profil VS Code `Test`. Les validations ci-dessous ont réellement été exécutées sur Windows. Un seul appel Mistral réel a été effectué après autorisation explicite ; les autres appels fournisseur ont été simulés.
 
-## Résultats réellement exécutés
+## Corrections vérifiées
+
+- **Bridge Vibe / Windows** : le processus supprimait son dossier temporaire alors que celui-ci était encore son répertoire courant. Une réponse réussie devenait une erreur `WinError 32`, présentée comme `DEPENDENCY_UNAVAILABLE`. Le bridge restaure maintenant son répertoire initial dans un `finally`, avant le nettoyage. Le test exécute le vrai point d'entrée CLI, et pas uniquement la coroutine de complétion.
+- **Contrat gateway / front** : `workspace/fingerprint` renvoyait les propriétés internes d'un `JsonNode` Jackson 2 via le convertisseur HTTP Jackson 3. Le contrôleur renvoie maintenant une map JSON, avec le champ `fingerprint` attendu par le contrôle avant remédiation. Une assertion utilise le véritable serveur HTTP Spring.
+- **Diagnostic fournisseur** : les refus de clé, quota et modèle reçoivent des codes distincts, au lieu de suggérer systématiquement une panne Python. Les réponses privées du fournisseur restent masquées ; seuls des codes autorisés sont transmis.
+
+## Résultats exécutés
 
 | Contrôle | Résultat |
 |---|---|
-| `python tools/build.py --task Build` | SUCCESS, code retour 0 |
-| Maven `clean verify`, modules existants | 56 tests Java réussis, 0 échec |
-| Tests Python du build existant | 24 réussis |
-| Compilation/lint et tests Node de l'extension | SUCCESS, 26 tests réussis |
-| Interface Playwright existante | 9 tests réussis |
-| HTTP mockXray | 3 tests réussis : authentification, erreurs, cycle asynchrone |
-| Projet Java de démonstration, Maven `verify` | SUCCESS, 1 test JUnit réussi |
-| GitLab réel, clones HTTPS et politique signée | SUCCESS, projets autorisé/refusé ; octets publiés identiques aux octets signés |
-| Clients compilés de l'extension vers moteur Java et gateway réels | IPC, résolution des projets, droits et refus des accès anonymes réussis |
-| SBOM depuis les sources locales via le gateway | SUCCESS, CycloneDX Maven réel |
-| Graph Scan Xray via le gateway | SUCCESS, résultat synthétique `XRAY-MOCK-0001` normalisé |
-| SonarQube via le gateway | SUCCESS au contrôle final : Maven verify, SonarScanner, Compute Engine et lecture du rapport |
-| Contrat HTTP `workspace/fingerprint` | **FAILED : défaut applicatif existant reproduit** |
-| VSIX privé et démarrage des JAR depuis `suiteInstall/bin` | SUCCESS, existence/taille/intégrité, moteur et santé/authentification du gateway contrôlés |
-| Installation VS Code | `ods-local.ods-docker-manual@0.3.0` installé dans `Test`, fenêtre ouverte et activation confirmée dans le journal de l'hôte d'extensions |
-| `start.ps1 -Open` | SUCCESS : services prêts en HTTPS, politique renouvelée et profil Test ouvert |
-| Appel Mistral Medium 3.5 | NON EXÉCUTÉ, réservé au test manuel |
+| `python tools/build.py --task Build` | SUCCESS, version 0.3.1, sortie 0 |
+| Maven `clean verify` | 58 tests Java, 0 échec |
+| Tests Python du build | 26 tests, 0 échec |
+| Compilation, lint et tests Node | SUCCESS, 26 tests |
+| Interface Playwright | 9 tests réussis, dont l'envoi Entrée jusqu'au contrôleur et au client HTTP |
+| Tests HTTP mockXray | 3 tests réussis |
+| Contrat Vibe embarqué | Réponse et outil via SDK réel ; 6 cas CLI réussis : succès, 401, 429, 404, modèle invalide 400, erreur serveur 500 |
+| Runtime natif du VSIX → moteur/gateway → Docker | 10 contrôles réussis, 0 échec |
+| Véritable hôte d'extensions VS Code, profil Test | 9 contrôles réussis, processus terminé avec le code 0 |
+| Installation privée | `ods-local.ods-docker-manual@0.3.1` ; manifeste et 7 fichiers critiques conformes au VSIX |
+| Configuration installée | Identique au profil administré renouvelé ; modèle `mistral-medium-3-5` |
+| JAR depuis `suiteInstall/bin` | Démarrage moteur, santé gateway et refus anonyme réussis |
 
-Le build existant passe, mais le nouveau test d'intégration **ne passe pas intégralement**. Il conserve un code retour 1 lorsqu'une vérification échoue. Les assertions ne sont ni désactivées ni masquées. Les autres contrôles indépendants sont poursuivis pour établir un diagnostic complet.
+Les dix contrôles natifs couvrent les deux projets GitLab autorisé/refusé, leurs politiques signées, le contrôle d'accès anonyme, le fingerprint, un SBOM CycloneDX Maven réel, le rapport mockXray et une analyse Maven/SonarScanner/SonarQube réelle. Le défaut fingerprint qui faisait échouer le banc 0.3.0 ne se reproduit plus.
 
-Dernier résultat natif : **9 contrôles réussis, 1 échec** (`workspace/fingerprint`).
+Le scénario du profil Test active l'extension réellement installée puis utilise ses classes compilées `OdsView`, `GatewayClient` et `EngineClient`. Il vérifie l'initialisation, le contrat fingerprint, une réponse IA, une lecture de `pom.xml` par `files_read`, ainsi que les erreurs 401/429/404 jusqu'aux messages destinés au front. Ces scénarios utilisent six échanges HTTP synthétiques avec le SDK Vibe réel. La capture de présentation et le stockage de ce scénario sont des doubles de test ; les tests DOM Playwright restent une validation distincte de l'affichage dans VS Code.
 
-Les avertissements existants sur H2/Flyway, l'agent Mockito et les métadonnées Maven Shade n'ont pas fait échouer le build.
+## Appel Mistral réel limité
 
-Un premier passage Sonar par le gateway a retourné `LOCAL_SCAN_FAILED`. L'analyse directe, l'exécution du script exact livré dans le VSIX, puis la relance complète par le client natif ont réussi. La cause précise de ce premier échec n'a pas été isolée ; aucun test ni code applicatif n'a été changé pour le masquer.
+Une unique soumission courte a traversé le client natif du profil Test, le gateway installé, le bridge Python et Vibe vers Mistral Medium 3.5. La réponse attendue `ODS_OK` a été reçue, avec l'état `SUCCEEDED`.
 
-## Défaut de communication reproduit
+- Tokens d'entrée : **1 310**.
+- Tokens de sortie : **4**.
+- Total déclaré par le fournisseur : **1 314**.
+- Aucune boucle d'outils ni relance de génération réelle.
 
-Reproduction avec le VSIX installé :
+Cet essai confirme la validité de la connexion, de la clé et du modèle à cet instant. Il ne constitue pas une qualification exhaustive des réponses du modèle, des longues conversations, des écritures, des MR ou des releases.
+
+## Reproduction
+
+Les services doivent être démarrés et la politique encore valide. `python TestDOKERMan/provision.py` renouvelle la politique, valable moins de 24 heures, sans écraser les clones existants.
 
 ```powershell
 $env:JAVA_HOME = (Resolve-Path TestDOKERMan/.local/jdk).Path
 $env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
-node TestDOKERMan/native-smoke.cjs TestDOKERMan/.local/extensions/ods-local.ods-docker-manual-0.3.0
+node TestDOKERMan/native-smoke.cjs TestDOKERMan/.local/extensions/ods-local.ods-docker-manual-0.3.1
+# Fermer la fenêtre Test avant le test de l'hôte.
+python TestDOKERMan/profile_test.py TestDOKERMan/.local/extensions/ods-local.ods-docker-manual-0.3.1
+python TestDOKERMan/vscode.py open
 ```
 
-Le script n'appelle aucun endpoint IA. Il enregistre les réussites et échecs dans `.local/native-smoke-result.json`.
+Le test du profil ne fait aucun appel fournisseur réel par défaut. Ajouter `--real-mistral` uniquement pour autoriser une soumission réelle supplémentaire. Les preuves privées se trouvent dans `.local/native-smoke-result.json`, `.local/profile-smoke-result.json` et `.local/real-mistral-result.json`. Les journaux privés ne sont pas publiés.
 
-`GET /api/v1/workspace/fingerprint?projectId=2` renvoie HTTP 200 avec un objet du type `{"nodeType":"OBJECT","object":true,"containerNode":true,...}`, alors que le front attend `{"fingerprint":"<SHA256>"}`. Le contrôle avant remédiation dans `vscode-extension/src/view.ts` compare ce champ inexistant à celui du rapport : il refuse donc la correction.
+## Livraison, Git et limites
 
-Le contrôleur retourne directement un `com.fasterxml.jackson.databind.JsonNode` (Jackson 2), tandis que le JAR contient le convertisseur Spring Boot/Jackson 3. C'est la cause déduite du code et du format observé. La [documentation Spring Boot](https://docs.spring.io/spring-boot/4.0/reference/features/json.html) confirme que Jackson 3 est préféré et que l'auto-configuration Jackson 2 nécessite son module dédié, absent du JAR inspecté. Aucune dépendance ni source applicative n'a été modifiée pour contourner ce défaut.
+Version : **0.3.1**. VSIX : `.artifacts/ods-docker-manual-0.3.1.vsix`. Livraison autonome privée : `TestDOKERMan/suiteInstall-0.3.1.zip`, contenant `suiteInstall/`, ses deux JAR, le VSIX, les configurations expurgées, la documentation, VERSION, BUILD.json et SHA256SUMS. `BUILD.json` indique le commit source exact du package.
 
-## Préparation et livraison
+Sauvegarde distante préalable : `backup/chore/docker-manual-tests-0.3.0-20261031015258`, sur le commit `1bb601a`. Branche de correction : `fix/vibe-runtime-and-gateway`. Le commit applicatif est `7e1392a` ; les commits suivants ne modifient que le banc et sa documentation. Le rapport final indique le dernier commit et le résultat du push.
 
-- GitLab CE 18.2.0, SonarQube Community 26.9.0.129388, nginx et mockXray sont démarrés dans le projet Compose `ods-manual`.
-- Les connexions GitLab/Sonar/mock passent par HTTPS avec vérification de l'autorité locale. Les ports publiés sont limités à loopback.
-- Comptes GitLab : `serviceExtebtion` et `user1`. Projets privés : `ods-manual/governance`, `ods-manual/demo-allowed`, `ods-manual/demo-denied`.
-- Modèle configuré : `mistral-medium-3-5`. Clé, quota et disponibilité distante NON VÉRIFIÉS par un appel réel.
-- Une erreur de normalisation CRLF dans le nouveau script de publication a été corrigée : la signature porte désormais exactement sur les octets présents dans GitLab, et une relecture vérifie cette égalité.
-- Java 21 et son magasin de confiance sont isolés sous `.local/jdk`. Le lanceur configure aussi le Java des terminaux du profil Test.
-- Package local : `TestDOKERMan/suiteInstall-0.3.0.zip`, avec `suiteInstall/` à sa racine, VERSION 0.3.0, deux JAR et VSIX privé, configurations expurgées, documentation et sommes SHA-256.
-- Ce package contient les credentials locaux dans le VSIX selon le mécanisme applicatif existant : **publication distante NON RÉALISÉE**. Validation sur une autre machine : NON VÉRIFIABLE ici.
-- L'automatisation Windows a confirmé la fenêtre du profil Test, mais n'a pas pu lui associer durablement un contrôle UI à cause d'un conflit d'identifiant entre les deux installations VS Code. Le parcours visuel complet reste à effectuer manuellement ; les tests Playwright et les échanges natifs sont des validations distinctes.
+Le package privé contient les credentials administrés selon le mécanisme existant : il reste ignoré par Git et n'est pas publié. Aucun merge sur main, tag ou GitHub Release n'est effectué pour cette livraison locale. Les résultats de CI distante sont indiqués séparément dans le rapport final.
 
-## Git et documentation
-
-Sauvegarde distante créée avant modification : `backup/hm/integration-0.3.0-20261031004407`. Branche de travail : `chore/docker-manual-tests`. Base applicative : `036f499`.
-
-Le `suiteInstall/` historique a été retiré de l'index sur la branche de travail, sans supprimer les fichiers locaux ni modifier l'historique distant existant. Les nouveaux secrets, caches, clones et packages sont ignorés. Aucun merge sur main, tag ou release n'est effectué pour ce banc local.
-
-Sources du banc : Compose/nginx, mockXray et tests, scripts de préparation/provisionnement/packaging/lancement, projet Java de démonstration et test d'intégration. Documentation mise à jour : `README.md`, `CHANGELOG.md`, `TestDOKERMan/README.md` et le présent bilan. Le commit final et le résultat du push sont indiqués dans le rapport de livraison.
+Aucun échec ne reste dans les contrôles exécutés. L'authenticité d'une détection JFrog Xray n'est pas vérifiée : le service est volontairement un mock. L'analyse de projets autres que le projet Java de démonstration, les actions d'écriture, les MR et la publication de releases n'ont pas été rejouées contre les services réels. Les avertissements existants H2/Flyway, Mockito et VS Code n'ont pas empêché la réussite des tests.

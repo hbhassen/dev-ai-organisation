@@ -1,6 +1,6 @@
 # Banc Docker pour les tests manuels ODS 0.3.1
 
-Ce dossier ajoute un environnement de test sans modifier les sources existantes de l'extension, du moteur Java ou du gateway. Le build utilise le profil d'organisation déjà pris en charge par le projet. Aucun appel de génération Mistral n'est effectué par les scripts de validation de ce dossier.
+Ce dossier contient le banc local de l'extension et les tests de régression 0.3.1. Le build utilise le profil d'organisation déjà pris en charge par le projet. Les validations ne génèrent aucun appel Mistral réel par défaut ; l'option explicite `--real-mistral` ajoute une unique soumission courte au test du profil.
 
 | Service | Adresse locale | Nature |
 |---|---|---|
