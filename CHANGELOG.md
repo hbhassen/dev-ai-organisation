@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0 — 2026-10-31
+
+- Corrections Quality/Security sur une branche dédiée, avec compilation, tests et nouveau scan avant affichage du diff ; relances alimentées par le rapport initial et les erreurs constatées.
+- Nombre maximal de tentatives configurable dans chaque onglet et mémorisé pour le workspace (1 à 100, valeur initiale 3) ; arrêt et quotas conservés.
+- Objectif de couverture Sonar configurable, ajout de tests et réévaluation des métriques ; contrôle des exclusions et du périmètre mesuré.
+- Rapport par anomalie initiale : état vérifié, explication Mistral, criticité, changements et export PDF.
+- Mock Xray local : anomalie synthétique sur commons-lang3 3.17.0, absente après mise à niveau vers 3.18.0.
+
 ## 0.4.0 — 2026-10-31
 
 - GitFlow : « Créer une MR » génère une pré-revue Mistral et l’ajoute aux commentaires du développeur dans la description, avec aperçu complet avant publication.

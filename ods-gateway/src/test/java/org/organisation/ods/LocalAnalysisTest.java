@@ -58,6 +58,8 @@ class LocalAnalysisTest {
                 case "/api/ce/task"->Json.parse("{\"task\":{\"status\":\"SUCCESS\",\"componentKey\":\"project-one\",\"analysisId\":\"analysis-one\"}}");
                 case "/api/project_analyses/search"->Json.parse("{\"analyses\":[{\"key\":\""+(replaced?"analysis-other":"analysis-one")+"\"}]}");
                 case "/api/issues/search"->Json.parse("{\"issues\":[{\"key\":\"issue-one\",\"component\":\"component-one\",\"message\":\"Fix quality\"}],\"components\":[{\"key\":\"component-one\",\"path\":\"src/App.java\"}],\"paging\":{\"total\":1}}");
+                case "/api/measures/component"->Json.parse("{\"component\":{\"measures\":[{\"metric\":\"coverage\",\"value\":\"42.5\"}]}}");
+                case "/api/measures/component_tree"->Json.parse("{\"components\":[],\"paging\":{\"total\":0}}");
                 case "/api/qualitygates/project_status"->Json.parse("{\"projectStatus\":{\"status\":\"ERROR\"}}");
                 default->throw new AssertionError("Unexpected provider request");
             }; });

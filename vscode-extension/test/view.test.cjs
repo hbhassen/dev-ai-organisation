@@ -12,7 +12,7 @@ function viewWithClosedWorkspace(gateway) {
   try { delete require.cache[require.resolve('../dist/view')]; ({ OdsView } = require('../dist/view')); }
   finally { Module._load = original; }
   const engine = { disposed: false, /** Records the owned engine shutdown before network effects. Exigences : DEVAI-024. */ dispose() { this.disposed = true; } };
-  const view = new OdsView({}, engine, gateway);
+  const view = new OdsView({ workspaceState: { get: () => undefined } }, engine, gateway);
   view.root = { uri: { toString: () => 'file:///test-project' } }; view.project = 1042; view.activeRun = 'run-1'; view.conversation = { id: 'run-1' }; view.grants.add('context'); view.reports.set('SONAR', {});
   return { view, engine };
 }

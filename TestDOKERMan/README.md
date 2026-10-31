@@ -1,6 +1,6 @@
-# Banc Docker pour les tests manuels ODS 0.4.0
+# Banc Docker pour les tests manuels ODS 0.5.0
 
-Ce dossier contient le banc local de l'extension et les tests de régression 0.4.0. Le build utilise le profil d'organisation déjà pris en charge par le projet. Les validations ne génèrent aucun appel Mistral réel par défaut ; l'option explicite `--real-mistral` ajoute une unique soumission courte au test du profil.
+Ce dossier contient le banc local de l'extension et les tests de régression 0.5.0. Le build utilise le profil d'organisation déjà pris en charge par le projet. Les validations ne génèrent aucun appel Mistral réel par défaut ; l'option explicite `--real-mistral` ajoute une unique soumission courte au test du profil.
 
 | Service | Adresse locale | Nature |
 |---|---|---|
@@ -54,7 +54,7 @@ Pour reconstruire et réinstaller après un changement de connexion ou de clé :
 ./TestDOKERMan/start.ps1 -Build -Install -Open
 ```
 
-Le build exécute les contrôles, tests et packaging existants. Le profil privé se trouve dans `.local/profile/organisation.json`. La version applicative est `0.4.0`.
+Le build exécute les contrôles, tests et packaging existants. Le profil privé se trouve dans `.local/profile/organisation.json`. La version applicative est `0.5.0`.
 
 GitFlow : après push, **Créer une MR** prépare automatiquement la pré-revue par fichier avec Mistral, ajoute les commentaires facultatifs et affiche le texte avant publication. Le test du profil vérifie le vrai diff GitLab et sa génération structurée avec une réponse fournisseur synthétique, sans publier de MR ni appeler réellement Mistral. Voir les limites et le parcours dans `docs/INSTALLATION.md` à la racine du dépôt.
 
@@ -87,3 +87,13 @@ Les corrections 0.3.1 concernent le nettoyage du bridge Vibe sous Windows, les m
 Après fermeture de la fenêtre Test, `python TestDOKERMan/profile_test.py <EXTENSION_INSTALLEE>` lance le véritable hôte VS Code dans ce profil. Il vérifie l'activation et le contrôleur natif avec les vrais moteur, gateway, GitLab et SDK Vibe. La présentation est capturée par le test ; le transport HTTP Mistral est simulé dans une copie privée du runtime. Le VSIX installé conserve sa configuration réelle. Les appels fournisseur réels sont désactivés par défaut ; `--real-mistral` autorise une unique soumission courte supplémentaire, sans relance ni traitement des outils proposés.
 
 Le résultat est enregistré dans `.local/profile-smoke-result.json`. `python TestDOKERMan/vscode.py open` rouvre ensuite le profil pour les essais manuels. Le contrat CLI Vibe est aussi vérifié au packaging : succès, erreurs HTTP et nettoyage du dossier temporaire, sans appel fournisseur.
+
+## Parcours Test1 : corrections vérifiées et couverture
+
+`python TestDOKERMan/prepare_test1.py` crée un clone séparé avec JaCoCo, des branches arithmétiques non couvertes et une dépendance détectée par le mock. Il refuse d’écraser un dossier Test1 existant. Après un build, `python TestDOKERMan/stage_test1.py` ouvre le code compilé dans un hôte de développement Test1, en réutilisant le runtime privé déjà préparé. Ce lancement de développement est distinct de l’installation du VSIX livré.
+
+Après packaging, utiliser `python TestDOKERMan/vscode.py install --profile Test1`, puis `configure --profile Test1` et `open --profile Test1`. Le stockage, les extensions et le projet de ce profil sont séparés du profil Test.
+
+Dans Quality, analyser, choisir le nombre maximal de tentatives puis corriger. Vérifier la branche `fix/ods-*`, la compilation, les tests, le nouveau scan et le diff. Enregistrer ensuite les changements dans Git avant de tester **Augmenter la couverture**, avec un objectif mesurable (par exemple 80 %). Le rapport de correction apparaît dans l’onglet et s’exporte en PDF. Aucun commit automatique n’est fait par les corrections.
+
+Le mock Xray signale uniquement `gav://org.apache.commons:commons-lang3:3.17.0` et propose `[3.18.0]` comme version corrigée. Le nouveau scan doit devenir vide après la mise à niveau. Cette anomalie est synthétique, sans prétention de détection d’une CVE réelle. Le test Security suit SBOM → Xray → correction → build/tests → nouveau SBOM/Xray.

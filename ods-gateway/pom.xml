@@ -1,4 +1,4 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><parent><groupId>org.organisation.ods</groupId><artifactId>ods-parent</artifactId><version>0.4.0</version></parent><artifactId>ods-gateway</artifactId><dependencies>
+<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><parent><groupId>org.organisation.ods</groupId><artifactId>ods-parent</artifactId><version>0.5.0</version></parent><artifactId>ods-gateway</artifactId><dependencies>
 <dependency><groupId>org.organisation.ods</groupId><artifactId>ods-java-core</artifactId></dependency>
 <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-webmvc</artifactId></dependency>
 <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-security-oauth2-resource-server</artifactId></dependency>

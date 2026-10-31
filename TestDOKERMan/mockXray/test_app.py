@@ -44,7 +44,7 @@ class GraphScanTest(unittest.TestCase):
         self.assertEqual(404, self.request(app.PREFIX + '/unknown')[0])
 
     def test_graph_scan_contract_and_async_lifecycle(self):
-        component = 'gav://local.test:component:1.0.0'
+        component = 'gav://org.apache.commons:commons-lang3:3.17.0'
         graph = {'component_id': 'root-node', 'nodes': [{'component_id': component, 'nodes': []}]}
         auth = 'Basic ' + base64.b64encode(b'test:test-only').decode()
         status, submitted = self.request(app.PREFIX + '?watch=manual-test-watch&scan_type=dependency', graph, auth)
@@ -62,6 +62,12 @@ class GraphScanTest(unittest.TestCase):
         self.assertEqual('manual-test-watch', result['violations'][0]['watch_name'])
         self.assertTrue(result['violations'][0]['fail_build'])
         self.assertIn('license_key', result['licenses'][0])
+
+    def test_corrected_dependency_clears_synthetic_finding(self):
+        graph = {'component_id': 'root-node', 'nodes': [{'component_id': 'gav://org.apache.commons:commons-lang3:3.18.0', 'nodes': []}]}
+        result = app.report('fixed', graph, 'manual-test-watch')
+        self.assertEqual([], result['vulnerabilities'])
+        self.assertEqual([], result['violations'])
 
 
 if __name__ == '__main__':

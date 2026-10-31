@@ -1,4 +1,4 @@
-# Installation du VSIX autonome 0.4.0
+# Installation du VSIX autonome 0.5.0
 
 Dans GitFlow, pousser la branche source puis utiliser **Créer une MR**. Choisir la cible, le titre et les commentaires facultatifs ; la pré-revue Mistral se génère automatiquement. Lire l’aperçu Markdown complet puis confirmer **Publier**. La description conserve les commentaires et contient, pour chaque fichier, une recommandation au reviewer, une éventuelle question au développeur et un test suggéré. La pré-revue ne vaut pas approbation et n’exécute aucun test.
 

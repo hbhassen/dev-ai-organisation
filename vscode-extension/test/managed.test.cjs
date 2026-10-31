@@ -39,6 +39,10 @@ test('DEVAI-176: masks raw and Basic credentials including JSON-special characte
   assert.equal(redact(text, environment), 'secret=<REDACTED> Authorization: Basic <REDACTED>');
   const roundtrip = JSON.parse(JSON.stringify({ message: text }), (_key, value) => typeof value === 'string' ? redact(value, environment) : value);
   assert.equal(roundtrip.message, redact(text, environment));
+  for (const separator of [String.fromCharCode(92), String.fromCharCode(92).repeat(2), '/']) {
+    const privatePath = ['C:', 'Users', 'synthetic-person', '.m2', 'agent.jar'].join(separator);
+    assert.equal(redact('argLine=' + privatePath, environment), 'argLine=<USER_PATH>');
+  }
 });
 
 test('DEVAI-168: closing during native secret access prevents a late gateway process', async () => {

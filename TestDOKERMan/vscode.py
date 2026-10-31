@@ -27,11 +27,14 @@ def executable():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('action', choices=['open', 'install', 'configure', 'list'])
+    parser.add_argument('--profile', choices=['Test', 'Test1'], default='Test')
     args = parser.parse_args()
-    exe = executable()
-    common = ['--user-data-dir', str(LOCAL / 'vscode-data'), '--extensions-dir', str(LOCAL / 'extensions'), '--profile', 'Test']
+    exe = LOCAL / 'vscode-insiders/Code - Insiders.exe' if args.profile == 'Test1' else executable()
+    data = LOCAL / ('test1-data' if args.profile == 'Test1' else 'vscode-data')
+    extensions = LOCAL / ('test1-extensions' if args.profile == 'Test1' else 'extensions')
+    common = ['--user-data-dir', str(data), '--extensions-dir', str(extensions), '--profile', args.profile]
     if args.action == 'configure':
-        user = LOCAL / 'vscode-data/User'
+        user = data / 'User'
         destinations = [user, *list((user / 'profiles').glob('*'))]
         for folder in destinations:
             if not folder.is_dir():
@@ -39,22 +42,24 @@ def main():
             file = folder / 'settings.json'
             settings = json.loads(file.read_text()) if file.exists() else {}
             settings.update({'ods.javaPath': str(LOCAL / 'jdk/bin/java.exe'), 'workbench.startupEditor': 'none',
-                'window.title': '${rootName} - Test - ${appName}', 'update.mode': 'none', 'extensions.autoUpdate': False,
+                'window.title': '${rootName} - ' + args.profile + ' - ${appName}', 'update.mode': 'none', 'extensions.autoUpdate': False,
                 'terminal.integrated.env.windows': {'JAVA_HOME': str(LOCAL / 'jdk'), 'PATH': str(LOCAL / 'jdk/bin') + ';${env:PATH}'}})
             file.write_text(json.dumps(settings, indent=2))
         print('Isolated VS Code profile configured with private Java trust.')
     elif args.action in ('install', 'list'):
-        options = ['--list-extensions', '--show-versions'] if args.action == 'list' else ['--install-extension', str(ROOT.parent / '.artifacts/ods-docker-manual-0.4.0.vsix'), '--force']
-        subprocess.run([str(exe.parent / 'bin/code.cmd'), *common, *options], check=True)
+        options = ['--list-extensions', '--show-versions'] if args.action == 'list' else ['--install-extension', str(ROOT.parent / '.artifacts/ods-docker-manual-0.5.0.vsix'), '--force']
+        cli = exe.parent / 'bin' / ('code-insiders.cmd' if args.profile == 'Test1' else 'code.cmd')
+        subprocess.run([str(cli), *common, *options], check=True)
     else:
         env = dict(os.environ)
         env.pop('ELECTRON_RUN_AS_NODE', None)
         env['JAVA_HOME'] = str(LOCAL / 'jdk')
         env['PATH'] = str(LOCAL / 'jdk/bin') + os.pathsep + env.get('PATH', '')
         with (LOCAL / 'vscode-open.log').open('ab') as output:
-            child = subprocess.Popen([str(exe), *common, '--disable-workspace-trust', '--reuse-window', str(LOCAL / 'workspaces/demo-allowed')],
+            workspace = 'test1-corrections' if args.profile == 'Test1' else 'demo-allowed'
+            child = subprocess.Popen([str(exe), *common, '--disable-workspace-trust', '--reuse-window', str(LOCAL / 'workspaces' / workspace)],
                 env=env, stdout=output, stderr=output)
-        print('VS Code Test launch requested, PID=' + str(child.pid))
+        print('VS Code ' + args.profile + ' launch requested, PID=' + str(child.pid))
 
 
 if __name__ == '__main__':

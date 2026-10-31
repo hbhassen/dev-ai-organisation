@@ -9,6 +9,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import xml.etree.ElementTree as ET
 
 EXCLUDED = {".git", "node_modules", "target", "dist", "build", "bin", "obj", ".venv", "venv", ".scannerwork", ".sonarqube", ".ods-local", ".artifacts", "suiteInstall", "__pycache__"}
 
@@ -80,6 +81,78 @@ def dotnet_target(root):
     if len(targets) != 1:
         raise ValueError("Open a folder containing exactly one .NET solution or project")
     return targets[0].name
+
+
+def validation_commands(root, stack):
+    """Select existing stack workflows without accepting executable text from the model. Exigences : DEVAI-073, DEVAI-090, DEVAI-098."""
+    if stack == "JAVA" and (root / "pom.xml").is_file():
+        return [["mvn", "-B", "-ntp", "clean", "verify", "-DskipTests=false", "-Dmaven.test.skip=false", "-DskipITs=false"]]
+    if stack == "ANGULAR" and (root / "package.json").is_file():
+        scripts = json.loads((root / "package.json").read_text(encoding="utf-8-sig")).get("scripts", {})
+        if not all(name in scripts for name in ("build", "test")):
+            raise ValueError("package.json must declare build and test scripts")
+        return [["npm", "run", "build"], ["npm", "test", "--", "--watch=false"]]
+    if stack == "PYTHON" and any((root / name).is_file() for name in ("pyproject.toml", "requirements.txt", "setup.py")):
+        executable = next((str(p) for p in (root / ".venv/Scripts/python.exe", root / ".venv/bin/python") if p.is_file()), sys.executable)
+        return [[executable, "-m", "compileall", "-q", "-x", r"(^|[/\\])(?:\.venv|venv|node_modules|\.git)([/\\]|$)", "."], [executable, "-m", "pytest", "-q", "--junitxml=.ods-local/validation-tests.xml"]]
+    if stack == "DOTNET":
+        target = dotnet_target(root)
+        return [["dotnet", "build", target, "--no-incremental"], ["dotnet", "test", target, "--no-build", "--logger", "trx", "--results-directory", ".ods-local/test-results"]]
+    raise ValueError("No supported build/test workflow at the workspace root")
+
+
+def validate(root, stack, output):
+    """Run real compilation/tests and return bounded diagnostics for automatic repair, never a fabricated success. Exigences : DEVAI-073, DEVAI-090, DEVAI-098, DEVAI-176."""
+    results = []
+    try:
+        commands = validation_commands(root, stack)
+    except (ValueError, OSError) as error:
+        return {"passed": False, "commands": [], "log": str(error)}
+    for index, command in enumerate(commands):
+        environment = clean_environment() | {"CI": "true"}
+        executable = shutil.which(command[0], path=environment.get("PATH", environment.get("Path")))
+        if not executable:
+            return {"passed": False, "commands": results, "log": "Missing prerequisite: " + Path(command[0]).name}
+        log = output / (str(index) + ".log")
+        with log.open("wb") as stream:
+            child = subprocess.Popen([executable, *command[1:]], cwd=root, env=environment, stdin=subprocess.DEVNULL, stdout=stream, stderr=subprocess.STDOUT, start_new_session=os.name != "nt")
+            try:
+                code = child.wait(timeout=900)
+            except subprocess.TimeoutExpired:
+                if os.name == "nt":
+                    subprocess.run(["taskkill.exe", "/PID", str(child.pid), "/T", "/F"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10, check=False)
+                else:
+                    os.killpg(child.pid, signal.SIGKILL)
+                child.kill()
+                child.wait(timeout=10)
+                code = -1
+        with log.open("rb") as stream:
+            stream.seek(max(0, log.stat().st_size - 18000))
+            text = stream.read().decode("utf8", errors="replace")
+        for path, placeholder in ((root, "<WORKSPACE>"), (Path.home(), "<USER_HOME>")):
+            for value in (str(path), path.as_posix()):
+                for repetitions in (8, 4, 2, 1):
+                    text = text.replace(value.replace("\\", "\\" * repetitions), placeholder)
+        text = re.sub(r"[A-Za-z]:[\\/]+Users[\\/]+[^\\/\s]+", "<USER_HOME>", text, flags=re.IGNORECASE)
+        results.append({"arguments": [Path(command[0]).name, *command[1:]], "exitCode": code, "log": text})
+        if code:
+            return {"passed": False, "commands": results, "log": text}
+    count = 0
+    if stack == "JAVA":
+        for directory in ("surefire-reports", "failsafe-reports"):
+            for file in root.glob("**/target/" + directory + "/TEST-*.xml"):
+                if file.is_symlink() or not file.resolve().is_relative_to(root):
+                    raise ValueError("Unsafe test report")
+                try:
+                    report = ET.parse(file).getroot()
+                except ET.ParseError:
+                    return {"passed": False, "commands": results, "log": "Invalid test XML report"}
+                if int(report.get("failures", 0)) or int(report.get("errors", 0)):
+                    return {"passed": False, "commands": results, "log": "Failing tests in XML report"}
+                count += int(report.get("tests", 0)) - int(report.get("skipped", 0))
+        if not count:
+            return {"passed": False, "commands": results, "tests": 0, "log": "No executed Maven tests: add tests; skipping tests cannot validate a correction"}
+    return {"passed": True, "commands": results, "tests": count if stack == "JAVA" else None, "log": results[-1]["log"]}
 
 
 def sbom(root, stack, output):
@@ -155,6 +228,8 @@ def execute(request):
     with tempfile.TemporaryDirectory(prefix="ods-analysis-") as directory:
         if request["operation"] == "sbom":
             result = sbom(root, request["stack"], Path(directory))
+        elif request["operation"] == "validate":
+            result = validate(root, request["stack"], Path(directory))
         elif request["operation"] == "sonar":
             result = sonar(root, request["stack"], Path(directory), request["sonar"])
         else:

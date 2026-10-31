@@ -6,6 +6,7 @@ import org.organisation.ods.contracts.*;
 import org.organisation.ods.data.Store;
 import org.organisation.ods.policy.PolicyService;
 import org.organisation.ods.security.SignedDocuments;
+import org.organisation.ods.security.Secrets;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import java.net.URI;
@@ -29,6 +30,7 @@ public class LocalAnalysisService {
             try {
                 Map<String,Object> result;
                 if(kind.equals("SBOM")) result=Json.map(scanner.run("sbom",profile,Map.of(),()->store.cancelled(id),()->store.heartbeat(id)));
+                else if(kind.equals("VALIDATE")) result=Json.map(Json.parse(Secrets.redact(Json.write(scanner.run("validate",profile,Map.of(),()->store.cancelled(id),()->store.heartbeat(id))))));
                 else if(kind.equals("SONAR")) result=sonar(id,project,profile);
                 else if(kind.equals("XRAY")) {
                     JsonNode previous=Json.MAPPER.valueToTree(store.job(Json.text(body,"sbomJobId"),subject));
@@ -83,8 +85,31 @@ public class LocalAnalysisService {
             int total=data.path("paging").path("total").asInt(-1); if(total<0||total>20000) throw new OdsException("INVALID_RESPONSE","Pagination Sonar invalide ou trop volumineuse"); if(page*100>=total) break;
         }
         JsonNode gate=http.json("GET",URI.create(base+"/api/qualitygates/project_status?analysisId="+RemoteHttp.encode(analysis)),headers,null);
+        Map<String,Object> coverage=coverage(job,base,projectKey,headers);
         if(!http.json("GET",latest,headers,null).path("analyses").path(0).path("key").asText().equals(analysis)) throw new OdsException("STALE_REPORT","Analyse Sonar remplacée pendant la lecture");
-        Map<String,Object> result=new LinkedHashMap<>(Json.map(local)); result.put("source","SONAR"); result.put("analysisId",analysis); result.put("issues",findings); result.put("gate",gate); return result;
+        Map<String,Object> result=new LinkedHashMap<>(Json.map(local)); result.put("source","SONAR"); result.put("analysisId",analysis); result.put("issues",findings); result.put("gate",gate); result.put("coverage",coverage); return result;
+    }
+    /** Preserves missing metrics as unknown and retrieves all file-level coverage gaps from the same verified analysis. Exigences : DEVAI-088, DEVAI-090, DEVAI-175. */
+    private Map<String,Object> coverage(String job,String base,String project,Map<String,String> headers) {
+        String metrics="coverage,line_coverage,branch_coverage,lines_to_cover,uncovered_lines,conditions_to_cover,uncovered_conditions";
+        JsonNode data=http.json("GET",URI.create(base+"/api/measures/component?component="+RemoteHttp.encode(project)+"&metricKeys="+metrics),headers,null);
+        Map<String,Object> result=new LinkedHashMap<>(metrics(data.path("component").path("measures")));
+        List<Map<String,Object>> files=new ArrayList<>();
+        for(int page=1;page<=200;page++) {
+            check(job); JsonNode tree=http.json("GET",URI.create(base+"/api/measures/component_tree?component="+RemoteHttp.encode(project)+"&metricKeys="+metrics+"&qualifiers=FIL&strategy=leaves&ps=100&p="+page),headers,null);
+            if(!tree.path("components").isArray()) throw new OdsException("INVALID_RESPONSE","Couverture Sonar incomplète");
+            for(JsonNode file:tree.path("components")) { Map<String,Object> entry=new LinkedHashMap<>(metrics(file.path("measures"))); entry.put("path",file.path("path").asText()); files.add(entry); }
+            int total=tree.path("paging").path("total").asInt(-1);
+            if(total<0||total>20000) throw new OdsException("INVALID_RESPONSE","Pagination couverture invalide");
+            if(page*100>=total) break;
+        }
+        result.put("files",files); return result;
+    }
+    /** Converts only finite measured values, without treating absent coverage as zero. Exigences : DEVAI-088, DEVAI-175. */
+    private Map<String,Object> metrics(JsonNode values) {
+        Map<String,Object> result=new LinkedHashMap<>();
+        for(JsonNode measure:values) { try { double value=Double.parseDouble(measure.path("value").asText()); if(Double.isFinite(value)) result.put(measure.path("metric").asText(),value); } catch(NumberFormatException ignored) { /* Missing measurements stay unknown. */ } }
+        return result;
     }
     /** Renews job ownership and stops provider polling when the user requests cancellation. Exigences : DEVAI-024, DEVAI-173, DEVAI-174. */
     private void check(String id) { if(id==null) return; store.heartbeat(id); if(store.cancelled(id)) throw new OdsException("CANCELLED","Analyse annulée"); }

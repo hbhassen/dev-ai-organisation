@@ -1,4 +1,4 @@
-# Configuration administrée au build — 0.4.0
+# Configuration administrée au build — 0.5.0
 
 Les corrections 0.3.1 ne changent pas le format du profil : conserver les URL et secrets administrés, reconstruire le VSIX puis recharger VS Code. Les erreurs de clé, quota et modèle sont maintenant distinguées d'une absence du runtime Vibe ; voir [Diagnostic](INSTALLATION.md#diagnostic-et-limites).
 
@@ -48,6 +48,18 @@ Le packaging fige `mistral-vibe==3.0.3` et embarque son code, ses dépendances d
 Les secrets embarqués sont extractibles par le propriétaire du poste, limite explicitement acceptée. L’interface verrouillée et le masquage des logs empêchent les modifications ordinaires et fuites accidentelles, pas l’extraction du VSIX. Distribuer les builds personnalisés dans un canal privé autorisé. La rotation demande un nouveau build et une réinstallation.
 
 Les opérations Git gardent le credential helper/agent SSH du développeur. Pour une MR, l’extension cherche un token GitLab utilisateur dans le fournisseur d’authentification IDE ou Git Credential Manager. Un accès Git SSH ne crée pas un token API ; la MR explique l’indisponibilité si aucun credential API n’est déjà présent. Aucun écran de saisie de secret technique n’existe.
+
+## Corrections et couverture automatiques (0.5.0)
+
+Dans Quality ou Security, lancer une analyse puis utiliser **Corriger les issues**. Le dossier doit avoir un état Git propre : enregistrer les modifications existantes dans Git avant de démarrer. L’extension crée une branche `fix/ods-*`, applique les propositions du modèle avec checkpoints, exécute compilation et tests puis régénère le rapport Sonar ou le SBOM et le rapport Xray. Le diff s’ouvre seulement après validation de la compilation et des tests. Une anomalie est déclarée corrigée uniquement si le nouveau rapport confirme sa disparition.
+
+Le champ **Nombre maximal de tentatives** accepte un entier de 1 à 100, avec 3 comme valeur initiale. La valeur choisie est mémorisée dans le workspace. Chaque tentative peut comporter plusieurs échanges du modèle et consommer le quota ; **Arrêter** interrompt le parcours. Une limite atteinte, une erreur fournisseur ou une annulation conserve la branche et produit un bilan incomplet, sans succès inventé.
+
+Dans Quality, **Augmenter la couverture** utilise le pourcentage demandé et la même limite de tentatives. Le projet doit déjà produire un rapport de couverture importé par Sonar (par exemple JaCoCo XML pour Maven). Les métriques absentes ne sont pas assimilées à zéro. L’extension contrôle que les fichiers et lignes initialement mesurés restent présents et refuse les modifications de production dans ce parcours. Les propositions qui ajoutent des exclusions ou désactivent des tests sont refusées ; ces contrôles ne remplacent pas la revue humaine des tests produits.
+
+Les contrôles exécutés sont Maven `clean verify` avec tests activés, scripts npm `build` puis `test -- --watch=false`, Python `compileall` puis `pytest`, ou .NET `build` puis `test`. Les prérequis doivent être installés sur le poste. Pour Maven, un rapport Surefire/Failsafe avec au moins un test exécuté est obligatoire.
+
+Le rapport de correction apparaît dans l’onglet d’origine avec un état par constat initial, la criticité et les explications du modèle distinguées des preuves de validation. **Télécharger le PDF** exporte ce rapport via une boîte de dialogue native. Les rapports sont conservés en mémoire pour le dossier actif ; les télécharger avant de recharger VS Code. Aucun commit, push ou MR n’est créé par ces boutons.
 
 ## Droits des documents GitFlow
 

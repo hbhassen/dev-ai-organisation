@@ -36,7 +36,7 @@ export function redact(text: string, environment: Record<string, string>): strin
     const user = environment[key.startsWith('ODS_JFROG') ? 'ODS_JFROG_USERNAME' : 'ODS_SONAR_USERNAME'];
     if (user && environment[key]) result = result.split(Buffer.from(`${user}:${environment[key]}`).toString('base64')).join('<REDACTED>');
   }
-  return result.replace(/https?:\/\/[^\s/@]+:[^\s/@]+@/g, 'https://<REDACTED>@').replace(/[A-Z]:\\Users\\[^\r\n"<>]+/gi, '<USER_PATH>').replace(/\/home\/[^\s"<>]+/g, '<USER_PATH>');
+  return result.replace(/https?:\/\/[^\s/@]+:[^\s/@]+@/g, 'https://<REDACTED>@').replace(/[A-Z]:[\\/]+Users[\\/]+[^\r\n"<>]+/gi, '<USER_PATH>').replace(/\/home\/[^\s"<>]+/g, '<USER_PATH>');
 }
 
 /** Verifies developer access with the IDE's existing Git authentication before gateway startup. Exigences : DEVAI-169. */

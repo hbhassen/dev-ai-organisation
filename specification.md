@@ -998,7 +998,9 @@ L'écran DOIT distinguer succès technique du scan, état du Quality Gate et obs
 
 **Origine historique (PDF 1.0) :** PDF p. 5. **Responsable :** qualité / IA.
 
-L'utilisateur DOIT pouvoir choisir les issues à corriger, voir le code ciblé et le prompt approuvé. La gateway exige `SONAR_REMEDIATION`, des droits sur le rapport et la conformité du contexte. Le rapport fournisseur est une donnée non fiable ; aucun fichier non nécessaire n'est ajouté automatiquement.
+Dans le parcours local 0.5.0, le clic **Corriger les issues** autorise la correction des anomalies du rapport courant sans consigne supplémentaire, sur une nouvelle branche Git dédiée. L'utilisateur choisit le nombre maximal de tentatives dans l'onglet ; cette valeur est mémorisée pour le workspace. La gateway exige `SONAR_REMEDIATION`, des droits sur le rapport et la conformité du contexte. Le rapport fournisseur est une donnée non fiable ; aucun fichier non nécessaire n'est ajouté automatiquement.
+
+Le parcours **Augmenter la couverture** exige un objectif utilisateur et des métriques Sonar réelles. Il ajoute des tests, valide compilation/tests puis régénère les métriques jusqu'à l'objectif ou à la limite choisie. Il ne doit pas augmenter artificiellement le résultat par suppression du code mesuré ou ajout d'exclusions. Un rapport téléchargeable en PDF présente chaque constat initial avec criticité, état vérifié (corrigé, partiel, non implémenté) et explication du modèle clairement distinguée des preuves.
 
 **Recette :** le scan et la lecture fonctionnent sans IA ; demander un correctif sur le même projet retourne un refus si `SONAR_REMEDIATION` manque.
 
@@ -1006,7 +1008,7 @@ L'utilisateur DOIT pouvoir choisir les issues à corriger, voir le code ciblé e
 
 **Origine historique (PDF 1.0) :** PDF p. 5 ; Conception. **Responsable :** qualité / moteur.
 
-La remédiation DOIT produire un diff, obtenir l'acceptation, exécuter les validations autorisées puis lancer une nouvelle analyse sur la révision corrigée. En mode runner distant, les modifications doivent d'abord être commitées et rendues accessibles à GitLab avec autorisation du développeur ; ODS ne push pas implicitement pour rescan. Les issues ne sont marquées résolues qu'après nouveau résultat correspondant.
+La remédiation locale DOIT appliquer le correctif avec checkpoint, compiler et exécuter les tests avant d'afficher le diff. En cas d'échec, la relance automatique fournit au modèle le rapport initial et les diagnostics de compilation/tests, dans la limite de tentatives choisie par l'utilisateur. Une nouvelle analyse vérifie les sources corrigées ; les issues ne sont marquées résolues qu'après ce résultat correspondant. Un arrêt ou une limite atteinte conserve les changements et indique explicitement ce qui reste non validé. En mode runner distant historique, les modifications doivent d'abord être commitées et rendues accessibles à GitLab avec autorisation du développeur ; ODS ne push pas implicitement pour rescan.
 
 ```mermaid
 sequenceDiagram
@@ -1014,16 +1016,19 @@ sequenceDiagram
     participant Q as Quality
     participant G as Gateway IA
     participant W as Workspace
-    D->>Q: Sélectionner des issues
+    D->>Q: Choisir la limite et cliquer Corriger
+    Q->>W: Créer une branche dédiée
     Q->>G: Remédiation autorisée et contexte filtré
     G-->>Q: Patch proposé
-    Q-->>D: Diff et impacts
-    D->>Q: Accepter
     Q->>W: Appliquer et lancer validations autorisées
     W-->>Q: Build et tests réels
-    D->>Q: Autoriser commit/push si rescan distant
+    opt Échec et tentatives disponibles
+        Q->>G: Rapport initial et diagnostics pour nouvelle correction
+    end
     Q->>G: Scanner la nouvelle révision disponible
     G-->>Q: Nouveau rapport et comparaison
+    Q-->>D: Rapport de correction et PDF
+    Q-->>D: Diff si compilation/tests validés
 ```
 
 **Recette :** une correction locale sans nouveau scan est étiquetée « validation Sonar en attente », jamais « issue résolue ».
@@ -1085,6 +1090,8 @@ Le rapport DOIT présenter identifiant fournisseur, CVE quand disponible, sévé
 **Origine historique (PDF 1.0) :** PDF p. 5–6. **Responsable :** Xray / IA.
 
 La demande de correction DOIT exiger `XRAY_REMEDIATION` et limiter le contexte aux findings et manifestes nécessaires : `pom.xml`, `pyproject.toml`/requirements, projet .NET, `package.json` et locks pertinents. Les données fournisseur ne peuvent remplacer les contraintes de versions organisationnelles ni la validation métier.
+
+Le parcours local utilise la même branche dédiée, la limite de tentatives configurable, la validation compilation/tests et le rapport PDF par constat que la remédiation Sonar. Après validation, un nouveau SBOM et un nouveau scan Xray doivent confirmer la disparition des anomalies ; le seul discours du modèle ne constitue pas une preuve de résolution.
 
 **Recette :** la lecture Xray reste disponible pour un projet sans IA, tandis que le bouton et la route de remédiation sont refusés.
 

@@ -16,15 +16,21 @@ PREFIX = '/xray/api/v1/scan/graph'
 
 def report(scan_id, graph, watch):
     """Generate explicit synthetic findings for submitted components using the Xray schema."""
-    nodes = graph['nodes']
-    component = nodes[0]['component_id'] if nodes else graph['component_id']
-    components = {component: {'fixed_versions': ['[99.0.0]'], 'impact_paths': [[
+    nodes = list(graph['nodes'])
+    affected = []
+    while nodes:
+        node = nodes.pop()
+        if node['component_id'] == 'gav://org.apache.commons:commons-lang3:3.17.0':
+            affected.append(node['component_id'])
+        nodes.extend(node.get('nodes', []))
+    component = affected[0] if affected else graph['component_id']
+    components = {component: {'fixed_versions': ['[3.18.0]'], 'impact_paths': [[
         {'component_id': graph['component_id']}, {'component_id': component}]]}}
     issue = {'issue_id': 'XRAY-MOCK-0001', 'summary': 'MOCK: synthetic vulnerability for manual integration testing',
              'severity': 'High', 'components': components, 'cves': [], 'references': []}
     return {'scan_id': scan_id, 'status': 'completed', 'component_id': graph['component_id'],
-            'vulnerabilities': [issue], 'violations': [dict(issue, type='security', watch_name=watch,
-                fail_build=True, policies=[{'policy': 'manual-test-policy', 'rule': 'mock-high'}])],
+            'vulnerabilities': [issue] if affected else [], 'violations': [dict(issue, type='security', watch_name=watch,
+                fail_build=True, policies=[{'policy': 'manual-test-policy', 'rule': 'mock-high'}])] if affected else [],
             'licenses': [{'license_key': 'Apache-2.0', 'name': 'Apache License 2.0', 'components': {component: {}}}]}
 
 

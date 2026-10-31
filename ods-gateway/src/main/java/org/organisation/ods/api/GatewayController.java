@@ -21,7 +21,7 @@ public class GatewayController {
     /** Injects authorization services rather than accepting a client-computed permission flag. Exigences : DEVAI-003. */
     public GatewayController(Settings settings,PolicyService policies,AiService ai,GitLabClient gitlab,ScanService scans,Store store,org.organisation.ods.ai.JobEvents events,LocalAnalysisService local) { this.settings=settings; this.policies=policies; this.ai=ai; this.gitlab=gitlab; this.scans=scans; this.store=store; this.events=events; this.local=local; }
     /** Exposes process liveness without disclosing infrastructure or secrets. Exigences : DEVAI-129. */
-    @GetMapping("/health/live") public Map<String,Object> live() { return Map.of("status","UP","version","0.4.0"); }
+    @GetMapping("/health/live") public Map<String,Object> live() { return Map.of("status","UP","version","0.5.0"); }
     /** Clearly separates a running local gateway from configured AI readiness. Exigences : DEVAI-129. */
     @GetMapping("/health/ready") public ResponseEntity<?> ready() { boolean configured=(settings.get("embedded").equals("true")||!settings.get("oidc-issuer").isBlank())&&!settings.get("mistral-key").isBlank()&&!settings.get("governance-project-id").isBlank(); return ResponseEntity.status(configured?200:503).body(Map.of("status",configured?"CONFIGURED":"CONFIGURATION_REQUIRED","externalServicesVerified",false)); }
     /** Supplies public native-client OIDC metadata, never service credentials. Exigences : DEVAI-020. */
@@ -64,6 +64,8 @@ public class GatewayController {
     @PostMapping("/api/v1/security/sbom") public ResponseEntity<?> sbom(@AuthenticationPrincipal Jwt jwt,@RequestHeader("Idempotency-Key") String key,@RequestBody Map<String,Object> body) { return ResponseEntity.accepted().body(local.start("SBOM",jwt,Json.MAPPER.valueToTree(body),key)); }
     /** Refuses stale remediation by exposing only the verified workspace fingerprint. Exigences : DEVAI-175. */
     @GetMapping("/api/v1/workspace/fingerprint") public Map<String,Object> fingerprint(@AuthenticationPrincipal Jwt jwt,@RequestParam long projectId) { return Json.map(local.fingerprint(jwt,projectId)); }
+    /** Runs fixed local build/test workflows and returns actual diagnostics for the correction loop. Exigences : DEVAI-073, DEVAI-090, DEVAI-098. */
+    @PostMapping("/api/v1/workspace/validate") public ResponseEntity<?> validate(@AuthenticationPrincipal Jwt jwt,@RequestHeader("Idempotency-Key") String key,@RequestBody Map<String,Object> body) { return ResponseEntity.accepted().body(local.start("VALIDATE",jwt,Json.MAPPER.valueToTree(body),key)); }
     /** Reads actual Sonar issues and gate without pretending the API ran a scanner. Exigences : DEVAI-085, DEVAI-088. */
     @GetMapping("/api/v1/quality/reports") public Map<String,Object> sonarReport(@AuthenticationPrincipal Jwt jwt,@RequestHeader(value="X-ODS-GitLab-Token",required=false) String token,@RequestParam long projectId,@RequestParam(defaultValue="1") int page) { return scans.sonar(jwt,token,projectId,page); }
     /** Reads an existing Xray build report with explicit build identity. Exigences : DEVAI-096, DEVAI-102. */

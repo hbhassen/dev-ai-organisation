@@ -21,13 +21,25 @@ async function open(page, width = 900) {
 /** Sends host presentation data through the same browser event used by VS Code. Exigences : DEVAI-018, DEVAI-135. */
 async function message(page, data) { await page.evaluate(value => window.postMessage(value, '*'), data); }
 
+test('DEVAI-090/098: coverage threshold and accessible correction cards export the native report', async ({ page }) => {
+  await open(page, 500); await page.getByRole('tab', { name: 'Quality', exact: true }).click();
+  await page.locator('#coverage-target').fill('85'); await page.getByRole('button', { name: 'Augmenter la couverture' }).click();
+  expect(await page.evaluate(() => window.sent.at(-1))).toEqual({ type: 'coverage', target: 85, attempts: 3 });
+  const sent = await page.evaluate(() => window.sent.length); await page.locator('#coverage-target').fill('101'); await page.getByRole('button', { name: 'Augmenter la couverture' }).click(); expect(await page.evaluate(() => window.sent.length)).toBe(sent);
+  await message(page, { type: 'correctionReport', source: 'SONAR', data: { branch: 'fix/ods-quality-example', rounds: 2, validated: true, message: 'Nouveau scan validé', target: 85, before: 20, after: 87, files: ['src/App.java'], validationLog: 'Tests: 8, failures: 0', items: ['corrected', 'partial', 'unimplemented'].map((status, i) => ({ key: `issue-${i}`, status, severity: 'HIGH', title: 'Anomalie <script>evil()</script>', path: 'src/App.java', description: 'État vérifié', explanation: 'Tests ajoutés', initial: { line: i + 1 } })) } });
+  await expect(page.locator('#sonar-correction')).toBeVisible(); await expect(page.locator('.correction-card')).toHaveCount(3); await expect(page.locator('.correction-card.corrected')).toContainText('✓ Corrigé'); await expect(page.locator('.correction-card.partial')).toContainText('◐ Corrigé partiellement'); await expect(page.locator('.correction-card.unimplemented')).toContainText('○ Non implémenté');
+  expect(await page.evaluate(() => document.querySelectorAll('.correction-report script').length)).toBe(0);
+  await page.getByRole('button', { name: 'Télécharger le PDF' }).click(); expect(await page.evaluate(() => window.sent.at(-1))).toEqual({ type: 'downloadCorrectionReport', source: 'SONAR' });
+  await page.screenshot({ path: path.join(__dirname, '../../.artifacts/correction-report-ui.png'), fullPage: true });
+});
+
 for (const source of ['SONAR', 'XRAY']) test(`DEVAI-090/098: ${source} correction switches to Agent and disables concurrent scans`, async ({ page }) => {
   await open(page);
   const task = source === 'SONAR' ? 'sonar-remediation' : 'xray-remediation';
   await message(page, { type: 'tasks', tasks: [{ id: task, label: 'Correction' }] });
   await page.getByRole('tab', { name: source === 'SONAR' ? 'Quality' : 'Security', exact: true }).click();
   await page.locator(`[data-remediate="${source}"]`).click();
-  expect(await page.evaluate(() => window.sent.at(-1))).toEqual({ type: 'remediate', source });
+  expect(await page.evaluate(() => window.sent.at(-1))).toEqual({ type: 'remediate', source, attempts: 3 });
   await message(page, { type: 'busy', value: true });
   await message(page, { type: 'remediation', mode: 'AGENT', task });
   await expect(page.locator('#ai')).toBeVisible(); await expect(page.locator('#mode')).toHaveValue('AGENT'); await expect(page.locator('#task')).toHaveValue(task);

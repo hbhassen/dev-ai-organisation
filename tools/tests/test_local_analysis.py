@@ -15,6 +15,50 @@ SPEC.loader.exec_module(analysis)
 class LocalAnalysisTest(unittest.TestCase):
     """Exercise four actual generator command contracts and local source provenance with no commit requirement. Exigences : DEVAI-172, DEVAI-174, DEVAI-177."""
 
+    def test_validation_returns_failures_and_requires_executed_tests(self):
+        """Reject failing commands, ignored test failures and empty Maven suites, preserving repair diagnostics. Exigences : DEVAI-090, DEVAI-098."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            (root / "pom.xml").write_text("<project/>")
+            output = root / "out"
+            output.mkdir()
+            with patch.object(analysis.shutil, "which", return_value="mvn"), patch.object(analysis.subprocess, "Popen") as launch:
+                launch.return_value.wait.return_value = 1
+                result = analysis.validate(root, "JAVA", output)
+                self.assertFalse(result["passed"])
+                self.assertEqual(1, result["commands"][0]["exitCode"])
+                def logged_failure(*arguments, **kwargs):
+                    """Emit a real escaped-path diagnostic into the supplied log stream. Exigences : DEVAI-176."""
+                    kwargs["stdout"].write((str(root).replace("\\", "\\\\") + " compiler error").encode())
+                    from unittest.mock import Mock
+                    return Mock(wait=Mock(return_value=1))
+                with patch.object(analysis.subprocess, "Popen", side_effect=logged_failure):
+                    diagnostic = analysis.validate(root, "JAVA", output)["log"]
+                    self.assertIn("<WORKSPACE>", diagnostic)
+                    self.assertNotIn(root.name, diagnostic)
+                launch.return_value.wait.return_value = 0
+                self.assertFalse(analysis.validate(root, "JAVA", output)["passed"])
+                reports = root / "target/surefire-reports"
+                reports.mkdir(parents=True)
+                report = reports / "TEST-App.xml"
+                report.write_text('<testsuite tests="2" failures="1" errors="0" skipped="0"/>')
+                self.assertFalse(analysis.validate(root, "JAVA", output)["passed"])
+                report.write_text('<testsuite tests="2" failures="0" errors="0" skipped="0"/>')
+                result = analysis.validate(root, "JAVA", output)
+                self.assertTrue(result["passed"])
+                self.assertEqual(2, result["tests"])
+                self.assertIn("-DskipTests=false", result["commands"][0]["arguments"])
+                report.write_text('<invalid')
+                self.assertFalse(analysis.validate(root, "JAVA", output)["passed"])
+
+    def test_validation_missing_workflow_is_not_success(self):
+        """Require actual manifests instead of declaring unsupported projects validated. Exigences : DEVAI-090."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.assertFalse(analysis.validate(root, "JAVA", root)["passed"])
+            (root / "package.json").write_text('{"scripts":{"build":"tool"}}')
+            self.assertFalse(analysis.validate(root, "ANGULAR", root)["passed"])
+
     def test_fingerprint_uncommitted_sources_and_deleted_files(self):
         """Detect edited and untracked sources while ignoring generated output and credentials. Exigences : DEVAI-175."""
         with tempfile.TemporaryDirectory() as directory:

@@ -16,17 +16,20 @@ function createView(api, engine, gateway = {}) {
   return view;
 }
 
-/** Drives both remediation buttons through the real tool loop without network or paid model calls. Exigences : DEVAI-090, DEVAI-098, DEVAI-175. */
+/** Drives the actual controller through native patches, build failures and fresh scans without paid model calls. Exigences : DEVAI-090, DEVAI-098, DEVAI-175. */
 function remediationFixture(source, options = {}) {
   const events = [], calls = [], order = [], documents = [];
-  let content = 'before', turn = 0, picks = 0;
-  const change = { path: 'src/App.java', baseHash: 'original-hash', content: 'after', requirements: ['DEVAI-090'] };
+  let content = 'before', turn = 0, branch = 'develop', builds = 0, scans = 0;
+  const change = { path: options.coverage ? 'src/test/AppTest.java' : 'src/App.java', baseHash: 'original-hash', content: options.coverage ? 'after tests' : 'after', requirements: ['DEVAI-090'] };
   const api = { Uri: { joinPath: (base, path) => uri(base.fsPath + '/' + path), parse: uri }, workspace: { isTrusted: true, textDocuments: documents }, commands: { executeCommand: async command => { assert.equal(command, 'vscode.diff'); assert.equal(content, 'after'); order.push('diff'); if (options.diffFailure) throw new Error('diff unavailable'); } }, window: {
-    showQuickPick: async values => { picks++; if (options.cancel) return undefined; if (options.stop) view.stopped = true; return values; },
     showWarningMessage: async () => { throw new Error('Unexpected secondary approval'); }
   } };
   const engine = { call: async (method, args) => {
     calls.push({ method, args });
+    if (method === 'project.inspect') return { status: options.gitDirty ? ' M src/App.java' : '', branch };
+    if (method === 'process.start') { assert.deepEqual(args.arguments.slice(0, 3), ['git', 'switch', '-c']); branch = args.arguments[3]; order.push('branch'); if (options.stop) view.stopped = true; return { processId: 'branch-process' }; }
+    if (method === 'process.cancel') return {};
+    if (method === 'process.output') return { running: false, exitCode: options.branchFailure ? 1 : 0 };
     if (method === 'changes.propose') { if (options.dirty) documents.push({ uri: uri('/project/src/App.java'), isDirty: true }); return { changes: args.changes, planHash: 'validated-plan' }; }
     if (method === 'files.read') return { content, sha256: 'original-hash' };
     if (method === 'changes.apply') { assert.equal(args.planHash, 'validated-plan'); assert.equal(args.approved, true); content = 'after'; order.push('apply'); return { applied: 1, backup: 'recoverable-checkpoint' }; }
@@ -34,61 +37,89 @@ function remediationFixture(source, options = {}) {
   } };
   const gateway = { progress: async () => {}, request: async (route, method, body) => {
     calls.push({ route, body });
-    if (route.includes('/fingerprint')) return { fingerprint: options.stale || (options.changedDuringCorrection && turn > 0) ? 'changed' : 'original' };
-    if (route === '/api/v1/ai/agents/run') { assert.equal(body.mode, 'AGENT'); assert.equal(body.task, source === 'SONAR' ? 'sonar-remediation' : 'xray-remediation'); assert.match(body.message, /changes_propose/); return { jobId: 'fix-run' }; }
-    if (route === '/api/v1/jobs/fix-run') return { status: turn === 1 && !options.noPatch ? 'WAITING_APPROVAL' : 'SUCCEEDED', result: { message: turn === 1 && !options.noPatch ? { tool_calls: [{ id: 'patch', function: { name: 'changes_propose', arguments: JSON.stringify({ changes: [change] }) } }] } : { content: 'Proposition textuelle du modèle.' } } };
+    if (route.includes('/fingerprint')) return { fingerprint: options.stale || (options.changedDuringCorrection && turn > 0) ? 'changed' : content === 'before' ? 'original' : 'corrected' };
+    if (route === '/api/v1/ai/agents/run') { turn = 0; assert.equal(body.mode, 'AGENT'); assert.equal(body.task, source === 'SONAR' ? 'sonar-remediation' : 'xray-remediation'); assert.match(body.message, /changes_propose/); return { jobId: 'fix-run' }; }
+    if (route === '/api/v1/jobs/fix-run') return { status: turn === 1 && !options.noPatch ? 'WAITING_APPROVAL' : 'SUCCEEDED', result: { message: turn === 1 && !options.noPatch ? { tool_calls: [{ id: 'patch', function: { name: 'changes_propose', arguments: JSON.stringify({ changes: [change] }) } }] } : { content: 'Explication du modèle.' } } };
     if (route.endsWith('/turns')) { turn++; return {}; }
+    if (route === '/api/v1/workspace/validate') { builds++; order.push('build'); return { jobId: 'validate' }; }
+    if (route === '/api/v1/jobs/validate') return { status: 'SUCCEEDED', result: { passed: !options.buildAlwaysFails && (!options.buildFailsOnce || builds > 1), log: 'compiler: incompatible types', fingerprint: options.validationStale ? 'foreign' : 'corrected' } };
+    if (route === '/api/v1/security/sbom') { order.push('sbom'); return { jobId: 'sbom' }; }
+    if (route === '/api/v1/jobs/sbom') return { status: 'SUCCEEDED', result: { fingerprint: 'corrected' } };
+    if (route.endsWith('/scans')) { scans++; order.push('scan'); return { jobId: 'scan' }; }
+    if (route === '/api/v1/jobs/scan') return { status: 'SUCCEEDED', result: { fingerprint: options.scanStale ? 'foreign' : 'corrected', issues: options.newIssue && scans === 1 ? [{ key: 'introduced', message: 'New regression' }] : options.issueRemains || options.scanFailsOnce && scans === 1 ? [{ key: 'issue-one', message: 'Finding' }] : [], analysisId: 'fresh-analysis', coverage: options.coverage ? { coverage: scans === 1 ? 50 : 90, lines_to_cover: 10, files: [{ path: 'src/App.java', coverage: scans === 1 ? 50 : 90, lines_to_cover: 10, uncovered_lines: scans === 1 ? 5 : 1 }] } : undefined } };
     return {};
   } };
   const view = createView(api, engine, gateway);
   view.view = { webview: { postMessage: message => events.push(message) } };
-  view.reports.set(source, { fingerprint: 'original', issues: [{ message: 'Finding', severity: 'MAJOR' }] });
-  return { view, events, calls, order, content: () => content, picks: () => picks };
+  view.reports.set(source, { profile: 'JAVA', fingerprint: 'original', analysisId: 'initial-analysis', issues: [{ key: 'issue-one', path: 'src/App.java', message: 'Finding', severity: 'MAJOR' }], coverage: options.coverage ? { coverage: 20, lines_to_cover: 10, files: [{ path: 'src/App.java', coverage: 20, lines_to_cover: 10, uncovered_lines: 8 }] } : undefined });
+  return { view, events, calls, order, content: () => content, outcome: () => events.findLast(event => event.type === 'correctionReport')?.data };
 }
-
-for (const source of ['SONAR', 'XRAY']) {
-  test(`DEVAI-090/098: ${source} corrects automatically after a text-only answer, then displays the applied diff`, async () => {
-    const state = remediationFixture(source);
-    await state.view.remediate(source);
-    assert.deepEqual(state.order, ['apply', 'diff']); assert.equal(state.content(), 'after'); assert.equal(state.picks(), 1);
-    assert.equal(state.calls.filter(call => call.route?.endsWith('/turns') && call.body.message).length, 1);
-    assert.ok(state.events.some(event => event.type === 'remediation' && event.mode === 'AGENT'));
-    assert.ok(state.events.some(event => event.message?.includes('recoverable-checkpoint')));
-    assert.equal(state.view.remediation, undefined); assert.equal(state.view.remediationBusy, false); assert.equal(state.view.conversation, undefined);
-    assert.equal(state.view.grants.size, 0);
-  });
-}
-
-test('DEVAI-090/098: text-only responses stop after two automatic reminders without claiming an applied fix', async () => {
-  const state = remediationFixture('SONAR', { noPatch: true });
-  await assert.rejects(() => state.view.remediate('SONAR'), /Aucun correctif appliqué/);
-  assert.equal(state.calls.filter(call => call.route?.endsWith('/turns')).length, 2); assert.equal(state.content(), 'before'); assert.equal(state.view.remediationBusy, false);
+for (const source of ['SONAR', 'XRAY']) test(`DEVAI-090/098: ${source} branches, applies, validates and rescans before diff`, async () => {
+  const state = remediationFixture(source); await state.view.remediate(source);
+  assert.deepEqual(state.order, ['branch', 'apply', 'build', ...(source === 'XRAY' ? ['sbom'] : []), 'scan', 'diff']);
+  assert.equal(state.content(), 'after'); assert.equal(state.outcome().items[0].status, 'corrected'); assert.equal(state.outcome().validated, true);
+  assert.equal(state.outcome().initialAnalysis, 'initial-analysis'); assert.equal(state.outcome().finalAnalysis, 'fresh-analysis');
+  assert.ok(state.outcome().checkpoints.includes('recoverable-checkpoint'));
+  assert.equal(state.view.remediation, undefined); assert.equal(state.view.remediationBusy, false); assert.equal(state.view.conversation, undefined);
+  assert.equal(state.view.grants.size, 0);
 });
-
-for (const option of ['stale', 'dirty', 'changedDuringCorrection']) test(`DEVAI-175/069: ${option} prevents automatic application`, async () => {
-  const state = remediationFixture('XRAY', { [option]: true });
-  await assert.rejects(() => state.view.remediate('XRAY'), /sources ont changé|Aucun correctif appliqué/);
-  assert.equal(state.content(), 'before'); assert.deepEqual(state.order, []); assert.equal(state.view.remediation, undefined);
+test('DEVAI-090: failed compilation automatically retries with initial evidence and error log before any diff', async () => {
+  const state = remediationFixture('SONAR', { buildFailsOnce: true }); await state.view.remediate('SONAR');
+  assert.deepEqual(state.order, ['branch', 'apply', 'build', 'apply', 'build', 'scan', 'diff']);
+  const prompts = state.calls.filter(call => call.route === '/api/v1/ai/agents/run');
+  assert.equal(prompts.length, 2); assert.match(prompts[1].body.message, /compiler: incompatible types/); assert.match(prompts[1].body.message, /issue-one/);
 });
-
-for (const option of ['cancel', 'stop']) test(`DEVAI-077: ${option} during issue selection never contacts Mistral`, async () => {
-  const state = remediationFixture('SONAR', { [option]: true });
-  if (option === 'stop') await assert.rejects(() => state.view.remediate('SONAR'), /arrêtée avant envoi/); else await state.view.remediate('SONAR');
+test('DEVAI-090: remaining issue triggers another repair after successful tests', async () => {
+  const state = remediationFixture('SONAR', { scanFailsOnce: true }); await state.view.remediate('SONAR');
+  assert.equal(state.outcome().rounds, 2); assert.equal(state.outcome().items[0].status, 'corrected'); assert.equal(state.order.filter(value => value === 'diff').length, 1);
+});
+test('DEVAI-090: coverage automatically retries with regenerated metrics until target is met', async () => {
+  const state = remediationFixture('SONAR', { coverage: true }); await state.view.remediate('SONAR', 80);
+  assert.equal(state.outcome().rounds, 2); assert.equal(state.outcome().before, 20); assert.equal(state.outcome().after, 90); assert.equal(state.outcome().items[0].status, 'corrected');
+  const prompts = state.calls.filter(call => call.route === '/api/v1/ai/agents/run'); assert.match(prompts[1].body.message, /"coverage":50/); assert.match(prompts[1].body.message, /80%/);
+});
+test('DEVAI-090: exhausted compilation failures never display a validated diff', async () => {
+  const state = remediationFixture('SONAR', { buildAlwaysFails: true }); await state.view.remediate('SONAR', undefined, 2);
+  assert.equal(state.outcome().rounds, 2); assert.equal(state.outcome().validated, false); assert.equal(state.outcome().items[0].status, 'partial'); assert.equal(state.order.includes('diff'), false);
+});
+test('DEVAI-090: model prose without a patch never claims a correction', async () => {
+  const state = remediationFixture('SONAR', { noPatch: true }); await state.view.remediate('SONAR');
+  assert.match(state.outcome().message, /Aucun correctif appliqué/); assert.equal(state.outcome().items[0].status, 'unimplemented'); assert.equal(state.calls.filter(call => call.route?.endsWith('/turns')).length, 2); assert.equal(state.content(), 'before');
+});
+for (const option of ['stale', 'gitDirty', 'branchFailure', 'stop']) test(`DEVAI-175/077: ${option} prevents model execution`, async () => {
+  const state = remediationFixture('SONAR', { [option]: true }); await assert.rejects(() => state.view.remediate('SONAR'));
   assert.equal(state.calls.some(call => call.route?.includes('/ai/')), false); assert.equal(state.view.remediationBusy, false);
 });
-
-test('DEVAI-068: an unavailable diff viewer retains the successful application and checkpoint without replay', async () => {
-  const state = remediationFixture('SONAR', { diffFailure: true });
-  await state.view.remediate('SONAR');
-  assert.equal(state.calls.filter(call => call.method === 'changes.apply').length, 1);
-  assert.ok(state.events.some(event => event.message?.includes('ouverture du diff impossible')));
+for (const option of ['dirty', 'changedDuringCorrection']) test(`DEVAI-175/069: ${option} prevents automatic application`, async () => {
+  const state = remediationFixture('XRAY', { [option]: true }); await state.view.remediate('XRAY');
+  assert.equal(state.content(), 'before'); assert.equal(state.order.includes('apply'), false); assert.equal(state.outcome().items[0].status, 'unimplemented');
 });
-
-test('DEVAI-077: a second correction is rejected while the issue picker is pending', async () => {
-  const state = remediationFixture('SONAR');
-  const first = state.view.remediate('SONAR');
-  await assert.rejects(() => state.view.remediate('SONAR'), /déjà active/);
-  await first;
+for (const option of ['validationStale', 'scanStale']) test(`DEVAI-175: ${option} rejects foreign evidence`, async () => {
+  const state = remediationFixture('SONAR', { [option]: true }); await state.view.remediate('SONAR');
+  assert.equal(state.outcome().validated, false); assert.equal(state.order.includes('diff'), false);
+});
+test('DEVAI-068: unavailable diff keeps checkpoint and never replays the patch', async () => {
+  const state = remediationFixture('SONAR', { diffFailure: true }); await state.view.remediate('SONAR');
+  assert.equal(state.calls.filter(call => call.method === 'changes.apply').length, 1); assert.match(state.outcome().message, /Diff indisponible/);
+});
+test('DEVAI-077: concurrent correction is rejected', async () => {
+  const state = remediationFixture('SONAR'); const first = state.view.remediate('SONAR');
+  await assert.rejects(() => state.view.remediate('SONAR'), /déjà active/); await first;
+});
+test('DEVAI-090: invalid attempt limits are rejected before any model call', async () => {
+  for (const limit of [0, -1, 1.5, 101, '2', NaN]) {
+    const state = remediationFixture('SONAR'); await assert.rejects(() => state.view.remediate('SONAR', undefined, limit), /tentatives/);
+    assert.equal(state.calls.some(call => call.route?.includes('/ai/')), false);
+  }
+});
+test('DEVAI-090: newly introduced scan findings require another correction', async () => {
+  const state = remediationFixture('SONAR', { newIssue: true }); await state.view.remediate('SONAR');
+  assert.equal(state.outcome().rounds, 2); assert.deepEqual(state.outcome().newFindings, []);
+  assert.match(state.calls.filter(call => call.route === '/api/v1/ai/agents/run')[1].body.message, /New regression/);
+});
+test('DEVAI-077: stopping the model stage prevents build, rescan and diff', async () => {
+  const state = remediationFixture('SONAR'); state.view.chat = async () => { state.view.stopped = true; };
+  await state.view.remediate('SONAR'); assert.deepEqual(state.order, ['branch']); assert.match(state.outcome().message, /arrêtée/); assert.equal(state.outcome().validated, false);
 });
 
 test('DEVAI-042/065: multifile preview sends exactly the approved content and no context after refusal', async () => {
