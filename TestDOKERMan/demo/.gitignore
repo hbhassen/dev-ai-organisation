@@ -1,0 +1,5 @@
+target/
+.mvn/
+.ods-local/
+.scannerwork/
+.vscode/

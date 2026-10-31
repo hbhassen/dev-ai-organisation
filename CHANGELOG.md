@@ -1,5 +1,12 @@
 # Changelog
 
+## Banc de test Docker local — 2026-10-31 (base 0.3.0, sans release)
+
+- Ajout de `TestDOKERMan/` : GitLab CE, SonarQube et mock Graph Scan Xray en HTTPS local, avec comptes, projets de démonstration autorisé/refusé et politique Ed25519 renouvelable.
+- Profil privé de build Mistral Medium 3.5 et profil VS Code `Test` isolé ; les validations automatiques du banc ne font aucun appel de génération Mistral.
+- Sources applicatives existantes inchangées. Secrets, données Docker et livrables privés exclus de Git ; bilan effectif dans `TestDOKERMan/VALIDATION.md`.
+- Ancien `suiteInstall/` retiré du suivi Git sur cette branche, sans suppression des fichiers locaux ni réécriture de l'historique ; la livraison privée du banc reste un artefact ignoré.
+
 ## Préparation intégration HMSile — 2026-10-29 (base 0.3.0)
 
 - Ajout des modèles `integration/` pour HMSile dev IA : Mistral/Vibe, Xray, Sonar, GitLab, gouvernance et mappings de projets, avec URL fictives et placeholders.

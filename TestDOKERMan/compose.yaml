@@ -1,0 +1,62 @@
+name: ods-manual
+services:
+  gitlab:
+    image: gitlab/gitlab-ce@sha256:182613a8f82544404884024c7f9acbd48f3c191349a52df25f2044761b0e45a1
+    hostname: gitlab
+    restart: unless-stopped
+    shm_size: 256m
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'https://localhost:18443'
+        nginx['listen_port'] = 80
+        nginx['listen_https'] = false
+        nginx['proxy_set_headers'] = { 'Host' => '$$http_host', 'X-Real-IP' => '$$remote_addr', 'X-Forwarded-For' => '$$proxy_add_x_forwarded_for', 'X-Forwarded-Proto' => 'https', 'X-Forwarded-Ssl' => 'on' }
+        letsencrypt['enable'] = false
+        prometheus_monitoring['enable'] = false
+        puma['worker_processes'] = 0
+        sidekiq['concurrency'] = 5
+        gitlab_rails['gitlab_shell_ssh_port'] = 12222
+        gitlab_rails['initial_root_password'] = File.read('/run/secrets/root_password').strip
+        gitlab_rails['gitlab_signup_enabled'] = false
+    volumes:
+      - gitlab-config:/etc/gitlab
+      - gitlab-logs:/var/log/gitlab
+      - gitlab-data:/var/opt/gitlab
+      - ./.local/root-password.txt:/run/secrets/root_password:ro
+      - ./.local/bootstrap:/bootstrap:ro
+    ports:
+      - '127.0.0.1:12222:22'
+  sonar:
+    image: sonarqube@sha256:c0f1160bccfa435db4168c2d7df69af3c3ea7bfeb87395613014048fb33a68c1
+    restart: unless-stopped
+    environment:
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: 'true'
+      SONAR_WEB_JAVAOPTS: '-Xms128m -Xmx512m'
+      SONAR_CE_JAVAOPTS: '-Xms128m -Xmx512m'
+      SONAR_SEARCH_JAVAOPTS: '-Xms512m -Xmx512m'
+    volumes:
+      - sonar-data:/opt/sonarqube/data
+      - sonar-extensions:/opt/sonarqube/extensions
+      - sonar-logs:/opt/sonarqube/logs
+  mockxray:
+    build: ./mockXray
+    restart: unless-stopped
+    env_file: ./.local/mock.env
+  proxy:
+    image: nginx@sha256:a8b39bd9cf0f83869a2162827a0caf6137ddf759d50a171451b335cecc87d236
+    restart: unless-stopped
+    depends_on: [gitlab, sonar, mockxray]
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./.local/tls:/etc/nginx/tls:ro
+    ports:
+      - '127.0.0.1:18443:18443'
+      - '127.0.0.1:19443:19443'
+      - '127.0.0.1:18083:18083'
+volumes:
+  gitlab-config:
+  gitlab-logs:
+  gitlab-data:
+  sonar-data:
+  sonar-extensions:
+  sonar-logs:

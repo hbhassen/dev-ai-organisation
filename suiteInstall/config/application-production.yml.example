@@ -1,5 +1,0 @@
-# DEVAI-036, DEVAI-086: deployment-owned mappings; workspace configuration cannot override them.
-ods:
-  sonar-project-1042: example-service
-  jfrog-build-1042: example-service
-# Supply this file using SPRING_CONFIG_ADDITIONAL_LOCATION; use real project IDs and provider keys.
