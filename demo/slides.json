@@ -1,0 +1,375 @@
+{
+  "edition": "1.0",
+  "date": "2026-11-03",
+  "productVersion": "0.6.0",
+  "sourceCommit": "385ea41b61d77a01ecb9a58f98deb59d356d77ef",
+  "slides": [
+    {
+      "type": "cover",
+      "title": "ODS\nL’assistance IA dans\nnotre chaîne de qualité",
+      "subtitle": "Organisation Development Standard\nProposition d’adoption dans l’organisation",
+      "caption": "Extension 0.6.0 · Mécanique 1.0.0 · Novembre 2026",
+      "notes": "Notre proposition est simple : rapprocher l’assistance IA des règles de notre organisation et des outils qui vérifient déjà notre code. ODS rassemble ces parcours dans VS Code, depuis la création d’un projet jusqu’à la préparation d’une merge request. La décision proposée aujourd’hui est de conduire un pilote mesuré sur des projets autorisés. Nous allons examiner les usages, les mécanismes de contrôle, les résultats déjà observés et les conditions d’un déploiement responsable.",
+      "sources": ["README.md", "CHANGELOG.md", "mecanique/README.md"]
+    },
+    {
+      "type": "split",
+      "title": "Le travail qui entoure un correctif",
+      "lead": "Un rapport utile laisse encore beaucoup de travail au développeur.",
+      "leftTitle": "Aujourd’hui",
+      "left": "Lire l’anomalie dans l’outil de scan.\nRetrouver le contexte dans le code.\nPréparer le changement et les tests.\nExpliquer le résultat au reviewer.",
+      "rightTitle": "L’enjeu pour l’équipe",
+      "right": "Réduire les allers-retours.\nRendre les règles communes visibles.\nConserver la preuve de vérification.\nFaciliter la transmission en revue.",
+      "foot": "Hypothèse de valeur à mesurer sur nos projets, sans gain de productivité chiffré à ce stade.",
+      "notes": "Nous disposons déjà de GitLab, de SonarQube et d’outils de sécurité. Le coût opérationnel se situe souvent entre ces outils : retrouver le bon fichier, interpréter le rapport, produire un correctif, vérifier les tests et raconter le changement. ODS automatise une partie de ce travail de liaison. Nous devons mesurer le temps réellement économisé après avoir compté la relecture et les corrections humaines. Cette présentation ne s’appuie sur aucune étude comparative ni estimation de gain déjà acquise.",
+      "sources": ["vscode-extension/src/view.ts", "vscode-extension/src/presentation.ts"]
+    },
+    {
+      "type": "steps",
+      "title": "Le parcours proposé dans VS Code",
+      "steps": [
+        ["Analyser", "SonarQube ou SBOM et Xray sur les fichiers enregistrés."],
+        ["Faire corriger", "Mistral applique les changements dans une branche dédiée."],
+        ["Vérifier", "Compilation, tests et nouveau scan encadrent les tentatives."],
+        ["Relire", "Le diff, le rapport et la pré-revue accompagnent la MR."]
+      ],
+      "foot": "Le développeur reste responsable de la relecture, du commit et de la publication.",
+      "notes": "Le cas d’usage le plus démonstratif commence par un rapport de qualité ou de sécurité. Le bouton de correction prépare lui-même la consigne de l’agent. Il n’est pas nécessaire de recopier le rapport dans le chat. Le moteur crée une branche, applique les changements, vérifie le projet puis relance l’agent si nécessaire, dans la limite choisie. L’extension présente ensuite les résultats et le diff. Le commit, le push et la revue restent des actions distinctes. Un arrêt au plafond de tentatives peut laisser un correctif partiel clairement signalé.",
+      "sources": ["vscode-extension/src/view.ts", "vscode-extension/src/correction.ts"]
+    },
+    {
+      "type": "table",
+      "title": "Une valeur différente pour chaque métier",
+      "headers": ["Public", "Bénéfice attendu", "Preuve à recueillir pendant le pilote"],
+      "rows": [
+        ["Développeur", "Moins de manipulations entre rapport et code", "Temps jusqu’au correctif validé"],
+        ["Reviewer / tech lead", "Contexte et questions par fichier modifié", "Temps de revue et reprises nécessaires"],
+        ["Sécurité / plateforme", "Autorisations, modèles et contexte gouvernés", "Refus attendus et qualité des traces"],
+        ["Responsable d’équipe", "Pratiques communes et résultats observables", "Adoption, qualité et coût par correctif"]
+      ],
+      "notes": "Le développeur bénéficie d’un parcours plus continu. Le reviewer reçoit une description structurée et des questions précises, mais conserve la décision. L’équipe plateforme peut distribuer une configuration commune et administrer les droits. La sécurité doit qualifier les transferts et la protection des credentials. Le management peut décider à partir de résultats comparables. Ce sont des bénéfices attendus, pas des engagements de performance. Chaque métier a donc un indicateur et un rôle dans l’évaluation.",
+      "sources": ["vscode-extension/src/presentation.ts", "docs/CONFIGURATION.md", "CHANGELOG.md"]
+    },
+    {
+      "type": "table",
+      "title": "Cinq onglets pour le cycle de développement",
+      "headers": ["Onglet", "Fonctions disponibles", "Livrable ou résultat"],
+      "rows": [
+        ["Starter", "Générer un projet selon une stack standard", "Sources, tests et provenance du starter"],
+        ["IA", "Question, modification, agent contextualisé", "Explication ou changements proposés"],
+        ["Quality", "Analyse Sonar, correction, objectif de couverture", "Diff et rapport de correction"],
+        ["Security", "SBOM CycloneDX, scan Xray, correction", "Dépendances analysées et résultat vérifié"],
+        ["GitFlow", "Branches, commits, push, MR et documents", "Pré-revue, changelog et release notes"]
+      ],
+      "notes": "Cette vue donne le périmètre fonctionnel du produit. Toutes ces entrées sont présentes dans l’interface, mais leur disponibilité effective dépend des droits et de la configuration du projet. Les fonctions de génération IA nécessitent une politique valide et le service Mistral. Les opérations de scan et les actions Git suivent leurs propres contrôles. La présence d’une fonction ne vaut pas qualification de toutes les stacks et de tous les environnements d’entreprise.",
+      "sources": ["vscode-extension/src/presentation.ts", "docs/CONFORMITE.md"]
+    },
+    {
+      "type": "split",
+      "title": "Starter : une base de projet commune",
+      "lead": "Quatre stacks et une possibilité de personnalisation organisationnelle.",
+      "leftTitle": "Les générateurs",
+      "left": "Java avec Spring Boot et Maven\nAngular avec la CLI officielle\nPython avec un package PyPA\n.NET avec les templates du SDK",
+      "rightTitle": "Les règles communes",
+      "right": "Catalogue de starters signé.\nRemplacement ou overlay de l’organisation.\nSources, tests et documentation initiale.\nProvenance dans un fichier de verrouillage.",
+      "foot": "Le projet généré doit ensuite être construit et testé avec les outils de sa stack.",
+      "notes": "Starter fournit une base cohérente pour démarrer. L’organisation peut fournir un remplacement complet ou un overlay, avec contrôle de signature et d’empreinte. Un fichier de provenance permet d’identifier l’origine du starter. Les générateurs ne constituent pas un service universel de mise à niveau des projets existants. Les paramètres proposés restent simples. La documentation historique rapporte des builds des quatre starters, mais le pilote doit vérifier les versions, registres et standards réellement utilisés par notre organisation.",
+      "sources": ["ods-java-core/src/main/java/org/organisation/ods/starter/StarterService.java", "ods-java-core/src/main/java/org/organisation/ods/starter/StarterOverrides.java", "docs/VALIDATION.md"]
+    },
+    {
+      "type": "image",
+      "title": "IA : le contexte du projet dans la conversation",
+      "image": "assets/interface-ia.png",
+      "body": "Question pour comprendre.\nModification pour préparer un patch.\nAgent pour enchaîner des outils.\n\nFichiers joints, prompts de l’organisation, consommation et checkpoints.",
+      "foot": "Capture de l’interface 0.6.0 avec données de démonstration. Le quota affiché est fictif.",
+      "notes": "L’interface présente trois modes. Le contexte vient du workspace et des fichiers sélectionnés, avec des restrictions de chemins et un filtrage des secrets. Les instructions de l’organisation peuvent préciser les règles globales, les pratiques de stack et les tâches. Les outils passent par le moteur, les autorisations et les contrôles de provenance. Les checkpoints permettent de revenir sur les changements du parcours prévu. Cette image est une capture de la webview avec des données de test, pas un échange Mistral réel ni une mesure de consommation.",
+      "sources": ["vscode-extension/src/presentation.ts", "vscode-extension/src/view.ts", "ods-java-core/src/main/java/org/organisation/ods/runtime/WorkspaceTools.java"]
+    },
+    {
+      "type": "split",
+      "title": "Quality : un diagnostic lié au code analysé",
+      "lead": "SonarQube analyse les fichiers enregistrés, y compris avant un commit.",
+      "leftTitle": "Le rapport",
+      "left": "Anomalies et emplacement dans le code.\nQuality Gate et métriques de couverture.\nPagination des résultats.\nIdentifiants de tâche et d’analyse Sonar.",
+      "rightTitle": "La correction",
+      "right": "Sélection des anomalies à traiter.\nConsigne construite depuis le rapport.\nNouveau scan après les changements.\nRefus d’un rapport devenu obsolète.",
+      "foot": "La couverture doit être réellement produite par les tests et importée par Sonar.",
+      "notes": "Le rapport n’est pas une estimation du modèle. Il provient du scanner et de SonarQube. Les identifiants et l’empreinte du workspace relient l’analyse à l’état du projet. Le parcours Java exécute notamment la vérification Maven avant l’analyse Sonar. Les autres stacks exigent leurs outils et rapports de couverture. Une métrique absente ne signifie pas zéro pour cent : il faut d’abord configurer la mesure. Un clic sur la correction ne supprime pas la nécessité de comprendre l’anomalie et de relire le patch.",
+      "sources": ["ods-gateway/src/main/java/org/organisation/ods/integration/LocalAnalysisService.java", "vscode-extension/src/view.ts"]
+    },
+    {
+      "type": "split",
+      "title": "Security : relier dépendances et corrections",
+      "lead": "Une SBOM CycloneDX sert de point d’entrée au scan JFrog Xray.",
+      "leftTitle": "Le diagnostic",
+      "left": "Génération et téléchargement de la SBOM.\nSoumission et suivi du Graph Scan.\nCVE, violations et composants concernés.\nVersions corrigées selon le rapport reçu.",
+      "rightTitle": "Le suivi du résultat",
+      "right": "Agent alimenté par les constats initiaux.\nValidation du build et des tests.\nNouvelle SBOM et nouveau scan.\nÉtat final associé à chaque anomalie.",
+      "foot": "Le banc Docker utilise mockXray. La qualification d’une instance JFrog réelle reste à faire.",
+      "notes": "ODS prend en charge la construction d’une SBOM locale pour les stacks prévues et normalise les réponses du service Xray. Le correctif doit préserver le fonctionnement du projet, pas seulement modifier un numéro de version. Le banc disponible simule le contrat Graph Scan et des vulnérabilités synthétiques. Il a démontré le parcours de bout en bout avec Mistral, mais ne démontre ni la détection réelle de JFrog ni la compatibilité de toutes ses configurations. La sécurité conserve la décision sur les versions acceptables et les risques résiduels.",
+      "sources": ["vscode-extension/src/presentation.ts", "ods-gateway/src/main/java/org/organisation/ods/integration/LocalAnalysisService.java", "TestDOKERMan/VALIDATION.md"]
+    },
+    {
+      "type": "steps",
+      "title": "La boucle de correction automatique",
+      "steps": [
+        ["Préparer", "Vérifier l’état Git et le rapport, puis créer la branche de correction."],
+        ["Appliquer", "Mistral produit les fichiers. Le moteur les applique avec checkpoints."],
+        ["Contrôler", "Exécuter build et tests, puis refaire l’analyse du même périmètre."],
+        ["Décider", "Relancer avec les erreurs, ou terminer avec un rapport et le diff."]
+      ],
+      "foot": "Maximum configurable : 1 à 100 tentatives, valeur initiale 3. Une tentative peut contenir plusieurs appels IA.",
+      "notes": "Le bouton de correction donne l’autorisation de produire et d’appliquer le correctif dans ce parcours. Il n’exige pas une consigne complémentaire dans le chat. Si le build ou les tests échouent, l’agent reçoit les erreurs avec le rapport initial. Si l’objectif reste incomplet après un scan valide, il reçoit les nouveaux constats. La boucle s’arrête au succès, à l’annulation, à un refus ou au plafond configuré. Elle ne garantit pas de converger et ne publie pas automatiquement la branche. Les autorisations de commandes et les quotas restent applicables.",
+      "sources": ["vscode-extension/src/view.ts", "vscode-extension/src/correction.ts", "CHANGELOG.md"]
+    },
+    {
+      "type": "split",
+      "title": "Augmenter la couverture avec un objectif explicite",
+      "lead": "L’utilisateur choisit le pourcentage visé et le nombre de tentatives.",
+      "leftTitle": "Le travail de l’agent",
+      "left": "Lire les zones insuffisamment couvertes.\nAjouter ou compléter les tests.\nExécuter les vérifications du projet.\nRéévaluer les métriques dans Sonar.",
+      "rightTitle": "Les garde-fous",
+      "right": "Mesure initiale obligatoire.\nContrôle du périmètre et des exclusions.\nProtection du code de production.\nRésultat partiel visible si le seuil reste loin.",
+      "foot": "Un pourcentage élevé ne prouve ni la pertinence de tous les tests ni l’absence de défaut.",
+      "notes": "Le parcours vise à compléter les tests à partir d’une mesure réelle. Il ne doit pas améliorer artificiellement le score en excluant du code. Des contrôles surveillent les exclusions et le périmètre mesuré. Le reviewer doit néanmoins examiner la qualité des assertions, les scénarios métier et les cas limites. Si Sonar ne fournit pas de couverture, la bonne action est de configurer le rapport de couverture. Le seuil se fixe selon le contexte du projet. Cent pour cent n’est pas une cible universelle proposée par cette présentation.",
+      "sources": ["vscode-extension/src/correction.ts", "vscode-extension/src/view.ts"]
+    },
+    {
+      "type": "table",
+      "title": "Un rapport rattaché aux constats initiaux",
+      "headers": ["État", "Ce que l’interface explique", "Lecture attendue"],
+      "rows": [
+        ["Corrigé", "Vérifications réussies et constat résolu au nouveau scan", "Relire le diff et la portée de la correction"],
+        ["Corrigé partiellement", "Amélioration mesurée ou résultat encore incomplet", "Identifier les éléments restant à traiter"],
+        ["Non implémenté", "Aucun correctif appliqué ou résolution non confirmée", "Examiner l’erreur et choisir la suite"]
+      ],
+      "foot": "Criticité, explication de l’agent, fichiers modifiés, logs de validation et export PDF. Rapport en mémoire jusqu’au rechargement.",
+      "notes": "Le rapport part des anomalies de l’analyse initiale. Chaque entrée conserve son contexte et reçoit un état vérifiable. La description du modèle accompagne les preuves techniques mais ne les remplace pas. Une réponse qui raconte une correction sans fichier appliqué reste non implémentée. Le rapport est lisible dans l’extension et exportable en PDF avec masquage de chemins privés et de secrets reconnus. Pour conserver la preuve de la session, il faut exporter le PDF avant de recharger la vue. Aucun archivage central immuable du PDF n’est revendiqué.",
+      "sources": ["vscode-extension/src/correction.ts", "vscode-extension/src/presentation.ts", "vscode-extension/src/view.ts"]
+    },
+    {
+      "type": "split",
+      "title": "GitFlow : préparer une revue utile",
+      "lead": "La merge request conserve les commentaires du développeur et ajoute une pré-revue IA.",
+      "leftTitle": "Pour chaque fichier modifié",
+      "left": "Résumé du changement.\nRecommandation au reviewer.\nQuestion si une clarification est nécessaire.\nVérification suggérée, annoncée comme telle.",
+      "rightTitle": "Avant la publication",
+      "right": "Diff des branches publiées sur GitLab.\nContrôle de fraîcheur des commits.\nAperçu complet de la description.\nPublication avec l’identité du développeur.",
+      "foot": "Également disponibles : clone, branches, commit sélectionné, push, changelog et release notes.",
+      "notes": "La pré-revue vise à faire gagner du temps au reviewer en lui donnant des points d’attention. Elle ne prononce pas une approbation du code. La création utilise le diff publié sur GitLab et vérifie que les branches n’ont pas changé depuis la préparation. Une MR déjà ouverte n’est pas écrasée. Les contrôles refusent les diffs tronqués ou trop volumineux. Les vérifications proposées par le modèle ne sont pas annoncées comme des tests exécutés. Les fonctions changelog et release notes produisent des documents contrôlés, sans créer automatiquement une release.",
+      "sources": ["CHANGELOG.md", "vscode-extension/src/view.ts", "vscode-extension/src/presentation.ts"]
+    },
+    {
+      "type": "table",
+      "title": "Architecture et circulation des données",
+      "headers": ["Composant", "Responsabilité", "Données et échanges"],
+      "rows": [
+        ["VS Code + moteur Java", "Interface, workspace, fichiers, Git et checkpoints", "Contexte local sélectionné et changements"],
+        ["Gateway embarquée", "Politique, appels de services, quotas et audit", "Accès local sur loopback avec jeton privé"],
+        ["Mistral / Vibe", "Génération et appels d’outils gouvernés", "Consignes et contexte filtré nécessaires"],
+        ["GitLab", "Code, politique signée et merge requests", "Identité utilisateur et compte de service distincts"],
+        ["SonarQube / Xray", "Analyse de qualité et de dépendances", "Résultats d’analyse et graphe SBOM"]
+      ],
+      "foot": "Le runtime local n’implique pas un fonctionnement hors ligne : les services distants reçoivent les données nécessaires.",
+      "notes": "L’extension démarre sa gateway locale et gère son cycle de vie. Le moteur Java porte les accès au workspace et l’exécution contrôlée des actions. Les appels Mistral utilisent le transport configuré, notamment le bridge Vibe embarqué. Le code sélectionné peut quitter le poste vers le fournisseur IA. SonarQube et Xray reçoivent également les éléments nécessaires à leur analyse. Le périmètre exact, les destinations, la conservation et les clauses de service doivent être examinés avec la sécurité de l’organisation. L’architecture n’est pas une garantie d’absence de fuite.",
+      "sources": ["docs/ARCHITECTURE.md", "docs/CONFIGURATION.md", "docs/EVOLUTION-0.3.0.md"]
+    },
+    {
+      "type": "split",
+      "title": "La gouvernance conditionne les actions IA",
+      "lead": "Une politique signée associe les projets aux droits et modèles autorisés.",
+      "leftTitle": "Contrôles implémentés",
+      "left": "Workspace approuvé et accès Git vérifié.\nSignature Ed25519 et dates contrôlées.\nDroits par projet et par action.\nModèles autorisés et quotas de tokens.",
+      "rightTitle": "Responsabilités de l’organisation",
+      "right": "Décider quels projets peuvent utiliser l’IA.\nAdministrer les clés et les comptes.\nRenouveler la politique à temps.\nQualifier les données autorisées à sortir.",
+      "foot": "Politique absente, invalide ou expirée : refus. Le renouvellement de validité, jusqu’à 24 h, fait partie de l’exploitation.",
+      "notes": "Les droits ne se résument pas à la possession d’une clé API. L’accès au dépôt, la politique signée et le droit pour l’action demandée interviennent dans la décision. Les quotas limitent les consommations, mais une tentative peut comporter plusieurs appels. Le filtrage de contexte et les contrôles des outils réduisent certains risques sans constituer une preuve complète de résistance à toutes les injections ou fuites. Une politique manquante ou expirée n’est pas contournée. La clé privée de signature appartient à l’administration, pas au développeur utilisant l’extension.",
+      "sources": ["ods-java-core/src/main/java/org/organisation/ods/security/SignedDocuments.java", "ods-gateway/src/main/java/org/organisation/ods/policy/PolicyService.java", "docs/CONFIGURATION.md"]
+    },
+    {
+      "type": "steps",
+      "title": "Mécanique simplifie l’ajout des projets",
+      "steps": [
+        ["Sélectionner", "Checkout temporaire des seuls fichiers de politique JSON et SIG."],
+        ["Renseigner", "Questions guidées pour plusieurs projets, propriétés et modèles."],
+        ["Signer", "Incrément de version, dates UTC renouvelées sur 24 h, signature Ed25519."],
+        ["Publier", "Aperçu, confirmation, commit des deux fichiers et push sans forçage."]
+      ],
+      "foot": "Depuis ODS 0.6.0, sonarProjectKey dans la politique permet l’ajout d’un mapping projet sans reconstruire le VSIX.",
+      "notes": "Mécanique est un outil séparé destiné à l’administrateur. Il laisse les autres fichiers du dépôt de gouvernance hors du checkout et hors du commit. Les métadonnées Git peuvent néanmoins transporter d’autres objets si le serveur ne prend pas en charge le filtre de fetch. L’outil vérifie la signature existante et les conflits de publication. Il ne crée ni le projet GitLab ni le projet SonarQube. Il n’installe pas de tâche de renouvellement périodique. L’ajout d’un modèle au catalogue de gouvernance ne reconfigure pas à lui seul le fournisseur embarqué dans le VSIX.",
+      "sources": ["mecanique/README.md", "mecanique/SPECIFICATION.md", "CHANGELOG.md"]
+    },
+    {
+      "type": "split",
+      "title": "Les conditions d’installation et d’exploitation",
+      "lead": "Un VSIX organisationnel et des services configurés constituent le point de départ.",
+      "leftTitle": "Sur le poste",
+      "left": "VS Code compatible et workspace approuvé.\nJava 21 et Python 3.12 pour Vibe.\nGit et outils de la stack du projet.\nAccès réseau, certificats et proxy qualifiés.",
+      "rightTitle": "Côté organisation",
+      "right": "GitLab et dépôt de gouvernance signé.\nSonarQube et configuration de couverture.\nJFrog Xray et droits de scan.\nCompte Mistral, modèle et quotas approuvés.",
+      "foot": "Windows a servi au banc local. Les environnements cibles doivent faire l’objet d’une recette propre.",
+      "notes": "Le VSIX contient une configuration organisationnelle préparée au packaging. Certaines valeurs, notamment les URL, les credentials techniques et le modèle embarqué, restent liées à cette configuration. La nouveauté 0.6.0 déplace le mapping Sonar des projets dans la politique, mais ne rend pas toute la configuration dynamique. Python 3.12 ne suffit pas à lui seul : le runtime Vibe, le modèle, les droits API, le réseau et les certificats doivent fonctionner ensemble. Le banc Docker est utile pour démontrer les interactions, pas pour présumer les conditions de production.",
+      "sources": ["docs/INSTALLATION.md", "docs/CONFIGURATION.md", "docs/PROFILS-ORGANISATION.md", "TestDOKERMan/README.md"]
+    },
+    {
+      "type": "split",
+      "title": "Un modèle économique à mesurer",
+      "lead": "La valeur se calcule sur le correctif accepté, après vérification humaine.",
+      "leftTitle": "Coûts à suivre",
+      "left": "Appels Mistral et tokens consommés.\nLicences et exploitation des outils.\nAdministration de la gouvernance.\nTemps de relecture et de reprise.",
+      "rightTitle": "Bénéfice potentiel",
+      "right": "Temps évité sur diagnostic et correction.\nMoins d’allers-retours en revue.\nPratiques réutilisées entre équipes.\nTraçabilité plus facile à partager.",
+      "foot": "Valeur nette = temps net économisé valorisé − coût total du pilote. Aucun tarif ni ROI garanti n’est annoncé.",
+      "notes": "Nous proposons de mesurer les coûts réels plutôt que de choisir un taux de productivité arbitraire. Le temps net économisé doit tenir compte du diagnostic, de la génération, des attentes, de la revue et des reprises. Les services peuvent déjà exister, mais leur coût incrémental et leur administration ne sont pas nécessairement nuls. Les tentatives, les quotas et le périmètre de contexte servent à maîtriser la consommation. Les droits de redistribution et licences des composants doivent être vérifiés avant une diffusion organisationnelle. Ce document ne constitue pas un devis.",
+      "sources": ["vscode-extension/src/view.ts", "docs/CONFIGURATION.md"]
+    },
+    {
+      "type": "chart",
+      "title": "Une preuve locale sur un petit projet Java",
+      "categories": ["Avant", "Objectif", "Après"],
+      "values": [30.8, 80, 100],
+      "body": "Couverture Sonar\n30,8 % avant, 100 % après\n\n15 tests exécutés sans échec.\nMistral a modifié les tests.\nCode de production préservé.",
+      "foot": "Recette Test1 du 31/10/2026, ODS 0.5.0, Mistral Medium 3.5 réel. Résultat de fixture, sans garantie de généralisation.",
+      "notes": "Ce graphique reprend une preuve documentée, pas une nouvelle exécution réalisée pour cette présentation. Le scénario partait de 30,8 pour cent de couverture et visait 80 pour cent. Après correction d’un défaut d’encodage dans le produit, le parcours final a atteint 100 pour cent avec quinze tests et une tentative. Mistral a modifié CalculatorTest.java. Le même banc rapporte une correction Quality de java:S106, puis une mise à jour de dépendance pour deux entrées synthétiques du mock Xray. Ces résultats montrent la faisabilité du parcours sur un petit exemple. Ils ne prouvent ni un gain de productivité ni une capacité équivalente sur un grand dépôt.",
+      "sources": ["TestDOKERMan/VALIDATION.md"]
+    },
+    {
+      "type": "table",
+      "title": "Des preuves distinctes selon le périmètre",
+      "headers": ["Périmètre", "Validation documentée", "Ce qu’elle ne démontre pas"],
+      "rows": [
+        ["Extension 0.6.0", "63 Java, 28 Python, 62 Node, 12 Chromium", "Recette de nos instances d’entreprise"],
+        ["Parcours Test1 0.5.0", "Mistral réel, Sonar et GitLab Docker", "Compatibilité avec JFrog Xray réel"],
+        ["Mécanique 1.0.0", "21 tests, Git local réel et signatures réelles", "Publication sur la gouvernance de l’organisation"],
+        ["Starters historiques", "Builds Java, Angular, Python et .NET", "Qualification de toutes les versions cibles"]
+      ],
+      "foot": "Résultats issus des comptes rendus du dépôt. Aucun build du produit ni appel Mistral relancé pour préparer ce support.",
+      "notes": "Il est utile de distinguer les tests du code, les parcours d’interface avec services locaux et la qualification d’entreprise. La validation 0.6.0 utilise des services métier simulés et ne fait aucun appel Mistral réel. La recette Test1 précédente utilise réellement Mistral, SonarQube et GitLab local, mais un Xray simulé. Mécanique vérifie ses signatures et ses publications dans des dépôts Git locaux. La matrice de conformité existante conserve des écarts de réalisation ou de qualification. Nous ne revendiquons pas une certification, une couverture exhaustive des exigences ni le succès d’une CI qui n’aurait pas été vérifiée.",
+      "sources": ["docs/VALIDATION.md", "TestDOKERMan/VALIDATION.md", "mecanique/CHANGELOG.md", "mecanique/README.md", "docs/CONFORMITE.md"]
+    },
+    {
+      "type": "split",
+      "title": "Les points à traiter avant une généralisation",
+      "lead": "Les limites connues déterminent le périmètre du pilote.",
+      "leftTitle": "Sécurité et exploitation",
+      "left": "Secrets extractibles depuis le VSIX.\nQualification des données transmises à l’IA.\nRenouvellement de politique et des clés.\nRecette réseau et services réels.",
+      "rightTitle": "Fiabilité et périmètre",
+      "right": "Rapports volumineux actuellement refusés.\nConvergence des corrections non garantie.\nDiagnostics Vibe à rendre plus exploitables.\nStacks et accessibilité à qualifier.",
+      "foot": "Le package déclare UNLICENSED : droits de diffusion à clarifier. Sécurité et exploitation doivent aussi être validées avant le pilote.",
+      "notes": "Le risque le plus important à expliciter est la distribution des secrets techniques dans un package autonome : leur masquage dans l’interface ne les rend pas inaccessibles à l’utilisateur du poste. La politique signée n’est pas un coffre de secrets. L’organisation doit accepter ce modèle ou retenir une évolution avant le pilote. Les gros rapports se heurtent également à des limites de contexte. Les problèmes de connexion et de runtime exigent des diagnostics maîtrisés. La généralisation dépend de ces décisions et de la recette, pas uniquement d’une démonstration réussie.",
+      "sources": ["docs/EVOLUTION-0.3.0.md", "docs/CONFORMITE.md", "vscode-extension/src/view.ts", "docs/CONFIGURATION.md", "vscode-extension/package.json"]
+    },
+    {
+      "type": "steps",
+      "title": "Un pilote proposé sur quatre semaines",
+      "steps": [
+        ["Semaine 1", "Choisir deux dépôts autorisés, établir la mesure initiale et préparer les accès."],
+        ["Semaine 2", "Accompagner cinq à dix volontaires sur Quality et la préparation des MR."],
+        ["Semaine 3", "Élargir à la couverture et à Security après qualification de Xray réel."],
+        ["Semaine 4", "Comparer les résultats, analyser les incidents et décider de la suite."]
+      ],
+      "foot": "Proposition à adapter : un responsable plateforme, un référent sécurité et un tech lead. Démarrage Java pour exploiter les preuves disponibles.",
+      "notes": "Le pilote n’est pas un engagement de calendrier déjà approuvé. Nous proposons deux dépôts, cinq à dix volontaires et quatre semaines pour obtenir un échantillon utile sans distribuer immédiatement l’outil à toute l’organisation. La première semaine inclut les décisions de sécurité, les droits et la mesure de référence. La sécurité ne doit être testée contre le vrai Xray qu’après configuration et qualification. Si les conditions ne sont pas réunies, ce parcours reste explicitement hors du pilote. Le tech lead choisit des anomalies représentatives et évite de sélectionner uniquement les cas faciles.",
+      "sources": []
+    },
+    {
+      "type": "table",
+      "title": "Les critères de décision du pilote",
+      "headers": ["Indicateur", "Mesure proposée", "Décision associée"],
+      "rows": [
+        ["Délai de correction", "Médiane du diagnostic au patch accepté", "Gain net après revue et reprises"],
+        ["Qualité", "Régressions et anomalies rouvertes", "Taux sous le seuil convenu"],
+        ["Coût", "Tokens et coût complet par patch accepté", "Budget soutenable"],
+        ["Fiabilité", "Échecs de parcours et temps de support", "Conditions d’exploitation maîtrisées"],
+        ["Adoption", "Usage volontaire et retours des reviewers", "Utilité démontrée pour l’équipe"]
+      ],
+      "foot": "Fixer les seuils avec l’équipe avant le pilote. Comparer des tâches de complexité comparable et conserver les échecs dans l’échantillon.",
+      "notes": "Une mesure utile prend en compte les cas qui échouent, le support et les reprises manuelles. Nous proposons de comparer des tâches de nature et de complexité proches plutôt que des volumes de code généré. Les seuils de réussite sont à décider avant le démarrage. Le temps de revue et les régressions sont aussi importants que la vitesse du premier patch. Les tokens sont une mesure de consommation, pas une preuve de valeur. Le bilan peut conduire à élargir, corriger puis prolonger le pilote, ou arrêter si le rapport coût-bénéfice ne convient pas.",
+      "sources": []
+    },
+    {
+      "type": "closing",
+      "title": "La décision proposée",
+      "statement": "Autoriser un pilote encadré\nsur deux projets",
+      "body": "Un sponsor et des responsables identifiés.\nUn périmètre de données approuvé.\nDes critères de succès partagés.\nUn bilan avant toute généralisation.",
+      "notes": "Notre demande est concrète : choisir un sponsor, deux projets et les personnes qui porteront la recette. ODS propose déjà une chaîne cohérente entre diagnostic, correction vérifiée et revue. Les preuves locales justifient un essai limité, avec des points de sécurité et de fiabilité clairement ouverts. L’objectif du pilote est de déterminer où cette solution nous aide vraiment et à quel coût. La décision de généralisation viendra après les résultats, avec les équipes de développement, de plateforme et de sécurité.",
+      "sources": []
+    },
+    {
+      "type": "steps",
+      "title": "Annexe · Démonstration en réunion",
+      "steps": [
+        ["Préparer", "Profil isolé, dépôt de démonstration propre, politique et services disponibles."],
+        ["Montrer Quality", "Analyse, correction, branche, tests, nouveau scan et diff."],
+        ["Montrer la preuve", "Rapport par anomalie et PDF, puis couverture si le temps le permet."],
+        ["Terminer par GitFlow", "Pré-revue par fichier et aperçu de MR avant publication."]
+      ],
+      "foot": "Prévoir 15 à 20 minutes et une réserve pour les scans. Security avec mockXray doit être annoncé comme simulation.",
+      "notes": "Le guide DEMONSTRATION.md décrit les préconditions, les actions et le résultat attendu. Préparer chaque scénario sur un clone ou une branche indépendante évite qu’une correction précédente ne supprime l’anomalie du scénario suivant. Un nombre limité de tentatives et un seul scénario de génération principal suffisent pour la réunion. Ne pas présenter une vidéo historique comme une exécution en direct. En cas d’échec, montrer le diagnostic, conserver la preuve et revenir aux résultats documentés, en annonçant clairement qu’ils proviennent du banc précédent.",
+      "sources": ["TestDOKERMan/README.md", "TestDOKERMan/VALIDATION.md", "vscode-extension/src/view.ts"]
+    },
+    {
+      "type": "table",
+      "title": "Annexe · Réponses aux objections",
+      "headers": ["Question", "Réponse"],
+      "rows": [
+        ["Pourquoi ajouter un outil ?", "Le pilote vérifie si le lien entre scan, correction et revue réduit réellement les manipulations."],
+        ["Le code peut-il sortir ?", "Le contexte autorisé peut être transmis à Mistral. Les services d’analyse reçoivent leurs données."],
+        ["Un risque de régression ?", "Oui. Les tests, scans, checkpoints et la revue réduisent le risque sans l’annuler."],
+        ["La MR remplace-t-elle le reviewer ?", "La pré-revue donne des points d’attention. Le reviewer conserve la décision."],
+        ["Est-ce prêt pour tous les projets ?", "Les grands rapports, certaines stacks et les instances réelles demandent encore une qualification."]
+      ],
+      "notes": "Répondre directement aux objections aide à obtenir une décision crédible. Ne pas dénigrer les assistants déjà utilisés : la différence proposée est l’intégration du workflow et de la gouvernance dans notre environnement. Aucune comparaison indépendante avec d’autres produits n’a été effectuée. La sécurité, la qualité des tests et l’exploitation sont des sujets de validation, pas des obstacles à minimiser. Le dossier d’accompagnement donne des réponses plus détaillées et les limites exactes.",
+      "sources": ["docs/ARCHITECTURE.md", "docs/CONFORMITE.md", "docs/EVOLUTION-0.3.0.md"]
+    },
+    {
+      "type": "table",
+      "title": "Annexe · Ce qui change sans nouveau VSIX",
+      "headers": ["Élément", "Mécanisme actuel", "Portée"],
+      "rows": [
+        ["Projet, droits et quotas", "Politique signée publiée sur GitLab", "Actualisation après le cache de politique"],
+        ["Mapping Sonar du projet", "projects[].sonarProjectKey depuis 0.6.0", "Prioritaire sur le repli properties"],
+        ["Catalogue de modèles", "Mécanique édite la politique signée", "Ne change pas seul le modèle du runtime"],
+        ["URL, credentials, modèle embarqué", "Profil organisationnel de packaging", "Nouvelle configuration de livraison nécessaire"],
+        ["Nouveau fournisseur IA", "Implémentation actuelle centrée sur Mistral", "Évolution de code et qualification nécessaires"]
+      ],
+      "notes": "Cette distinction évite de promettre une administration entièrement dynamique. Le mapping Sonar peut maintenant évoluer par politique, sans reconstruire l’extension déjà en 0.6.0. La politique conserve les contrôles de signature, d’expiration et d’anti-rejeu. Le repli vers les properties existe pour compatibilité et ne sert pas à contourner une politique invalide. Le cache courant est de soixante secondes. Modifier le catalogue de modèles ne suffit pas pour choisir un autre backend ou rendre un modèle disponible chez Mistral. Les URL, secrets techniques et paramètres embarqués relèvent encore du profil de livraison.",
+      "sources": ["CHANGELOG.md", "docs/CONFIGURATION.md", "docs/PROFILS-ORGANISATION.md", "mecanique/README.md"]
+    },
+    {
+      "type": "table",
+      "title": "Annexe · Limites techniques à connaître",
+      "headers": ["Limite actuelle", "Conséquence", "Réponse pour le pilote"],
+      "rows": [
+        ["Correction : evidence\n> 7 000 caractères", "Refus avant l’appel de correction", "Choisir un périmètre réduit"],
+        ["MR : > 30 fichiers ou\n> 12 000 caractères", "Refus des diffs trop grands ou tronqués", "Préparer des MR ciblées"],
+        ["Politique invalide\nou expirée", "Actions gouvernées bloquées", "Vérifier signature, dates et renouvellement"],
+        ["Vibe indisponible", "Génération interrompue", "Contrôler runtime, modèle, accès et réseau"],
+        ["Plafond de tentatives\natteint sans succès", "Résultat partiel ou non confirmé", "Relire le rapport et décider manuellement"]
+      ],
+      "foot": "Ces limites décrivent la version inspectée. Un prompt demandant de découper ne contourne pas un refus préalable de l’extension.",
+      "notes": "La limite de correction porte sur la longueur du JSON evidence construit par l’extension, mesurée par la longueur de chaîne JavaScript. Elle ne correspond pas à la taille générale de la fenêtre de contexte Mistral. Le blocage survient avant l’appel au modèle : modifier le prompt ne permet donc pas de découper automatiquement ce rapport. La pré-revue applique ses propres limites. Les erreurs Vibe doivent être diagnostiquées avec les traces techniques expurgées. Une clé fonctionnant dans un autre plugin ne prouve pas que le runtime, le modèle et la configuration réseau d’ODS sont identiques.",
+      "sources": ["vscode-extension/src/view.ts", "CHANGELOG.md", "docs/CONFIGURATION.md"]
+    },
+    {
+      "type": "split",
+      "title": "Annexe · Les évolutions à prioriser",
+      "lead": "Propositions pour la suite, à décider selon les résultats du pilote.",
+      "leftTitle": "Avant d’élargir les usages",
+      "left": "Décision sur l’exposition des secrets du VSIX.\nQualification de JFrog Xray réel.\nDiagnostics de connexion et de runtime.\nRenouvellement de gouvernance exploitable.",
+      "rightTitle": "Pour augmenter le périmètre",
+      "right": "Découpage sûr des rapports volumineux.\nQualification des stacks et monorepos ciblés.\nRecette d’accessibilité et d’exploitation.\nMesure durable de la valeur et des coûts.",
+      "foot": "Ces travaux ne sont pas annoncés comme déjà livrés et ne constituent pas un engagement de calendrier.",
+      "notes": "Le pilote doit produire une liste de travaux ordonnée par impact, pas uniquement une demande de nouvelles fonctions. Une évolution de la gestion des secrets ou de l’hébergement de la gateway peut devenir prioritaire selon la politique de l’organisation. Le découpage des rapports exige des changements de produit, des contrôles de cohérence et des tests. La qualification multi-stack doit porter sur les projets réels. Le renouvellement automatique de la politique nécessite une exploitation dédiée : Mécanique est actuellement un assistant interactif, pas un planificateur.",
+      "sources": ["docs/CONFORMITE.md", "vscode-extension/src/view.ts", "mecanique/README.md"]
+    },
+    {
+      "type": "closing",
+      "title": "Annexe · Le message à retenir",
+      "statement": "Un correctif utile doit\nêtre vérifiable et relisible",
+      "body": "ODS relie l’assistance IA aux rapports,\naux contrôles du projet et à la revue GitLab.\n\nLe pilote doit confirmer la valeur\ndans notre environnement.",
+      "notes": "Pour conclure après les questions, revenir à la décision de pilote. L’intérêt de la solution tient au lien entre les outils et à la preuve qui accompagne le changement. Nous disposons de fonctions concrètes et de preuves locales, ainsi que d’une liste explicite de limites. Cette transparence permet de choisir un périmètre d’essai utile. La prochaine étape est de désigner les projets et responsables, puis de définir les critères d’acceptation avant la première utilisation sur des données de l’organisation.",
+      "sources": ["vscode-extension/src/view.ts", "TestDOKERMan/VALIDATION.md"]
+    }
+  ]
+}
