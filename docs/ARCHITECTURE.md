@@ -29,3 +29,8 @@ Depuis 0.5.0, le clic de correction autorise la création d’une branche dédi�
 Les données persistées sont chiffrées dans le stockage de l’extension par workspace. Une clé stable vient du profil ou de SecretStorage. La fermeture du canal parent arrête le gateway et ses descendants ; aucun processus externe préexistant n’est arrêté. Les quotas et signatures locaux restent soumis au contrôle du propriétaire du poste : l’autonomie acceptée ne fournit pas une autorité centrale inviolable.
 
 Le code serveur séparé historique conserve son authentification OIDC et ses runners pour non-régression. Le VSIX ne l’utilise pas. Les tests de ce mode restent distincts des tests de la nouvelle connexion Git locale. Voir [EVOLUTION](EVOLUTION-0.3.0.md) pour les exigences et [VALIDATION](VALIDATION.md) pour les preuves.
+
+
+## Mapping Sonar dynamique (0.6.0)
+
+DEVAI-188 : `PolicyService.sonarProjectKey` résout le champ facultatif `projects[].sonarProjectKey` depuis le snapshot signé et validé, avant le repli `ods.sonar-project-<ID_GITLAB>`. Les services d’analyse locale et de lecture Sonar utilisent cette même résolution. L’accès Git reste vérifié indépendamment des droits IA ; un projet interdit à l’IA peut être analysé. Le cache de politique dure 60 secondes, sans repli sur une politique expirée ou invalide.

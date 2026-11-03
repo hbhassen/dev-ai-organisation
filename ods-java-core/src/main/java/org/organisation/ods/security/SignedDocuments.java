@@ -71,7 +71,10 @@ public final class SignedDocuments {
         if (!policy.path("projects").isArray()) throw new OdsException("POLICY_INVALID", "Liste de projets requise");
         Set<Long> ids = new HashSet<>();
         for (JsonNode rule : policy.path("projects")) {
-            Json.fields(rule, Set.of("projectId", "aiEnabled", "allowedActions", "modelAlias", "monthlyTokenQuota", "monthlyUserTokenQuota", "allowedAgents", "contextMode", "allowFreeText"));
+            Json.fields(rule, Set.of("projectId", "aiEnabled", "allowedActions", "modelAlias", "monthlyTokenQuota", "monthlyUserTokenQuota", "allowedAgents", "contextMode", "allowFreeText", "sonarProjectKey"));
+            // DEVAI-188: a signed mapping is optional, but an explicit invalid key must never select the legacy fallback.
+            if(rule.has("sonarProjectKey") && (!rule.path("sonarProjectKey").isTextual() || !rule.path("sonarProjectKey").asText().matches("[A-Za-z0-9_.:-]{1,400}") || !rule.path("sonarProjectKey").asText().matches(".*[A-Za-z_.:-].*")))
+                throw new OdsException("POLICY_INVALID","Clé de projet Sonar invalide");
             if(rule.has("monthlyUserTokenQuota")&&(!rule.path("monthlyUserTokenQuota").canConvertToLong()||rule.path("monthlyUserTokenQuota").asLong()<0)) throw new OdsException("POLICY_INVALID","Quota utilisateur invalide");
             if (!rule.path("projectId").canConvertToLong() || rule.path("projectId").asLong() < 1 || !ids.add(rule.path("projectId").asLong())
                 || !rule.path("aiEnabled").isBoolean() || !rule.path("allowedActions").isArray() || !rule.path("monthlyTokenQuota").canConvertToLong() || rule.path("monthlyTokenQuota").asLong() < 0)

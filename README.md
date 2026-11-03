@@ -1,4 +1,4 @@
-# Organisation Development Standard — 0.5.0
+# Organisation Development Standard — 0.6.0
 
 Extension VS Code à cinq vues avec moteur Java 21/Maven et gateway Spring Boot. Le code implémente les starters standards, les outils locaux, les diffs avec approbation, un agent Mistral, les politiques signées, les quotas, les connecteurs GitLab/Sonar/Xray et les prompts organisationnels remplaçables.
 
@@ -16,8 +16,8 @@ script.bat config\organisations\demo\organisation.json
 ```
 
 - `build.bat` : contrôle des commentaires/IDs, build Maven avec tests, `npm ci`, compilation/lint/tests TypeScript et démarrage réel des JAR.
-- `generate-vsix.bat` : même validation, puis création et inspection de `.artifacts/organisation-development-standard-0.5.0.vsix`, moteur inclus.
-- `package.bat` : même validation, puis dossier autonome `suiteInstall/` et archive `suiteInstall-0.5.0.zip`, avec tests depuis les JAR livrés.
+- `generate-vsix.bat` : même validation, puis création et inspection de `.artifacts/organisation-development-standard-0.6.0.vsix`, moteur inclus.
+- `package.bat` : même validation, puis dossier autonome `suiteInstall/` et archive `suiteInstall-0.6.0.zip`, avec tests depuis les JAR livrés.
 
 La compilation par organisation est décrite dans [PROFILS-ORGANISATION](docs/PROFILS-ORGANISATION.md). Elle surcharge notamment le nom du plugin après installation, son identité et sa gateway. Les tests navigateur téléchargent Chromium via la version verrouillée de Playwright.
 
@@ -52,3 +52,6 @@ Les commentaires des symboles portent leurs références `DEVAI-xxx`. Le contrô
 Le transport Mistral est choisi au build : API directe ou adaptateur CLI utilisant le backend officiel Vibe 3.0.3 embarqué (défaut). Python 3.12 et les outils des stacks sont requis. Voir [évolution 0.3.0](docs/EVOLUTION-0.3.0.md), [profil administrateur](docs/PROFILS-ORGANISATION.md) et [configuration détaillée](docs/CONFIGURATION.md).
 
 GitFlow propose aussi **Changelog** et **Release notes** : génération ou mise à jour de `CHANGELOG.md` et `RELEASE_NOTES.md` par le LLM administré, avec diff à valider. Voir les droits et le parcours dans [INSTALLATION](docs/INSTALLATION.md).
+
+
+Depuis 0.6.0, les mappings Sonar peuvent être définis dans la politique signée (`projects[].sonarProjectKey`) sans reconstruire le VSIX à chaque ajout de projet. Voir [configuration et migration](docs/CONFIGURATION.md).

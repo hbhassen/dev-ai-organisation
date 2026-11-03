@@ -3,6 +3,7 @@ package org.organisation.ods;
 import org.organisation.ods.contracts.*;
 import org.organisation.ods.integration.*;
 import org.organisation.ods.data.Store;
+import org.organisation.ods.policy.PolicyService;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -14,7 +15,8 @@ import static org.junit.jupiter.api.Assertions.*;
 class ScanServiceTest {
     /** Provides a configured connector without sending credentials or requests to a real service. Exigences : DEVAI-086. */
     private ScanService service(RemoteHttp http) {
-        return new ScanService(new Settings(new MockEnvironment().withProperty("ods.sonar-url","https://sonar.invalid").withProperty("ods.sonar-token","test-placeholder").withProperty("ods.sonar-project-1","project-key")),http,mock(GitLabClient.class),mock(Store.class));
+        PolicyService policies=mock(PolicyService.class); when(policies.sonarProjectKey(1)).thenReturn("project-key");
+        return new ScanService(new Settings(new MockEnvironment().withProperty("ods.sonar-url","https://sonar.invalid").withProperty("ods.sonar-token","test-placeholder").withProperty("ods.sonar-project-1","obsolete-legacy")),http,mock(GitLabClient.class),mock(Store.class),policies);
     }
     /** Normalizes component paths and binds the quality gate to the reported immutable analysis. Exigences : DEVAI-088, DEVAI-089. */
     @Test void normalizedReportHasRevisionAndPaths() {
@@ -24,6 +26,7 @@ class ScanServiceTest {
         when(http.json(anyString(),argThat(uri->uri!=null&&uri.getPath().contains("issues")),anyMap(),isNull())).thenReturn(Json.parse("{\"issues\":[{\"key\":\"i1\",\"rule\":\"java:S1\",\"component\":\"c1\",\"message\":\"Fix this\",\"line\":12,\"severity\":\"MAJOR\"}],\"components\":[{\"key\":\"c1\",\"path\":\"src/Main.java\"}],\"paging\":{\"total\":1}}"));
         when(http.json(anyString(),argThat(uri->uri!=null&&uri.getPath().contains("qualitygates")),anyMap(),isNull())).thenReturn(Json.parse("{\"projectStatus\":{\"status\":\"ERROR\"}}"));
         var report=service(http).sonar(mock(Jwt.class),"delegated",1,1);
+        verify(http).json(eq("GET"),argThat(uri->uri!=null&&uri.getPath().equals("/api/issues/search")&&uri.getQuery().contains("componentKeys=project-key")),anyMap(),isNull());
         assertEquals("abc123",report.get("commit")); assertEquals("src/Main.java",Json.MAPPER.valueToTree(report).path("issues").get(0).path("path").asText());
         verify(http).json(eq("GET"),argThat(uri->uri!=null&&uri.getQuery().equals("analysisId=a1")),anyMap(),isNull());
     }

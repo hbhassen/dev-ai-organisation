@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.organisation.ods.contracts.*;
 import org.organisation.ods.integration.*;
 import org.organisation.ods.data.Store;
+import org.organisation.ods.policy.PolicyService;
 import org.springframework.mock.env.MockEnvironment;
 import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -29,7 +30,7 @@ class LocalAnalysisTest {
             var env=new MockEnvironment().withProperty("ods.jfrog-url","https://xray.invalid").withProperty("ods.jfrog-watch","watch team").withProperty("ods.jfrog-project-key","managed").withProperty("ods.jfrog-auth",mode).withProperty("ods.jfrog-username","svc-example").withProperty("ods.jfrog-password","synthetic-password").withProperty("ods.jfrog-token","synthetic-token");
             when(http.json(eq("POST"),any(),anyMap(),any())).thenReturn(Json.parse("{\"scan_id\":\"scan-123\"}"));
             when(http.exchange(eq("GET"),any(),anyMap(),isNull())).thenReturn(new RemoteHttp.Response(202,Json.parse("{}")),new RemoteHttp.Response(200,Json.parse("{\"vulnerabilities\":[{\"issue_id\":\"XRAY-1\",\"summary\":\"Upgrade dependency\",\"components\":{\"npm://a:1\":{\"fixed_versions\":[\"2\"]}},\"cves\":[{\"cve\":\"CVE-2026-0001\"}]}],\"violations\":[{\"issue_id\":\"XRAY-1\",\"watch_name\":\"watch team\",\"fail_build\":true}]}")));
-            var service=new LocalAnalysisService(new Settings(env),http,mock(LocalScanner.class),mock(GitLabClient.class),store);
+            var service=new LocalAnalysisService(new Settings(env),http,mock(LocalScanner.class),mock(GitLabClient.class),store,mock(PolicyService.class));
             var result=service.xray("job",bom(),"ANGULAR");
             assertEquals("scan-123",result.get("scanId")); assertEquals(2,((List<?>)result.get("issues")).size());
             String auth=mode.equals("TOKEN")?"Bearer synthetic-token":"Basic "+Base64.getEncoder().encodeToString("svc-example:synthetic-password".getBytes(java.nio.charset.StandardCharsets.UTF_8));
@@ -41,7 +42,7 @@ class LocalAnalysisTest {
     @Test void invalidResponseAndCancellationFailClosed() {
         RemoteHttp http=mock(RemoteHttp.class); Store store=mock(Store.class);
         var settings=new Settings(new MockEnvironment().withProperty("ods.jfrog-url","https://xray.invalid").withProperty("ods.jfrog-watch","watch").withProperty("ods.jfrog-auth","TOKEN").withProperty("ods.jfrog-username","svc").withProperty("ods.jfrog-token","synthetic"));
-        var service=new LocalAnalysisService(settings,http,mock(LocalScanner.class),mock(GitLabClient.class),store);
+        var service=new LocalAnalysisService(settings,http,mock(LocalScanner.class),mock(GitLabClient.class),store,mock(PolicyService.class));
         when(store.cancelled("job")).thenReturn(true);
         assertEquals("CANCELLED",assertThrows(OdsException.class,()->service.xray("job",bom(),"ANGULAR")).code()); verifyNoInteractions(http);
         when(store.cancelled("job")).thenReturn(false); when(http.json(anyString(),any(),anyMap(),any())).thenReturn(Json.parse("{\"scan_id\":\"../unsafe\"}"));
@@ -51,7 +52,7 @@ class LocalAnalysisTest {
     @Test void localSonarUsesScannerTaskAndRefusesReplacedAnalysis() throws Exception {
         for(boolean replaced:List.of(false,true)) {
             RemoteHttp http=mock(RemoteHttp.class); Store store=mock(Store.class); LocalScanner scanner=mock(LocalScanner.class);
-            var env=new MockEnvironment().withProperty("ods.sonar-url","https://sonar.invalid").withProperty("ods.sonar-token","synthetic-sonar").withProperty("ods.sonar-project-1","project-one");
+            var env=new MockEnvironment().withProperty("ods.sonar-url","https://sonar.invalid").withProperty("ods.sonar-token","synthetic-sonar").withProperty("ods.sonar-project-1","obsolete-legacy");
             when(store.createJob(anyString(),eq(1L),eq("LOCAL_SONAR"),anyString(),anyString())).thenReturn(Map.of("jobId","local-job")); when(store.claim("local-job")).thenReturn(true); when(store.job(anyString(),anyString())).thenReturn(Map.of("jobId","local-job","status","RUNNING"));
             when(scanner.run(eq("sonar"),eq("JAVA"),anyMap(),any(),any())).thenReturn(Json.parse("{\"ceTaskId\":\"ce-one\",\"fingerprint\":\"source-hash\"}"));
             when(http.json(eq("GET"),any(),anyMap(),isNull())).thenAnswer(call->{ String path=((java.net.URI)call.getArgument(1)).getPath(); return switch(path) {
@@ -64,12 +65,13 @@ class LocalAnalysisTest {
                 default->throw new AssertionError("Unexpected provider request");
             }; });
             var jwt=org.springframework.security.oauth2.jwt.Jwt.withTokenValue("synthetic").header("alg","none").subject("test").build();
-            new LocalAnalysisService(new Settings(env),http,scanner,mock(GitLabClient.class),store).start("SONAR",jwt,Json.parse("{\"projectId\":1,\"profile\":\"JAVA\"}"),"request-one");
+            PolicyService policies=mock(PolicyService.class); when(policies.sonarProjectKey(1)).thenReturn("project-one");
+            new LocalAnalysisService(new Settings(env),http,scanner,mock(GitLabClient.class),store,policies).start("SONAR",jwt,Json.parse("{\"projectId\":1,\"profile\":\"JAVA\"}"),"request-one");
             var result=org.mockito.ArgumentCaptor.forClass(Object.class); verify(store,timeout(5000)).finish(eq("local-job"),eq(replaced?"FAILED":"SUCCEEDED"),result.capture());
             var data=Json.MAPPER.valueToTree(result.getValue());
             if(replaced) assertEquals("STALE_REPORT",data.path("code").asText());
             else { assertEquals("analysis-one",data.path("analysisId").asText()); assertEquals("source-hash",data.path("fingerprint").asText()); assertEquals("src/App.java",data.path("issues").path(0).path("path").asText()); }
-            verify(scanner).run(eq("sonar"),eq("JAVA"),argThat(config->config.get("token").equals("synthetic-sonar")),any(),any());
+            verify(scanner).run(eq("sonar"),eq("JAVA"),argThat(config->config.get("token").equals("synthetic-sonar") && config.get("projectKey").equals("project-one")),any(),any());
         }
     }
 }

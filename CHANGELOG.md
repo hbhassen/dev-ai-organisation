@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0 — 2026-11-03
+
+- Mapping Sonar dynamique `sonarProjectKey` dans les règles de la politique signée, prioritaire sur la configuration embarquée.
+- Ajout de projets sans reconstruire le VSIX après installation de cette version ; repli compatible vers les mappings properties existants.
+- Validation stricte des clés et maintien des contrôles de signature, expiration et anti-rejeu.
+
+
 ## Snapshot TestOK — 2026-10-31
 
 - Architecture et spécification alignées sur les parcours 0.5.0 (DEVAI-182 à 187).

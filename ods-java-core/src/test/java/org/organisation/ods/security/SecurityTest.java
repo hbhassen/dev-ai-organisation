@@ -62,6 +62,18 @@ class SecurityTest {
         assertThrows(OdsException.class,()->SignedDocuments.policy(Json.parse(policy().replace("MISTRAL","OTHER")),now,"https://gitlab.example"));
         assertThrows(OdsException.class,()->SignedDocuments.policy(Json.parse(policy().replace("\"modelAlias\":\"approved\"","\"modelAlias\":\"unapproved\"")),now,"https://gitlab.example"));
     }
+    /** Accepts optional signed mappings and rejects malformed keys before any fallback can be used. Exigences : DEVAI-188. */
+    @Test void sonarMappingSchema() {
+        Instant now=Instant.parse("2026-01-01T12:00:00Z");
+        for(String key:java.util.List.of("backend-client","group:service_1.2","a".repeat(400))) {
+            var document=Json.parse(policy()); ((com.fasterxml.jackson.databind.node.ObjectNode)document.path("projects").get(0)).put("sonarProjectKey",key);
+            assertDoesNotThrow(()->SignedDocuments.policy(document,now,"https://gitlab.example"));
+        }
+        for(Object key:java.util.Arrays.asList("","123","bad key","../path","a".repeat(401),42,true,null)) {
+            var document=Json.parse(policy()); ((com.fasterxml.jackson.databind.node.ObjectNode)document.path("projects").get(0)).set("sonarProjectKey",Json.MAPPER.valueToTree(key));
+            assertEquals("POLICY_INVALID",assertThrows(OdsException.class,()->SignedDocuments.policy(document,now,"https://gitlab.example")).code());
+        }
+    }
     /** Refuses traversal, credential and Git internals while accepting ordinary source files. Exigences : DEVAI-040. */
     @Test void protectedPaths() throws Exception {
         PathGuard guard=new PathGuard(root); Files.createDirectory(root.resolve("src"));

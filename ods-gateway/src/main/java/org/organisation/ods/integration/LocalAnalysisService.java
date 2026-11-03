@@ -16,9 +16,9 @@ import java.util.*;
 /** Orchestrates saved-workspace scans and ties provider evidence to the exact local inputs, independently of AI entitlement. Exigences : DEVAI-172, DEVAI-173, DEVAI-174, DEVAI-175. */
 @Service
 public class LocalAnalysisService {
-    private final Settings settings; private final RemoteHttp http; private final LocalScanner scanner; private final GitLabClient gitlab; private final Store store;
+    private final Settings settings; private final RemoteHttp http; private final LocalScanner scanner; private final GitLabClient gitlab; private final Store store; private final PolicyService policies;
     /** Injects substitutable process and HTTP boundaries so every outgoing integration can be mocked. Exigences : DEVAI-177. */
-    public LocalAnalysisService(Settings settings,RemoteHttp http,LocalScanner scanner,GitLabClient gitlab,Store store) { this.settings=settings; this.http=http; this.scanner=scanner; this.gitlab=gitlab; this.store=store; }
+    public LocalAnalysisService(Settings settings,RemoteHttp http,LocalScanner scanner,GitLabClient gitlab,Store store,PolicyService policies) { this.settings=settings; this.http=http; this.scanner=scanner; this.gitlab=gitlab; this.store=store; this.policies=policies; }
     /** Computes source provenance only for the launch-bound project after Git access was checked natively. Exigences : DEVAI-169, DEVAI-175. */
     public JsonNode fingerprint(Jwt jwt,long project) { gitlab.authorize(jwt,project,null); return scanner.run("fingerprint","",Map.of(),()->false,()->{}); }
     /** Creates an idempotent owned operation without requiring a commit or a GitLab pipeline. Exigences : DEVAI-172, DEVAI-174. */
@@ -68,7 +68,7 @@ public class LocalAnalysisService {
     }
     /** Runs local SonarScanner then verifies Compute Engine identity before reading all corresponding issues. Exigences : DEVAI-174, DEVAI-175. */
     private Map<String,Object> sonar(String job,long project,String profile) throws InterruptedException {
-        String projectKey=settings.require("sonar-project-"+project); String base=settings.origin("sonar-url").toString().replaceAll("/$","");
+        String projectKey=policies.sonarProjectKey(project); String base=settings.origin("sonar-url").toString().replaceAll("/$","");
         JsonNode local=scanner.run("sonar",profile,Map.of("url",base,"token",settings.require("sonar-token"),"projectKey",projectKey),()->store.cancelled(job),()->store.heartbeat(job));
         Map<String,String> headers=Map.of("Authorization","Bearer "+settings.require("sonar-token")); String analysis="";
         for(int attempt=0;attempt<180;attempt++) { check(job); JsonNode task=http.json("GET",URI.create(base+"/api/ce/task?id="+RemoteHttp.encode(Json.text(local,"ceTaskId"))),headers,null).path("task");

@@ -44,7 +44,7 @@ def footer(canvas, document):
     canvas.line(60, 45, 535, 45)
     canvas.setFillColor(NAVY)
     canvas.setFont("Helvetica", 8)
-    canvas.drawString(60, 30, "Version documentaire 1.5  |  Produit 0.5.0  |  31 octobre 2026")
+    canvas.drawString(60, 30, "Version documentaire 1.6  |  Produit 0.6.0  |  3 novembre 2026")
     canvas.drawRightString(535, 30, str(document.page))
     canvas.restoreState()
 
@@ -81,13 +81,13 @@ def build():
         """Append one readable paragraph without embedding untrusted markup. Exigences : DEVAI-133."""
         story.append(paragraph(content))
 
-    page("Organisation Development Standard", "Architecture technique et interface • Évolution 0.5.0")
+    page("Organisation Development Standard", "Architecture technique et interface • Évolution 0.6.0")
     text("Un environnement de développement gouverné dans VS Code : Starter, IA, Quality, Security et GitFlow. Cette édition remplace les parcours SSO et scans liés à un commit par une connexion Git native et des analyses des sources enregistrées.")
     story.append(Spacer(1, 22))
     story.append(table([["Décision", "Comportement cible"], ["Sans SSO", "Le développeur utilise l’accès Git déjà disponible dans son IDE. Un refus Git interdit la connexion au gateway."], ["Configuration au build", "L’organisation fournit URL, comptes de service, transport Mistral, watch Xray et mappings Sonar. L’interface utilisateur ne les modifie pas."], ["Analyses locales", "SBOM CycloneDX, Graph Scan Xray et scanner Sonar fonctionnent sans attendre un commit."], ["Cycle de vie", "Le gateway embarqué démarre après le contrôle Git et s’arrête avec l’extension ou la fermeture du canal parent."]]))
     story.append(Spacer(1, 20))
     text("Limite acceptée : les secrets distribués dans un VSIX autonome restent extractibles par le propriétaire du poste. Le verrouillage de l’interface, les empreintes et le masquage des logs ne garantissent pas leur confidentialité contre lui.")
-    text("Référentiel : specification.md, exigences DEVAI-001 à DEVAI-187. Les résultats réellement exécutés sont séparés des objectifs de recette dans docs/VALIDATION.md.")
+    text("Référentiel : specification.md, exigences DEVAI-001 à DEVAI-188. Les résultats réellement exécutés sont séparés des objectifs de recette dans docs/VALIDATION.md.")
 
     page("1. Architecture et responsabilités", "DEVAI-002, 003, 168, 169")
     story.append(architecture())
@@ -181,8 +181,14 @@ def build():
     story.append(table([["Exigence", "Évolution"], ["DEVAI-167", "Configuration et secrets administrés au build."], ["DEVAI-168", "Gateway embarqué, jeton privé et durée de vie possédée."], ["DEVAI-169", "Accès Git existant avant connexion, aucun SSO dans le VSIX."], ["DEVAI-170 / 171", "Mistral API ou Vibe, code et dépendances embarqués."], ["DEVAI-172 / 173", "SBOM quatre stacks et Graph Scan Xray avec watch."], ["DEVAI-174 / 175", "Qualité locale, provenance et correction liée au rapport."], ["DEVAI-176", "Masquage, isolation des credentials et limite d’extractabilité."], ["DEVAI-177", "Doubles de toutes les intégrations métier."], ["DEVAI-178", "Commentaires explicatifs et numéros d’exigence vérifiés."], ["DEVAI-179", "Envoi effectif du compositeur jusqu’au transport LLM simulé."], ["DEVAI-180 / 181", "Changelog et notes de release créés ou actualisés via le LLM."]]))
     text("Documents associés : specification.md ; prompt-developpement.md ; docs/CONFIGURATION.md ; docs/INSTALLATION.md ; docs/API.md ; docs/VALIDATION.md. Le prompt demande d’examiner le code existant, de maintenir les commentaires, d’implémenter les parcours complets et de distinguer les validations exécutées des éléments non vérifiables.")
     text("Les capacités du serveur séparé historique sont conservées pour non-régression. Son authentification OIDC et ses runners ne constituent pas un prérequis du parcours autonome décrit ici.")
+    page("16. Mapping Sonar dynamique", "DEVAI-188 / Version 0.6.0")
+    text("Chaque règle de projet de la politique GitLab signée peut définir sonarProjectKey. Cette clé est prioritaire dans les analyses locales et les lectures de rapports Sonar. Si le champ ou la règle est absent, la gateway utilise le mapping ods.sonar-project-<ID_GITLAB> du fichier properties embarqué.")
+    text("L’ajout d’un projet ne nécessite plus de reconstruire le VSIX après une première installation 0.6.0. Créer le projet Sonar, accorder les droits du compte de service, ajouter la règle et sa clé Sonar, augmenter policyVersion, renouveler les dates puis signer et publier JSON et SIG ensemble.")
+    text("Le cache reste limité à 60 secondes ; attendre son renouvellement et actualiser, ou reconnecter l’extension. Les signatures, l’expiration et le contrôle anti-rejeu restent obligatoires : une politique invalide ne permet jamais de revenir silencieusement au mapping embarqué.")
+    text("L’analyse Sonar ne nécessite pas une autorisation IA. Une règle aiEnabled=false peut donc porter une clé Sonar. Les URL, credentials et clés de confiance restent administrés au packaging. Les anciens VSIX refusent ce nouveau champ : installer la version compatible avant de publier la politique enrichie.")
+
     destination = ROOT / "Organisation_Development_Standard_Architecture_avec_Interface.pdf"
-    document = SimpleDocTemplate(str(destination), pagesize=A4, rightMargin=60, leftMargin=60, topMargin=65, bottomMargin=65, title="ODS - Architecture et interface 0.5.0", author="Organisation Development Standard", subject="VSIX autonome, accès Git sans SSO et analyses locales")
+    document = SimpleDocTemplate(str(destination), pagesize=A4, rightMargin=60, leftMargin=60, topMargin=65, bottomMargin=65, title="ODS - Architecture et interface 0.6.0", author="Organisation Development Standard", subject="VSIX autonome, accès Git sans SSO et analyses locales")
     document.build(story, onFirstPage=footer, onLaterPages=footer)
     print("Architecture PDF generated")
 

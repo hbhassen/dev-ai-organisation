@@ -64,3 +64,12 @@ Le rapport de correction apparaît dans l’onglet d’origine avec un état par
 ## Droits des documents GitFlow
 
 Ajouter `CHANGELOG` et/ou `RELEASE_NOTES` dans `projects[].allowedActions` de la politique de gouvernance, puis la signer et la déployer selon le mécanisme existant. Ces actions sont refusées par défaut et ne sont pas déduites d'un droit `CHAT`, `CODE_GENERATION` ou `MR_DESCRIPTION`. Les tâches sont `git-changelog` et `git-release-notes`, exécutées en mode `MODIFICATION` avec contexte `LOCAL_GOVERNED`. Les couches de prompts signées peuvent compléter leurs instructions en conservant ces actions fixes. Aucun nouveau secret ni fournisseur IA n'est ajouté.
+
+
+### Mapping Sonar dynamique (0.6.0, DEVAI-188)
+
+Dans une règle existante de `projects` du fichier `ai-project-policy.json`, ajouter `"sonarProjectKey": "backend-client"` à côté de `projectId`. La clé signée est prioritaire sur `ods.sonar-project-<ID_GITLAB>` dans `application-organisation.properties`. Le fichier properties reste un repli lorsque le champ ou la règle est absent. Un mapping manquant dans les deux sources bloque l’analyse. Une politique invalide ou indisponible ne permet pas de contourner la vérification par le repli.
+
+La clé Sonar accepte 1 à 400 caractères parmi lettres ASCII, chiffres, `-`, `_`, `.`, `:` et au moins un caractère non numérique. L’analyse reste possible pour une règle `aiEnabled: false` ; les autorisations IA ne sont pas élargies.
+
+Pour ajouter un projet : créer le projet Sonar et accorder les droits nécessaires au compte de service ; ajouter sa règle et sa clé Sonar dans la politique ; augmenter `policyVersion`, renouveler les dates (24 heures au maximum), signer les octets finaux et publier JSON et SIG ensemble. Attendre au maximum 60 secondes pour le cache puis actualiser, ou reconnecter l’extension. Aucun changement de clé de confiance ni rebuild n’est requis. Un premier VSIX 0.6.0 doit cependant être installé : les versions antérieures refusent ce champ inconnu. Les URL et credentials des services restent administrés au build.

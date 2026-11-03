@@ -14,9 +14,9 @@ import java.nio.charset.StandardCharsets;
 /** Dispatches real scans to an isolated runner and reads genuine Sonar/Xray reports. Exigences : DEVAI-085, DEVAI-096, DEVAI-104. */
 @Service
 public final class ScanService {
-    private final Settings settings; private final RemoteHttp http; private final GitLabClient gitlab; private final Store store;
+    private final Settings settings; private final RemoteHttp http; private final GitLabClient gitlab; private final Store store; private final PolicyService policies;
     /** Connects scans to project authorization and durable job tracking. Exigences : DEVAI-027, DEVAI-119. */
-    public ScanService(Settings settings,RemoteHttp http,GitLabClient gitlab,Store store) { this.settings=settings; this.http=http; this.gitlab=gitlab; this.store=store; }
+    public ScanService(Settings settings,RemoteHttp http,GitLabClient gitlab,Store store,PolicyService policies) { this.settings=settings; this.http=http; this.gitlab=gitlab; this.store=store; this.policies=policies; }
     /** Starts an authenticated remote runner operation; absent runners remain explicitly unavailable. Exigences : DEVAI-085, DEVAI-096. */
     public Map<String,Object> start(String kind,Jwt jwt,String token,JsonNode body,String key) {
         Json.fields(body,Set.of("projectId","commit","profile")); long project=body.path("projectId").asLong(); JsonNode targetProject=gitlab.authorize(jwt,project,token);
@@ -49,7 +49,7 @@ public final class ScanService {
     /** Retrieves actual Sonar issues and gate using an administratively configured project key. Exigences : DEVAI-088, DEVAI-089. */
     public Map<String,Object> sonar(Jwt jwt,String token,long project,int page) {
         if(page<1||page>10000) throw new OdsException("INVALID_REQUEST","Page invalide");
-        gitlab.authorize(jwt,project,token); String projectKey=settings.require("sonar-project-"+project); URI base=settings.origin("sonar-url");
+        gitlab.authorize(jwt,project,token); String projectKey=policies.sonarProjectKey(project); URI base=settings.origin("sonar-url");
         String auth="Basic "+Base64.getEncoder().encodeToString((settings.require("sonar-token")+":").getBytes(StandardCharsets.UTF_8)); Map<String,String> headers=Map.of("Authorization",auth);
         URI analysesUri=URI.create(base+"/api/project_analyses/search?project="+RemoteHttp.encode(projectKey)+"&ps=1");
         JsonNode before=http.json("GET",analysesUri,headers,null).path("analyses").path(0);

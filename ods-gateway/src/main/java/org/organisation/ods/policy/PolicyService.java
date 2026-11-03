@@ -28,6 +28,13 @@ public class PolicyService {
         JsonNode next=SignedDocuments.verify(bytes,signature,settings.require("policy-key")); SignedDocuments.policy(next,now,settings.require("gitlab-url"));
         store.watermark("ai-policy:"+settings.require("gitlab-url"),next.path("policyVersion").asLong(),SignedDocuments.sha256(bytes)); cached=next; fetched=now; return next;
     }
+    /** Resolves signed Sonar mappings without requiring AI permission; only an absent mapping uses legacy configuration. Exigences : DEVAI-188. */
+    public String sonarProjectKey(long project) {
+        JsonNode policy=snapshot();
+        for(JsonNode rule:policy.path("projects"))
+            if(rule.path("projectId").asLong()==project && rule.has("sonarProjectKey")) return rule.path("sonarProjectKey").asText();
+        return settings.require("sonar-project-"+project);
+    }
     /** Checks the developer, signed project/action/model policy and records every decision. Exigences : DEVAI-026, DEVAI-039, DEVAI-043, DEVAI-064. */
     public JsonNode authorize(Jwt jwt,long project,String token,String action,String correlation) {
         String subject=subject(jwt);

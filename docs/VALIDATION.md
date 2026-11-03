@@ -89,3 +89,15 @@ Les scripts batch invoquent Python ou la CLI VS Code directement. Le wrapper Mav
 `suiteInstall/BUILD.json` identifie le commit et l'éventuel état modifié des sources. Un package avec `sourceDirty: true` est un essai local, pas un artefact de release. Les artefacts de CI sont construits depuis le commit publié. Les branches `main` et le tag de release restent soumis aux conditions de validation ; le correctif 0.2.1 conserve les écarts de recette de la préversion 0.2.0. L’instantané historique `dev/toreprise` reste associé à 0.2.0 et ne constitue pas la livraison de ce correctif.
 
 À la demande explicite de l'utilisateur, `script/vsix` conserve aussi le dossier `suiteInstall/` du correctif. Le commit source est réalisé avant sa reconstruction ; un second commit enregistre la livraison vérifiée. La correspondance se contrôle avec `BUILD.json.sourceCommit` et `SHA256SUMS`. Ce commit contenant des binaires ne doit pas être fusionné dans les branches source.
+
+
+## Validation 0.6.0 — 2026-11-03
+
+- Commande : `python tools/build.py --task Package --organisation-profile config/organisations/demo/organisation.json`, avec JDK 21.
+- Maven clean verify : 63 tests Java, 0 échec, 0 erreur, 0 ignoré.
+- Python : 28 tests réussis. TypeScript : compilation et lint réussis ; 62 tests Node réussis.
+- Interface Chromium : 12 scénarios réussis.
+- Démarrage des JAR : version du moteur, santé de la gateway et refus des requêtes anonymes vérifiés.
+- DEVAI-188 : signature Ed25519 réelle, priorité du mapping signé, ajout de projet avec la même instance après expiration du cache, absence de droit IA, repli properties, absence de mapping, clés invalides, expiration, signature invalide et propagation du refus anti-rejeu vérifiés. Les parcours Sonar local et lecture utilisent le résolveur partagé.
+- Services métier simulés pour cette validation ; aucun appel réel Mistral. Recette sur l’autre PC non exécutée.
+- Packaging : VSIX 0.6.0 inspecté ; runtime gateway et contrat Vibe embarqué réussis (HTTP simulé, six cas CLI). Livraison suiteInstall et archive 0.6.0 générées ; démarrage des JAR copiés réussi. Le profil demo contient des placeholders et doit être remplacé par le profil de l’organisation pour un usage réel.
