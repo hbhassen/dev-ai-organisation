@@ -1,0 +1,9 @@
+.venv/
+.build/
+suiteInstall/
+suiteInstall-*.zip
+__pycache__/
+*.pyc
+*.key
+*.pem
+local.json
