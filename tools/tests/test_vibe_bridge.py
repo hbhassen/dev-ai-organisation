@@ -58,6 +58,16 @@ class VibeBridgeTest(unittest.TestCase):
         self.assertEqual(0, status)
         self.assertEqual("synthetic answer", result["choices"][0]["message"]["content"])
 
+    def test_openai_unknown_model_code_is_classified_without_exposing_body(self):
+        """Recognize only bounded OpenAI model error codes while keeping malformed and private bodies hidden. Exigences : DEVAI-176, DEVAI-191, DEVAI-198."""
+        for body, expected in [(json.dumps({"error": {"code": "model_not_found", "message": "synthetic-private"}}), "MODEL_UNAVAILABLE"), ("synthetic-private malformed", "VIBE_REQUEST_FAILED"), (json.dumps({"error": {"code": "unsupported_parameter"}}), "VIBE_REQUEST_FAILED")]:
+            error = RuntimeError("synthetic-private")
+            error.status = 400
+            error.body_text = body
+            status, result = self.invoke(error)
+            self.assertEqual(1, status)
+            self.assertEqual(expected, result["error"]["code"])
+
     def test_failures_restore_cwd_and_never_expose_provider_details(self):
         """Classify provider status without disclosing credentials or blaming Python for HTTP denial. Exigences : DEVAI-170, DEVAI-176."""
         for http_status, code in [(401, "MODEL_AUTHENTICATION_FAILED"), (403, "MODEL_AUTHENTICATION_FAILED"), (429, "MODEL_RATE_LIMITED"), (404, "MODEL_UNAVAILABLE"), (500, "VIBE_REQUEST_FAILED")]:

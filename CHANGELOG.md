@@ -8,6 +8,7 @@
 - Ajout de DEVAI-189 à DEVAI-198 à la spécification et à la traçabilité ; les tests OpenAI réels restent opt-in.
 - Banc Docker : smoke OpenAI opt-in via le gateway ODS avec politique signée, une requête synthétique, outils désactivés et clé provenant de `OPENAI_API_KEY` ; le bridge OpenAI omet la température.
 - Adaptation du corps Chat Completions émis par Vibe : `max_completion_tokens` et effort `none` pour GPT-6 Luna/Sol ; client TLS dédié sans redirection, avec tests de contrat HTTP et erreurs simulées.
+- Qualification Vibe sans création de bytecode dans le runtime distribué ; erreurs OpenAI d’authentification et de modèle classées sans exposer le corps fournisseur.
 - Staging concurrent du cache Vibe accéléré par liens physiques quand le système le permet, avec repli en copie et validation SHA-256 identique.
 - Retrait du suivi Git des fichiers privés du banc Docker et de son ancien PDF de configuration ; conservation locale et exclusion des futures publications. Les anciennes révisions publiées ne sont pas réécrites.
 

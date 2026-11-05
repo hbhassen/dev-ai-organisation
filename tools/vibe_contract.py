@@ -49,7 +49,7 @@ def cli_case(runtime, status, provider="MISTRAL"):
 
 
 def verify_cli(runtime, provider="MISTRAL"):
-    """Check success and real SDK error classification through isolated Python stdin/stdout frames. Exigences : DEVAI-170, DEVAI-176, DEVAI-177."""
+    """Check SDK error classification in isolated processes without writing bytecode into the immutable runtime. Exigences : DEVAI-170, DEVAI-171, DEVAI-176, DEVAI-177."""
     request = {"provider":"MISTRAL","backend":"mistral","apiStyle":"openai","url": "https://mistral.invalid/v1", "model": "mistral-medium-3-5", "credential": "synthetic-vibe-contract", "messages": [{"role": "user", "content": "Inspect synthetic project"}], "tools": [], "maxOutput": 100, "maxContextTokens": 16384, "maxOutputTokens": 1024}
     if provider == "OPENAI":
         request.update(provider="OPENAI", backend="generic", url="https://openai.invalid/v1")
@@ -58,7 +58,7 @@ def verify_cli(runtime, provider="MISTRAL"):
     if provider == "OPENAI":
         cases.update({403: "MODEL_AUTHENTICATION_FAILED", 408: "VIBE_REQUEST_FAILED", 298: "VIBE_REQUEST_FAILED", 307: "VIBE_REQUEST_FAILED"})
     for status, expected in cases.items():
-        child = subprocess.run([sys.executable, "-I", str(Path(__file__).resolve()), str(runtime), "--cli-case", str(status), provider], input=json.dumps(request), capture_output=True, text=True, env=environment, timeout=60)
+        child = subprocess.run([sys.executable, "-I", "-B", str(Path(__file__).resolve()), str(runtime), "--cli-case", str(status), provider], input=json.dumps(request), capture_output=True, text=True, env=environment, timeout=60)
         assert "synthetic-private-provider-detail" not in child.stdout + child.stderr
         assert child.returncode == (0 if status == 200 else 1), f"CLI case {status} failed"
         response = json.loads(child.stdout)
@@ -171,6 +171,7 @@ def main():
     asyncio.run(verify_openai(Path(sys.argv[1]).resolve()))
     verify_cli(Path(sys.argv[1]).resolve())
     verify_cli(Path(sys.argv[1]).resolve(), "OPENAI")
+    assert not any(Path(sys.argv[1]).resolve().rglob("*.pyc")), "Contract tests must leave the packaged runtime free of bytecode"
     return 0
 
 

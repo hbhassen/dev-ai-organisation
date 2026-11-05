@@ -71,8 +71,8 @@ async def complete(request, backend_factory=None):
     model = ModelConfig(name=request["model"], provider=provider_name, alias="ods-approved", max_context_length=max_context_tokens, max_output_tokens=max_output_tokens)
     factory = backend_factory or (openai_backend if backend_name == "generic" else create_backend)
     async with factory(provider=provider, timeout=120, retry_max_elapsed_time=0, enable_otel=False) as backend:
-        # GPT reasoning models reject sampling parameters at non-none effort; preserve Mistral's existing temperature and omit it for OpenAI.
-        temperature = 0.2 if provider_id == "MISTRAL" else None
+        # Vibe requires numeric telemetry even on error; the managed OpenAI client removes this field from the HTTP body.
+        temperature = 0.2
         result = await backend.complete(model=model, messages=[LLMMessage.model_validate(item) for item in request["messages"]], temperature=temperature, tools=[AvailableTool.model_validate(item) for item in request.get("tools", [])] or None, max_tokens=min(requested_output, max_output_tokens, 4000), tool_choice="auto" if request.get("tools") else None, extra_headers=None)
     if result.usage is None or result.usage.prompt_tokens <= 0 or result.usage.completion_tokens < 0 or result.stop is None or result.stop.reason not in ("stop", "tool_calls", "length"):
         raise ValueError("Incomplete Vibe response")
@@ -83,7 +83,7 @@ async def complete(request, backend_factory=None):
 
 
 def main():
-    """Read one private stdin frame and emit only a structured result or a secret-free failure. Exigences : DEVAI-170, DEVAI-176, DEVAI-191."""
+    """Read one private stdin frame and emit only a structured result or a secret-free failure. Exigences : DEVAI-170, DEVAI-176, DEVAI-191, DEVAI-198."""
     sys.dont_write_bytecode = True
     runtime = Path(__file__).resolve().parent
     library = str(runtime / "vibe")
@@ -109,12 +109,20 @@ def main():
         return 0
     except Exception as error:
         status = getattr(error, "status", None)
+        invalid_model = getattr(error, "is_invalid_model", False)
+        if status == 400 and not invalid_model:
+            try:
+                body = getattr(error, "body_text", "")
+                detail = json.loads(body).get("error", {}) if len(body) <= 8192 else {}
+                invalid_model = isinstance(detail, dict) and detail.get("code") in ("model_not_found", "invalid_model")
+            except (ValueError, TypeError, AttributeError):
+                pass
         code = "VIBE_RUNTIME_UNAVAILABLE" if isinstance(error, ImportError) else "VIBE_REQUEST_FAILED"
         if status in (401, 403):
             code = "MODEL_AUTHENTICATION_FAILED"
         elif status == 429:
             code = "MODEL_RATE_LIMITED"
-        elif status == 404 or getattr(error, "is_invalid_model", False):
+        elif status == 404 or invalid_model:
             code = "MODEL_UNAVAILABLE"
         sys.stdout.write(json.dumps({"error": {"code": code}}))
         sys.stderr.write("Managed Vibe request failed; verify packaged runtime and organisation configuration.\n")
