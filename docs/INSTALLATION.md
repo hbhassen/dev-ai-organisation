@@ -1,4 +1,4 @@
-# Installation du VSIX autonome 0.5.0
+# Installation du VSIX autonome 0.7.0
 
 Dans GitFlow, pousser la branche source puis utiliser **Créer une MR**. Choisir la cible, le titre et les commentaires facultatifs ; la pré-revue Mistral se génère automatiquement. Lire l’aperçu Markdown complet puis confirmer **Publier**. La description conserve les commentaires et contient, pour chaque fichier, une recommandation au reviewer, une éventuelle question au développeur et un test suggéré. La pré-revue ne vaut pas approbation et n’exécute aucun test.
 
@@ -30,6 +30,10 @@ Pour les projets Maven sans wrapper, l’agent peut utiliser `mvn` installé sur
 | .NET | SDK .NET et outil `dotnet-CycloneDX` compatible avec `--spec-version` (5.5+), une solution/projet à la racine | `dotnet-sonarscanner`, begin/build/end ; paramètres privés via `SONARQUBE_SCANNER_PARAMS` |
 
 Installer les versions de scanners qualifiées pour le serveur organisationnel. Le produit ne prétend pas que ces outils sont présents : une absence ou un échec empêche la création d’un rapport valide. Le compte Sonar doit pouvoir exécuter une analyse ; le compte Xray doit pouvoir lancer un Graph Scan sur le watch configuré. Les builds de projet exécutent du code et demandent une approbation native.
+
+### JDK ODS et JDK du projet
+
+Java 21 sert au moteur et à la gateway ODS. Les commandes exécutées dans le projet utilisent les programmes disponibles dans son environnement système (`PATH`, `JAVA_HOME`, wrapper ou toolchains du projet). Ainsi, `ods.javaPath` peut désigner le JDK 21 ODS tandis que `mvn clean install` dans un projet configuré en Java 25 utilise le JDK 25 installé. La version est vérifiée par `mvn -version` ; DEVAI-005 ne justifie pas l'ajout d'une option Java 21 ni la modification du POM utilisateur.
 
 ## Diagnostic et limites
 

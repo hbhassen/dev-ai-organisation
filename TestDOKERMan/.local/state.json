@@ -1,6 +1,0 @@
-{
-  "model": "mistral-medium-3-5",
-  "governance": 1,
-  "demo-allowed": 2,
-  "demo-denied": 3
-}

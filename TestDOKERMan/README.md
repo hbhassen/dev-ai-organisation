@@ -1,6 +1,6 @@
-# Banc Docker pour les tests manuels ODS 0.5.0
+# Banc Docker pour les tests manuels ODS 0.7.0
 
-Ce dossier contient le banc local de l'extension et les tests de régression 0.5.0. Le build utilise le profil d'organisation déjà pris en charge par le projet. Les validations ne génèrent aucun appel Mistral réel par défaut ; l'option explicite `--real-mistral` ajoute une unique soumission courte au test du profil.
+Ce dossier contient le banc local de l'extension, le smoke OpenAI 0.7.0 et les tests historiques de régression 0.5.0. Le build utilise le profil d'organisation déjà pris en charge par le projet. Aucun test n'appelle un fournisseur réel par défaut. Les options `--real-mistral` et `--real-openai` activent chacune un parcours explicite et séparé.
 
 | Service | Adresse locale | Nature |
 |---|---|---|
@@ -54,7 +54,7 @@ Pour reconstruire et réinstaller après un changement de connexion ou de clé :
 ./TestDOKERMan/start.ps1 -Build -Install -Open
 ```
 
-Le build exécute les contrôles, tests et packaging existants. Le profil privé se trouve dans `.local/profile/organisation.json`. La version applicative est `0.5.0`.
+Le build exécute les contrôles, tests et packaging existants. Le profil privé se trouve dans `.local/profile/organisation.json`. La version applicative est `0.7.0` ; une installation antérieure doit être reconstruite pour recevoir cette évolution.
 
 GitFlow : après push, **Créer une MR** prépare automatiquement la pré-revue par fichier avec Mistral, ajoute les commentaires facultatifs et affiche le texte avant publication. Le test du profil vérifie le vrai diff GitLab et sa génération structurée avec une réponse fournisseur synthétique, sans publier de MR ni appeler réellement Mistral. Voir les limites et le parcours dans `docs/INSTALLATION.md` à la racine du dépôt.
 
@@ -87,6 +87,20 @@ Les corrections 0.3.1 concernent le nettoyage du bridge Vibe sous Windows, les m
 Après fermeture de la fenêtre Test, `python TestDOKERMan/profile_test.py <EXTENSION_INSTALLEE>` lance le véritable hôte VS Code dans ce profil. Il vérifie l'activation et le contrôleur natif avec les vrais moteur, gateway, GitLab et SDK Vibe. La présentation est capturée par le test ; le transport HTTP Mistral est simulé dans une copie privée du runtime. Le VSIX installé conserve sa configuration réelle. Les appels fournisseur réels sont désactivés par défaut ; `--real-mistral` autorise une unique soumission courte supplémentaire, sans relance ni traitement des outils proposés.
 
 Le résultat est enregistré dans `.local/profile-smoke-result.json`. `python TestDOKERMan/vscode.py open` rouvre ensuite le profil pour les essais manuels. Le contrat CLI Vibe est aussi vérifié au packaging : succès, erreurs HTTP et nettoyage du dossier temporaire, sans appel fournisseur.
+
+## Appel réel OpenAI avec le banc Docker
+
+Le smoke OpenAI passe par le client natif de l'extension, son gateway démarré localement, la politique signée dans GitLab Docker et le projet de démonstration `demo-allowed`. Il envoie un seul prompt synthétique sans source de projet et n'active aucun outil. Le modèle de test est `gpt-6-luna` via l'adaptateur Chat Completions. Aucun appel Mistral n'est effectué dans ce parcours.
+
+Dans une session PowerShell, fournir une clé API Platform renouvelée dans `OPENAI_API_KEY`, puis exécuter :
+
+```powershell
+py -3.12 TestDOKERMan/provision.py --openai-smoke
+py -3.12 tools/build.py --task Package --organisation-profile TestDOKERMan/.local/profile/organisation.json
+node TestDOKERMan/native-smoke.cjs <STAGING_EXTENSION> --real-openai
+```
+
+Remplacer `<STAGING_EXTENSION>` par le dossier de staging affiché par le build. La clé n'est jamais affichée, mais le profil privé et le staging de cette compilation la contiennent pour le lancement local. Après le test, exécuter `py -3.12 TestDOKERMan/provision.py` pour rétablir la politique et le profil Mistral par défaut. Ce test consomme le quota OpenAI du compte. Le résultat sans secret est enregistré dans `.local/native-smoke-result.json`.
 
 ## Parcours Test1 : corrections vérifiées et couverture
 

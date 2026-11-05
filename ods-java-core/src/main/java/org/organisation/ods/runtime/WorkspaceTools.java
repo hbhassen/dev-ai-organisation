@@ -256,7 +256,7 @@ public final class WorkspaceTools {
 
     /**
      * Starts a requested development command from a narrow executable allowlist.
-     * Exigences : DEVAI-073, DEVAI-155.
+     * Exigences : DEVAI-073, DEVAI-155, DEVAI-197.
      */
     public String execute(List<String> arguments) throws IOException {
         if (arguments.isEmpty() || !Set.of("git", "java", "python", "dotnet", "node", "npm", "mvn", "mvnw")

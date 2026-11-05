@@ -91,6 +91,19 @@ Les scripts batch invoquent Python ou la CLI VS Code directement. Le wrapper Mav
 À la demande explicite de l'utilisateur, `script/vsix` conserve aussi le dossier `suiteInstall/` du correctif. Le commit source est réalisé avant sa reconstruction ; un second commit enregistre la livraison vérifiée. La correspondance se contrôle avec `BUILD.json.sourceCommit` et `SHA256SUMS`. Ce commit contenant des binaires ne doit pas être fusionné dans les branches source.
 
 
+## Validation 0.7.0 — en cours les 5 et 6 novembre 2026
+
+- Branche de travail : `feat/genLLM`. Les résultats ci-dessous concernent le travail local ; ils ne constituent pas une release publiée.
+- Réacteur Maven `clean verify` exécuté avec succès : 70 tests Java (4 contrats, 26 moteur, 40 gateway), aucun échec, erreur ou test ignoré.
+- Compilation et lint TypeScript réussis ; 63 tests Node et 12 scénarios Chromium réussis.
+- Démarrage des JAR 0.7.0 : version du moteur, santé de la gateway et refus des requêtes anonymes vérifiés.
+- Tests Python ciblés après adaptation du bridge et du staging : 12 tests réussis ; contrôle de documentation Python réussi sur 17 fichiers source.
+- DEVAI-197 : conservation de `JAVA_HOME` et de `PATH` vérifiée par les tests d’environnement, avec fixture JDK 25. Cette fixture ne constitue pas un build réel d’un projet utilisateur sous JDK 25.
+- PDF d’architecture régénéré, 18 pages rendues puis inspectées visuellement.
+- Audit des sources : fichiers privés du banc et ancien PDF contenant des credentials retirés de l’index, conservés localement et ignorés. Le contrôle des 247 fichiers publiables n’a retrouvé aucune des signatures ni des valeurs sensibles recherchées. Les anciennes révisions publiques demeurent inchangées ; les credentials réels anciennement publiés doivent être révoqués.
+- Le contrat sur le runtime Vibe empaqueté a réussi pour la génération Mistral et OpenAI, les outils OpenAI et l’usage mesuré avec HTTP simulé. Le premier cas CLI Mistral a ensuite dépassé son délai de 60 secondes sur le poste saturé en mémoire : le contrat complet reste **EN ÉCHEC**, sans augmentation du délai ni contournement du test.
+- Packaging local interrompu par un redémarrage du poste, puis arrêté après une nouvelle saturation mémoire. Aucun VSIX 0.7.0 ni package final n’est déclaré validé. Appel OpenAI réel avec Docker, livraison finale et CI : **NON EXÉCUTÉS**, à terminer avant publication. Aucun appel fournisseur réel n’a été effectué pendant ces validations.
+
 ## Validation 0.6.0 — 2026-11-03
 
 - Commande : `python tools/build.py --task Package --organisation-profile config/organisations/demo/organisation.json`, avec JDK 21.

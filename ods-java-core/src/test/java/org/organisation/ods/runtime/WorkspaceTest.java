@@ -60,7 +60,7 @@ class WorkspaceTest {
             assertThrows(OdsException.class,()->tools.execute(List.of("git","add","-A")));
         }
     }
-    /** Runs installed Maven through the actual agent boundary without requiring a project wrapper or permitting shell chaining. Exigences : DEVAI-073, DEVAI-155. */
+    /** Runs installed Maven through the actual agent boundary and records Maven's selected Java runtime without forcing an ODS JDK. Exigences : DEVAI-073, DEVAI-155, DEVAI-197. */
     @Test void installedMavenWithoutWrapper() throws Exception {
         try(ProcessRunner runner=new ProcessRunner()) {
             WorkspaceTools tools=new WorkspaceTools(root,runner);
@@ -71,6 +71,7 @@ class WorkspaceTest {
             while(Boolean.TRUE.equals(result.get("running"))&&System.nanoTime()<deadline) { Thread.sleep(50); result=runner.output(id); }
             assertEquals(false,result.get("running")); assertEquals(0,result.get("exitCode"),result.get("output").toString());
             assertTrue(result.get("output").toString().contains("Apache Maven"));
+            assertTrue(result.get("output").toString().contains("Java version"));
             assertThrows(OdsException.class,()->tools.execute(List.of("mvn","--version","&","echo","injected")));
             assertThrows(OdsException.class,()->tools.execute(List.of("cmd.exe","/c","echo","injected")));
         }

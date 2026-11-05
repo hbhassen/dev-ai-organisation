@@ -1,4 +1,4 @@
-# Architecture 0.5.0
+# Architecture 0.7.0
 
 La pré-revue GitFlow utilise `GET /api/v1/git/mr-context` : contrôle d’accès GitLab, résolution des deux branches en SHA immuables, puis comparaison avec leur base commune. Seuls chemins, statuts et diffs sont conservés ; les métadonnées personnelles des commits ne sont pas transmises. Les limites et contrôles de secrets s’appliquent avant l’appel au modèle. Le client lance la tâche gouvernée `gitlab-mr-description` en mode Question, valide une réponse structurée couvrant exactement les fichiers et produit un aperçu Markdown. Le POST de création transmet aussi les SHA source/cible, vérifiés à nouveau avant publication. Un changement distant après cette dernière vérification reste possible : les SHA figurent donc explicitement dans la description. Le contrat de comparaison suit l’[API officielle GitLab](https://docs.gitlab.com/api/repositories/#compare-branches-tags-or-commits). Exigences : DEVAI-037, DEVAI-112, DEVAI-113.
 
@@ -34,3 +34,9 @@ Le code serveur séparé historique conserve son authentification OIDC et ses ru
 ## Mapping Sonar dynamique (0.6.0)
 
 DEVAI-188 : `PolicyService.sonarProjectKey` résout le champ facultatif `projects[].sonarProjectKey` depuis le snapshot signé et validé, avant le repli `ods.sonar-project-<ID_GITLAB>`. Les services d’analyse locale et de lecture Sonar utilisent cette même résolution. L’accès Git reste vérifié indépendamment des droits IA ; un projet interdit à l’IA peut être analysé. Le cache de politique dure 60 secondes, sans repli sur une politique expirée ou invalide.
+
+## Fournisseurs IA et isolation des JDK (0.7.0)
+
+Le fournisseur reste résolu côté gateway en croisant le catalogue de modèles de la politique Ed25519 et `ODS_PROVIDER_REGISTRY` du package. Le profil standard reste Mistral. Le profil `mistral-openai` ajoute le backend générique OpenAI Chat Completions de Vibe 3.0.3, avec endpoint et hôte HTTPS fixes et credential distinct. Les modèles exacts, capacités et budgets optionnels restent contrôlés par la politique signée ; chaque réservation et événement d'audit garde le fournisseur, l'alias et le modèle. Une panne ne change pas de fournisseur.
+
+Le build du projet ODS peut utiliser Java 21 via `ods.javaPath`. Les processus de commandes workspace héritent séparément du `PATH` et de `JAVA_HOME` du poste, après filtrage des secrets ODS. Maven, son wrapper et les toolchains du projet gardent donc la possibilité de sélectionner Java 25 selon le POM ; aucune option Java 21 n'est ajoutée par la gateway.

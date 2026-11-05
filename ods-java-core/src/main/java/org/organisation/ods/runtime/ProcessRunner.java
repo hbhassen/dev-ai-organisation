@@ -9,7 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
 
-/** Runs explicit argument lists with bounded output, deadlines and process-tree cancellation. Exigences : DEVAI-073, DEVAI-155. */
+/** Runs explicit workspace commands with bounded output, deadlines, process-tree cancellation and inherited project tool environment. Exigences : DEVAI-073, DEVAI-155, DEVAI-197. */
 public final class ProcessRunner implements AutoCloseable {
     private final Map<String, Running> processes = new ConcurrentHashMap<>();
     /** Holds only the metadata and bounded output of one owned process. Exigences : DEVAI-155. */
@@ -22,7 +22,7 @@ public final class ProcessRunner implements AutoCloseable {
         /** Associates an already started process with its observation state. Exigences : DEVAI-155. */
         private Running(Process process,Path directory) { this.process = process; this.directory=directory.toAbsolutePath().normalize(); }
     }
-    /** Starts an owned process; credentials are removed from inherited environment. Exigences : DEVAI-073, DEVAI-155. */
+    /** Starts an owned process, preserving installed tool paths and JAVA_HOME while removing inherited secrets. Exigences : DEVAI-073, DEVAI-155, DEVAI-197. */
     public String start(Path cwd, List<String> command, Duration timeout, Map<String,String> credentials) throws IOException {
         if (command.isEmpty() || command.size() > 64 || command.stream().anyMatch(s -> s.indexOf('\0') >= 0 || s.length() > 4096))
             throw new OdsException("INVALID_REQUEST", "Commande invalide");

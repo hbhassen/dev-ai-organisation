@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "organisation-mistral-openai",
+  "extension": {
+    "name": "organisation-development-standard",
+    "publisher": "ods-internal",
+    "displayName": "ORGANISATION DEVELOPMENT STANDARD"
+  },
+  "envFiles": [
+    "gateway.env.example"
+  ],
+  "environment": {
+    "ODS_MODEL_ALIAS": "mistral-approved"
+  },
+  "files": [
+    {
+      "source": "application-organisation.properties",
+      "target": "application-organisation.properties"
+    }
+  ]
+}

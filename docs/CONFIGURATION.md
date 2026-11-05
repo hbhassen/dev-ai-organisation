@@ -1,4 +1,4 @@
-# Configuration administrée au build — 0.5.0
+# Configuration administrée au build — 0.7.0
 
 Les corrections 0.3.1 ne changent pas le format du profil : conserver les URL et secrets administrés, reconstruire le VSIX puis recharger VS Code. Les erreurs de clé, quota et modèle sont maintenant distinguées d'une absence du runtime Vibe ; voir [Diagnostic](INSTALLATION.md#diagnostic-et-limites).
 
@@ -18,6 +18,8 @@ Les paramètres ci-dessous sont fournis par l’administrateur dans le profil de
 | `ODS_MISTRAL_MODEL` | Identifiant réel du modèle approuvé ; la politique IA doit autoriser le même modèle et alias. |
 | `ODS_MODEL_ALIAS` | Alias organisationnel contrôlé par la politique signée. |
 | `ODS_MISTRAL_API_KEY` | Clé utilisée en mode API et en mode Vibe avec `ODS_VIBE_AUTH=API_KEY`. |
+| `ODS_PROVIDER_REGISTRY` | JSON de fournisseurs génériques qualifiés ; seul le registre de déploiement autorise endpoints, hôtes, styles et références de credentials. |
+| `ODS_OPENAI_API_KEY` | Clé API OpenAI Platform distincte de Mistral ; référencée dans le profil privé et jamais ajoutée en clair à la configuration ou au dépôt. |
 | `ODS_VIBE_URL` | Base HTTPS du fournisseur Vibe, généralement `https://api.mistral.ai/v1`. Il ne s’agit pas d’un téléchargement de CLI. |
 | `ODS_VIBE_AUTH` | `API_KEY` ou `CLI_TOKEN`. |
 | `ODS_VIBE_TOKEN` | Credential Mistral accepté par le backend Vibe, fourni par l’organisation lorsque `CLI_TOKEN` est choisi. Un token de navigateur ou un cookie SSO arbitraire n’est pas assimilé à une clé Mistral. |
@@ -36,6 +38,39 @@ Les paramètres ci-dessous sont fournis par l’administrateur dans le profil de
 | `ODS_PROMPT_PUBLIC_KEY` | Clé publique de vérification du bundle de prompts organisationnels. |
 
 `application-organisation.properties`, déclaré dans `files`, contient les mappings `ods.sonar-project-<ID_GITLAB>=<CLE_SONAR>`. Il est copié dans `runtime/config` et chargé automatiquement. Le Graph Scan n’utilise plus `ods.jfrog-build-*` ni un numéro de build publié.
+
+## Profil de build Mistral et OpenAI
+
+Le profil `config/organisations/mistral-openai/organisation.json` est opt-in. Il active simultanément le transport Vibe Mistral et l’adaptateur OpenAI Chat Completions qualifié avec le runtime Vibe 3.0.3. Le profil par défaut `demo` reste Mistral uniquement.
+
+Le bridge ODS conserve le backend générique Vibe et adapte son corps HTTP : température omise, plafond envoyé dans `max_completion_tokens`, redirections désactivées. Pour les familles `gpt-6-luna` et `gpt-6-sol`, il fixe `reasoning_effort=none`, compatible avec les appels d’outils Chat Completions. Cette qualification ne s’étend pas automatiquement aux autres modèles. Références : [contrat Chat Completions](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create) et [GPT-6 Luna](https://developers.openai.com/api/docs/models/gpt-6-luna).
+
+Avant le build, fournir les références externes dans l'environnement du processus, sans les écrire dans les fichiers suivis par Git :
+
+```powershell
+$env:MISTRAL_API_KEY = '<CLE_MISTRAL>'
+$env:OPENAI_API_KEY = '<CLE_API_OPENAI_PLATFORM>'
+$env:MISTRAL_MODEL = '<MODELE_MISTRAL_APPROUVE>'
+python tools/build.py --task Package --organisation-profile config/organisations/mistral-openai/organisation.json
+```
+
+Le build échoue si une des trois variables référencées est absente. Le package privé contient la configuration résolue ; la valeur OpenAI est associée uniquement à `ODS_OPENAI_API_KEY`. `ODS_PROVIDER_REGISTRY` autorise `https://api.openai.com/v1`, l'hôte `api.openai.com`, le style `openai` et les capacités qualifiées génération, outils et usage. Le modèle exact vient de `models[]` dans la politique signée ; elle doit contenir `allowedProviders: ["MISTRAL", "OPENAI"]`, des alias/modèles exacts, et les droits IA applicables. Une configuration build seule ne donne aucun droit à un projet. Exemple de catalogue pour la politique (les IDs doivent être confirmés par l'organisation) :
+
+```json
+{
+  "allowedProviders": ["MISTRAL", "OPENAI"],
+  "models": [
+    {"alias": "mistral-approved", "provider": "MISTRAL", "model": "<MODELE_MISTRAL_APPROUVE>", "tools": true},
+    {"alias": "openai-approved", "provider": "OPENAI", "model": "<MODELE_OPENAI_APPROUVE>", "tools": true, "maxContextTokens": 32768, "maxOutputTokens": 4096}
+  ]
+}
+```
+
+Avant usage réel, l'organisation doit approuver les données transmises, les règles de conservation et l'offre OpenAI Platform utilisée. Les limites `maxContextTokens` et `maxOutputTokens` doivent être adaptées à chaque modèle exact et rester sous ses limites fournisseur. ODS estime l'entrée depuis les octets UTF-8 sérialisés, réserve la sortie et refuse si le budget dépasse le contexte ; le compteur exact retourné par le fournisseur sert ensuite à la réconciliation. Un compte ou abonnement ChatGPT n'est pas une clé API Platform. Les appels réels ne sont pas effectués pendant les tests automatisés. Toute clé collée dans un ticket ou une conversation doit être révoquée et remplacée.
+
+## JDK des composants ODS et du projet
+
+Le JDK 21 est requis pour compiler et exécuter le moteur et la gateway ODS. Pour les commandes dans le workspace utilisateur, l'extension utilise les outils visibles sur le `PATH` et hérite de `JAVA_HOME`. `ods.javaPath` ne fixe que le runtime ODS. Si le projet déclare `java.version=25`, l'agent vérifie `mvn -version` et exécute le Maven installé sans injecter `-Djava.version=21` ni modifier le POM à cause de DEVAI-005.
 
 Les valeurs `ODS_GATEWAY_PORT`, `ODS_BIND_ADDRESS`, `SPRING_PROFILES_ACTIVE` et `ODS_DATABASE_URL` du mode serveur séparé ne pilotent pas le lancement du VSIX : l’extension impose loopback, port dynamique, profil local et stockage H2 local par workspace. `ODS_LOCAL_TOKEN`, `ODS_WORKSPACE`, `ODS_REPOSITORY`, `ODS_EMBEDDED`, `ODS_RUNTIME_DIRECTORY` et `ODS_PYTHON_COMMAND` appartiennent au lancement natif et sont interdits dans un profil. Les anciennes variables OIDC et runner ne sont pas nécessaires au VSIX. PostgreSQL et le lancement manuel restent des capacités du serveur séparé historique.
 

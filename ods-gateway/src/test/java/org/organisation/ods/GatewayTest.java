@@ -11,7 +11,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Runs real Flyway migrations and HTTP security against an isolated H2 database. Exigences : DEVAI-003, DEVAI-076, DEVAI-121. */
+/** Runs real Flyway migrations and HTTP security against an isolated H2 database. Exigences : DEVAI-003, DEVAI-076, DEVAI-121, DEVAI-194. */
 @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT,properties={"spring.datasource.url=${ODS_TEST_DATABASE_URL:jdbc:h2:mem:gateway-test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1}","spring.datasource.username=${ODS_TEST_DATABASE_USER:sa}","spring.datasource.password=${ODS_TEST_DATABASE_PASSWORD:}","ods.oidc-issuer=","server.address=127.0.0.1","logging.level.root=WARN","logging.level.org.springframework=WARN","debug=false"})
 class GatewayTest {
     @Autowired Store store;
@@ -60,6 +60,19 @@ class GatewayTest {
         assertEquals(30,((Number)store.usage(project,"alice").get("subjectConsumed")).longValue());
         assertEquals(0,((Number)store.usage(project,"alice").get("subjectReserved")).longValue());
         assertEquals(80,((Number)store.usage(project,"bob").get("subjectReserved")).longValue());
+    }
+    /** Enforces provider-specific reservations and retains provider/model attribution after measured usage. Exigences : DEVAI-194. */
+    @Test void providerQuotaAndAttribution() {
+        long project=20004; String id=UUID.randomUUID().toString();
+        store.reserve(id,project,"alice","OPENAI","openai-code","gpt-synthetic",50,500,200,60);
+        assertEquals("QUOTA_EXCEEDED",assertThrows(OdsException.class,()->store.reserve(UUID.randomUUID().toString(),project,"alice","OPENAI","openai-code","gpt-synthetic",20,500,200,60)).code());
+        store.reserve(UUID.randomUUID().toString(),project,"alice","MISTRAL","mistral-code","synthetic-mistral",50,500,200,60);
+        store.reconcile(id,20,10);
+        @SuppressWarnings("unchecked") List<Map<String,Object>> providers=(List<Map<String,Object>>)store.usage(project,"alice").get("providers");
+        Map<String,Object> openai=providers.stream().filter(row->row.get("provider").equals("OPENAI")).findFirst().orElseThrow();
+        assertEquals(30,((Number)openai.get("consumed")).longValue()); assertEquals(0,((Number)openai.get("reserved")).longValue());
+        assertEquals("openai-code",database.queryForObject("SELECT model_alias FROM reservation WHERE id=?",String.class,id));
+        assertEquals("gpt-synthetic",database.queryForObject("SELECT model_id FROM reservation WHERE id=?",String.class,id));
     }
     /** Verifies encrypted storage, optimistic session revisions and identity binding of persisted checkpoints. Exigences : DEVAI-067, DEVAI-157. */
     @Test void encryptedCheckpoints() {

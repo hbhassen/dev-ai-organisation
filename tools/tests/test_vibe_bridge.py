@@ -17,6 +17,19 @@ SPEC.loader.exec_module(bridge)
 class VibeBridgeTest(unittest.TestCase):
     """Cover the real stdin entry point and Windows temporary-directory ownership. Exigences : DEVAI-170, DEVAI-177."""
 
+    def test_openai_payload_preserves_messages_and_output_budget(self):
+        """Normalize OpenAI output and reasoning fields without altering model, messages or tools. Exigences : DEVAI-193, DEVAI-198."""
+        source = {"model": "gpt-6-luna", "messages": [{"role": "user", "content": "synthetic"}], "tools": [], "temperature": None, "max_tokens": 128}
+        actual = json.loads(bridge.openai_payload(json.dumps(source)))
+        self.assertNotIn("temperature", actual)
+        self.assertNotIn("max_tokens", actual)
+        self.assertEqual(128, actual["max_completion_tokens"])
+        self.assertEqual("none", actual["reasoning_effort"])
+        for key in ("model", "messages", "tools"):
+            self.assertEqual(source[key], actual[key])
+        other = json.loads(bridge.openai_payload(json.dumps(source | {"model": "gpt-synthetic-approved"})))
+        self.assertNotIn("reasoning_effort", other)
+
     def invoke(self, error=None):
         """Replace only completion while retaining real cwd changes, temporary cleanup and JSON framing. Exigences : DEVAI-170, DEVAI-176."""
         original = Path.cwd()

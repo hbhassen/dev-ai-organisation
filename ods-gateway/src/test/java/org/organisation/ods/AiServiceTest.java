@@ -14,7 +14,7 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Qualifies the actual orchestration with isolated provider and GitLab contract doubles. Exigences : DEVAI-039, DEVAI-077, DEVAI-153. */
+/** Qualifies the actual orchestration with isolated provider and GitLab contract doubles. Exigences : DEVAI-039, DEVAI-077, DEVAI-153, DEVAI-190, DEVAI-194. */
 class AiServiceTest {
     /** Creates an authenticated test identity, never a production bypass configuration. Exigences : DEVAI-022. */
     private Jwt identity() { return Jwt.withTokenValue("test-token").header("alg","RS256").issuer("https://identity.example").subject("developer").issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(300)).claim("gitlab_user_id","7").build(); }
@@ -22,13 +22,14 @@ class AiServiceTest {
     private void awaitStatus(AtomicReference<String> status,String expected) throws Exception {
         long deadline=System.nanoTime()+Duration.ofSeconds(5).toNanos(); while(!expected.equals(status.get())&&System.nanoTime()<deadline) Thread.sleep(10); assertEquals(expected,status.get());
     }
-    /** Reads a tool result, resumes Question mode and proves an idempotent continuation invokes the model once. Exigences : DEVAI-063, DEVAI-077, DEVAI-151, DEVAI-153. */
+    /** Reads a tool result, resumes Question mode and proves provider-resolved, idempotent continuation invokes the model once. Exigences : DEVAI-063, DEVAI-077, DEVAI-151, DEVAI-153, DEVAI-190, DEVAI-191, DEVAI-194. */
     @Test void questionToolLoopAndIdempotence() throws Exception {
         PolicyService policy=mock(PolicyService.class); Store store=mock(Store.class); ModelProvider provider=mock(ModelProvider.class); GitLabClient gitlab=mock(GitLabClient.class);
         doCallRealMethod().when(provider).stream(anyList(),anyList(),anyInt(),any());
+        doCallRealMethod().when(provider).stream(any(ModelSelection.class),anyList(),anyList(),anyInt(),any());
         Settings settings=new Settings(new MockEnvironment()); Jwt jwt=identity(); String subject=PolicyService.subject(jwt);
-        var rule=Json.parse("{\"monthlyTokenQuota\":1000000,\"contextMode\":\"LOCAL_GOVERNED\",\"allowFreeText\":true,\"allowedAgents\":[]}");
-        when(policy.authorize(any(),eq(1042L),anyString(),anyString(),anyString())).thenReturn(rule); when(gitlab.stacks(1042,"delegated")).thenReturn(Set.of("JAVA"));
+        var rule=Json.parse("{\"monthlyTokenQuota\":1000000,\"contextMode\":\"LOCAL_GOVERNED\",\"allowFreeText\":true,\"allowedAgents\":[],\"modelAlias\":\"approved\"}");
+        when(policy.authorizeResolved(any(),eq(1042L),anyString(),anyString(),anyString())).thenReturn(new PolicyService.Authorization(rule,new ModelSelection("MISTRAL","approved-model","mistral","openai","https://api.mistral.ai","ODS_MISTRAL_API_KEY",true,true,true,false,true))); when(gitlab.stacks(1042,"delegated")).thenReturn(Set.of("JAVA"));
         when(store.createJob(anyString(),anyLong(),anyString(),anyString(),anyString())).thenReturn(Map.of("jobId","run-1")); when(store.claim("run-1")).thenReturn(true);
         AtomicReference<String> status=new AtomicReference<>("QUEUED"); when(store.job("run-1",subject)).thenAnswer(call->Map.of("jobId","run-1","status",status.get()));
         AtomicReference<com.fasterxml.jackson.databind.JsonNode> checkpoint=new AtomicReference<>(); java.util.concurrent.atomic.AtomicLong revision=new java.util.concurrent.atomic.AtomicLong();
@@ -45,7 +46,7 @@ class AiServiceTest {
         org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(()->assertDoesNotThrow(()->service.next("run-1",jwt,"delegated",Json.parse("{}"),"turn-key-1")));
         awaitStatus(status,"SUCCEEDED"); service.next("run-1",jwt,"delegated",Json.parse("{}"),"turn-key-1");
         verify(provider,times(2)).complete(anyList(),anyList(),eq(4000)); verify(policy,never()).authorize(any(),anyLong(),anyString(),eq("AGENT_RUN"),anyString());
-        verify(store,times(2)).reserve(anyString(),eq(1042L),eq(subject),anyLong(),eq(1000000L),eq(1000000L));
+        verify(store,times(2)).reserve(anyString(),eq(1042L),eq(subject),eq("MISTRAL"),eq("approved"),eq("approved-model"),anyLong(),eq(1000000L),eq(1000000L),anyLong());
     }
     /** Prevents a direct client from requesting an agent mode through the chat route. Exigences : DEVAI-039, DEVAI-151. */
     @Test void directModeBypassDenied() {
@@ -55,7 +56,7 @@ class AiServiceTest {
     /** Classifies a remediation by its governed task instead of trusting a weaker supplied action. Exigences : DEVAI-039, DEVAI-090. */
     @Test void remediationCannotTunnelThroughChat() {
         PolicyService policy=mock(PolicyService.class); ModelProvider provider=mock(ModelProvider.class);
-        when(policy.authorize(any(),anyLong(),anyString(),eq("SONAR_REMEDIATION"),anyString())).thenThrow(new OdsException("ACTION_DENIED","denied"));
+        when(policy.authorizeResolved(any(),anyLong(),anyString(),eq("SONAR_REMEDIATION"),anyString())).thenThrow(new OdsException("ACTION_DENIED","denied"));
         AiService service=new AiService(policy,mock(Store.class),provider,new Settings(new MockEnvironment()),mock(GitLabClient.class),new JobEvents());
         assertThrows(OdsException.class,()->service.start(identity(),"delegated",Json.parse("{\"projectId\":1,\"mode\":\"QUESTION\",\"task\":\"sonar-remediation\",\"action\":\"CHAT\",\"message\":\"fix\"}"),"request-1",false));
         verifyNoInteractions(provider);

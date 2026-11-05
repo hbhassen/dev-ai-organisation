@@ -1,8 +1,8 @@
 # Spécification bis — Fournisseurs IA supplémentaires via Vibe
 
-**Statut :** proposition d’évolution à appliquer après validation.  
-**Base :** `specification.md` et architecture du dépôt au 5 novembre 2026.  
-**Portée :** autoriser des modèles autres que Mistral dans ODS en utilisant le runtime Vibe embarqué.
+**Statut :** amendement intégré à `specification.md` (DEVAI-189 à DEVAI-198).
+**Base :** `specification.md` 1.7 et architecture du dépôt au 5 novembre 2026.
+**Portée :** providers IA via le runtime Vibe embarqué, et séparation des outils ODS et du JDK du projet utilisateur.
 
 Ce document complète la spécification actuelle et remplace uniquement les règles contradictoires indiquées ci-dessous. Toutes les autres exigences de `specification.md` restent applicables.
 
@@ -21,7 +21,7 @@ Les changements suivants remplacent les prescriptions plus restrictives de `spec
 - **§ 1 — Référentiel et décisions :** remplacer « les fournisseurs IA autres que Mistral restent interdits par défaut » par « tout fournisseur absent du registre administré et de la politique signée reste interdit ; Mistral seul reste activé par défaut ».
 - **DEVAI-064 — Modèle par alias administré :** retirer l’exclusivité permanente de `MISTRAL`. La gateway peut résoudre tout fournisseur et modèle préalablement qualifiés, configurés par l’organisation et autorisés dans la politique signée.
 - **DEVAI-170 — Mistral API ou Vibe :** conserver le transport Mistral existant et ajouter le routage Vibe générique vers les fournisseurs supplémentaires. Le client ne choisit ni endpoint, ni fournisseur libre, ni identifiant de modèle non approuvé.
-- **DEVAI-171 — Distribution Vibe contrôlée :** conserver l’isolation actuelle. Le backend Vibe générique reçoit uniquement la configuration administrée du fournisseur approuvé pour la requête.
+- **DEVAI-171 — Distribution Vibe contrôlée :** conserver l’isolation actuelle. Le backend Vibe générique reçoit uniquement la configuration administrée du fournisseur approuvé pour la requête. Le staging concurrent peut utiliser des liens physiques pour le cache Vibe immuable, avec copie normale en repli ; les deux modes doivent préserver les octets, les filtres de fichiers existants et le cache source.
 - **DEVAI-176 — Secrets et processus :** appliquer les mêmes règles à toutes les clés et tous les fournisseurs, et non uniquement à Mistral.
 
 L’architecture actuelle confirme le point de départ : `scripts/vibe_bridge.py` construit aujourd’hui un backend `mistral`, `VibeProvider` fournit une configuration et des credentials Mistral, et la validation de la politique impose actuellement `MISTRAL`. Le changement doit lever ces restrictions de façon explicite et vérifiable. Le contrat `ModelProvider` reste le point d’abstraction IA.
@@ -46,7 +46,7 @@ Les URLs proviennent exclusivement de la configuration administrée. La politiqu
 
 ### DEVAI-190 — Catalogue signé et autorisation par projet
 
-`allowedProviders` dans la politique signée devient une liste des fournisseurs autorisés, et non une liste obligatoirement égale à `["MISTRAL"]`. Chaque entrée `models[]` référence un fournisseur présent dans cette liste ainsi qu’un identifiant de modèle exact. Une règle de projet ne peut sélectionner que l’alias d’un modèle présent dans ce catalogue.
+`allowedProviders` dans la politique signée devient une liste des fournisseurs autorisés, et non une liste obligatoirement égale à `["MISTRAL"]`. Chaque entrée `models[]` référence un fournisseur présent dans cette liste ainsi qu’un identifiant de modèle exact. Chaque modèle non-Mistral déclare aussi `maxContextTokens` et `maxOutputTokens` positifs, bornés et cohérents ; une politique Mistral historique sans ces champs conserve ses limites compatibles. Une règle de projet ne peut sélectionner que l’alias d’un modèle présent dans ce catalogue.
 
 Exemple conceptuel de politique, à adapter au schéma strict existant :
 
@@ -55,7 +55,7 @@ Exemple conceptuel de politique, à adapter au schéma strict existant :
   "allowedProviders": ["MISTRAL", "OPENAI"],
   "models": [
     { "alias": "mistral-code", "provider": "MISTRAL", "model": "<MODELE_MISTRAL_APPROUVE>", "tools": true },
-    { "alias": "openai-code", "provider": "OPENAI", "model": "<ID_MODELE_OPENAI_APPROUVE>", "tools": true }
+    { "alias": "openai-code", "provider": "OPENAI", "model": "<ID_MODELE_OPENAI_APPROUVE>", "tools": true, "maxContextTokens": 32768, "maxOutputTokens": 4096 }
   ]
 }
 ```
@@ -84,7 +84,7 @@ Le changement d’alias est réévalué par la gateway à chaque requête. La r�
 
 ### DEVAI-193 — Capacités et contrat de génération
 
-Chaque modèle est activé uniquement pour les capacités effectivement vérifiées : taille de contexte, limite de sortie, outils typés, streaming, vision et usage retourné. Les capacités sont établies par le registre administré ; la réponse du modèle ne peut pas les augmenter. Si une action ODS nécessite une capacité absente, l’appel est refusé avec un état explicite ou l’action est désactivée par la politique.
+Chaque modèle est activé uniquement pour les capacités effectivement vérifiées : taille de contexte et limite de sortie exactes dans le catalogue signé, outils typés, streaming, vision et usage retourné dans le registre administré. L’estimation d’entrée conservatrice utilise la taille UTF-8 sérialisée et le framing des messages, réserve la sortie puis refuse avant appel si les limites dépassent le contexte déclaré. La sortie demandée est bornée par `maxOutputTokens`. L’estimation est indiquée comme telle ; les compteurs fournisseur restent la mesure de consommation. La réponse du modèle ne peut pas augmenter les capacités. Si une action ODS nécessite une capacité absente, l’appel est refusé avec un état explicite ou l’action est désactivée par la politique.
 
 La gateway normalise les réponses texte, appels d’outils, fins de tour, erreurs, annulation et compteurs d’usage vers les contrats ODS existants. Le streaming conserve les IDs d’événements, la reprise et un événement terminal. Si un adaptateur ou un modèle ne permet pas une capacité requise, il ne peut pas être déclaré compatible avec les parcours qui en dépendent.
 
@@ -118,13 +118,15 @@ Les recettes obligatoires sont :
 6. Les tests Windows et Linux couvrent le VSIX réellement assemblé, la version Vibe réellement incluse et ses licences. Une incompatibilité de l’adaptateur générique bloque la qualification ; elle ne déclenche pas un faux succès ni un autre modèle.
 7. Un smoke test contre un compte fournisseur réel est facultatif et n’est exécuté qu’avec un credential de test fourni et une autorisation explicite. S’il n’est pas réalisé, sa compatibilité réelle est rapportée **NON VÉRIFIABLE**.
 
-## 7. Plan d’implémentation
+## 7. Résultat d’implémentation attendu et limites qualifiées
 
-1. Qualifier le backend générique et les styles API dans la version Vibe exacte qui sera distribuée.
-2. Étendre les profils administrés et leur validation pour déclarer des fournisseurs et références de credentials.
-3. Faire évoluer la validation de politique signée pour accepter un ensemble administré de fournisseurs et vérifier chaque modèle.
-4. Faire évoluer le bridge Vibe pour instancier le backend générique sans charger la configuration Vibe utilisateur.
-5. Propager fournisseur, modèle, capacités, erreurs et usage dans la gateway, les quotas, l’audit et l’interface.
-6. Ajouter les tests avec doubles, les migrations de profils et de politiques, puis actualiser `specification.md`, la documentation d’exploitation, l’architecture, les exemples et le changelog après implémentation.
+L’implémentation cible `OPENAI` via le backend `generic` et l’API style `openai` qualifiés sur le runtime Vibe 3.0.3 empaqueté. L’API style Responses et le streaming fournisseur restent désactivés tant que leur contrat n’est pas couvert par le runtime réel. Les modèles OpenAI peuvent utiliser génération, outils et usage mesuré ; images ne sont pas activées. Mistral reste le seul provider du profil par défaut. Le registre optionnel, la politique signée, les quotas provider et le bridge isolé sont décrits dans DEVAI-189 à DEVAI-196. DEVAI-197 précise que Java 21 et `ods.javaPath` s’appliquent à ODS uniquement ; un projet configuré en Java 25 doit utiliser son Maven, JDK, wrapper et `JAVA_HOME` installés.
 
-Les étapes 1 à 5 constituent une modification de code distincte. Ce document spécifie le résultat attendu ; il ne signifie pas que le support OpenAI est déjà implémenté ou validé.
+La recette doit exécuter les tests Maven, le contrat HTTP simulé contre le runtime Vibe réellement empaqueté, les tests Python et le build de livraison avant que l’état du code soit déclaré validé. Aucun appel à un compte OpenAI réel n’est requis ; sans autorisation et credential de test séparés, ce smoke test reste **NON VÉRIFIABLE**.
+### DEVAI-198 — Smoke OpenAI réel sur le banc Docker
+
+Le corps HTTP produit par le backend générique Vibe 3.0.3 est adapté par le bridge ODS : retrait de `temperature`, remplacement de `max_tokens` par `max_completion_tokens`, et `reasoning_effort=none` pour les familles GPT-6 Luna/Sol qualifiées. Le client TLS refuse les redirections. Les fichiers de la distribution Vibe restent inchangés ; cette adaptation et les erreurs HTTP sont vérifiées sur le runtime empaqueté.
+
+Le banc Docker PEUT activer explicitement un test réel OpenAI au moyen de `provision.py --openai-smoke` et `native-smoke.cjs --real-openai`. L’option exige une clé API Platform renouvelée fournie par `OPENAI_API_KEY`, la place seulement dans le profil privé ignoré par Git et signe une politique temporaire qui autorise OpenAI pour le seul projet de démonstration autorisé. Le test passe par le client natif ODS, le gateway local, GitLab Docker et cette politique signée ; il envoie une seule instruction synthétique sans fichier source et sans outil, puis valide fournisseur, modèle et usage mesuré. Le modèle qualifié pour ce smoke est `gpt-6-luna` via Chat Completions. Le bridge omet les paramètres de température pour cet adaptateur OpenAI. Aucun test automatisé par défaut n’appelle un fournisseur réel ; le résultat ne doit contenir ni clé ni réponse complète. L’opérateur restaure ensuite le profil/politique Mistral avec la procédure normale du banc.
+
+**Recette :** sans option explicite, compteur d’appels réels égal à zéro ; avec option et credential, une requête OpenAI au plus, réponse attribuée à `OPENAI`/`gpt-6-luna` et compteurs fournisseur positifs ; sans credential, arrêt avant provisionnement et appel fournisseur.

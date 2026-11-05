@@ -21,17 +21,20 @@ public class GatewayController {
     /** Injects authorization services rather than accepting a client-computed permission flag. Exigences : DEVAI-003. */
     public GatewayController(Settings settings,PolicyService policies,AiService ai,GitLabClient gitlab,ScanService scans,Store store,org.organisation.ods.ai.JobEvents events,LocalAnalysisService local) { this.settings=settings; this.policies=policies; this.ai=ai; this.gitlab=gitlab; this.scans=scans; this.store=store; this.events=events; this.local=local; }
     /** Exposes process liveness without disclosing infrastructure or secrets. Exigences : DEVAI-129. */
-    @GetMapping("/health/live") public Map<String,Object> live() { return Map.of("status","UP","version","0.6.0"); }
+    @GetMapping("/health/live") public Map<String,Object> live() { return Map.of("status","UP","version","0.7.0"); }
     /** Clearly separates a running local gateway from configured AI readiness. Exigences : DEVAI-129. */
     @GetMapping("/health/ready") public ResponseEntity<?> ready() { boolean configured=(settings.get("embedded").equals("true")||!settings.get("oidc-issuer").isBlank())&&!settings.get("mistral-key").isBlank()&&!settings.get("governance-project-id").isBlank(); return ResponseEntity.status(configured?200:503).body(Map.of("status",configured?"CONFIGURED":"CONFIGURATION_REQUIRED","externalServicesVerified",false)); }
     /** Supplies public native-client OIDC metadata, never service credentials. Exigences : DEVAI-020. */
     @GetMapping("/api/v1/auth/config") public Map<String,Object> authConfig() { return Map.of("issuer",settings.get("oidc-issuer"),"clientId",settings.get("oidc-client-id"),"audience",settings.get("oidc-audience")); }
     /** Resolves a remote repository path on the configured GitLab and checks the developer's access. Exigences : DEVAI-025. */
     @GetMapping("/api/v1/projects/resolve") public Map<String,Object> project(@AuthenticationPrincipal Jwt jwt,@RequestHeader(value="X-ODS-GitLab-Token",required=false) String token,@RequestParam String path) { JsonNode p=gitlab.call("GET","projects/"+RemoteHttp.encode(path),gitlab.readToken(token),null); gitlab.authorize(jwt,p.path("id").asLong(),token); return Map.of("projectId",p.path("id").asLong(),"name",p.path("path_with_namespace").asText(),"gitlabInstance",settings.get("gitlab-url")); }
-    /** Reports effective project actions; provider selection remains Mistral-only. Exigences : DEVAI-026, DEVAI-033, DEVAI-064. */
+    /** Reports effective project actions and only the provider/model alias resolved from signed policy. Exigences : DEVAI-026, DEVAI-033, DEVAI-064, DEVAI-192. */
     @GetMapping("/api/v1/capabilities") public Map<String,Object> capabilities(@AuthenticationPrincipal Jwt jwt,@RequestHeader(value="X-ODS-GitLab-Token",required=false) String token,@RequestParam long projectId) {
         gitlab.authorize(jwt,projectId,token); JsonNode policy=policies.snapshot();
-        for(JsonNode rule:policy.path("projects")) if(rule.path("projectId").asLong()==projectId) return Map.of("projectId",projectId,"rule",Json.map(rule),"policyVersion",policy.path("policyVersion").asLong(),"validUntil",policy.path("expiresAt").asText(),"provider","MISTRAL","usage",store.usage(projectId,PolicyService.subject(jwt)));
+        for(JsonNode rule:policy.path("projects")) if(rule.path("projectId").asLong()==projectId) {
+            var model=policies.resolveModel(policy,rule);
+            return Map.of("projectId",projectId,"rule",Json.map(rule),"policyVersion",policy.path("policyVersion").asLong(),"validUntil",policy.path("expiresAt").asText(),"provider",model.providerId(),"modelAlias",Json.text(rule,"modelAlias"),"usage",store.usage(projectId,PolicyService.subject(jwt)));
+        }
         return Map.of("projectId",projectId,"aiEnabled",false,"reason","ACTION_DENIED","allowedActions",List.of());
     }
     /** Displays current mandatory instructions for authorized sessions. Exigences : DEVAI-166. */

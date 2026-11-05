@@ -1,5 +1,6 @@
 """Package the owned gateway and pinned Vibe distribution without modifying source configuration. Exigences : DEVAI-167, DEVAI-171, DEVAI-176."""
 import hashlib
+from concurrent.futures import ThreadPoolExecutor
 import importlib.metadata
 import json
 import os
@@ -11,6 +12,36 @@ import subprocess
 import sys
 
 VIBE_VERSION = "3.0.3"
+
+
+def link_or_copy(source, destination):
+    """Stage pinned runtime files as hard links when supported, with a byte-copy fallback. Exigences : DEVAI-171."""
+    if Path(source).is_symlink():
+        return shutil.copy2(source, destination)
+    try:
+        os.link(source, destination)
+    except OSError:
+        shutil.copy2(source, destination)
+
+
+def copy_pinned_tree(source, destination):
+    """Stage the pinned dependency tree concurrently while preserving copy filters and bytes. Exigences : DEVAI-171."""
+    pending = []
+    with ThreadPoolExecutor(max_workers=16) as workers:
+        def stage_file(original, staged):
+            """Bound concurrent file work and propagate every staging failure. Exigences : DEVAI-171."""
+            pending.append(workers.submit(link_or_copy, original, staged))
+            if len(pending) >= 256:
+                for operation in pending:
+                    operation.result()
+                pending.clear()
+            return staged
+
+        shutil.copytree(extended(source), destination,
+                        ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "bin", "Scripts"),
+                        copy_function=stage_file)
+        for operation in pending:
+            operation.result()
 
 
 def python_command():
@@ -64,7 +95,7 @@ def prepare(root, destination, gateway, environment, profile_id):
         if not metadata.is_file():
             command = python_command()
             subprocess.run([*command, "-m", "pip", "install", "--disable-pip-version-check", "--no-compile", "--no-warn-script-location", "--target", str(cache), f"mistral-vibe=={VIBE_VERSION}"], check=True)
-        shutil.copytree(cache, destination / "vibe", ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "bin", "Scripts"))
+        copy_pinned_tree(cache, destination / "vibe")
         (destination / "VIBE-VERSION").write_text(VIBE_VERSION + "\n", encoding="utf8")
     config = {"schemaVersion": 1, "profileId": profile_id, "environment": settings, "platform": target(), "pythonVersion": "3.12"}
     data = json.dumps(config, ensure_ascii=False, indent=2).encode("utf8")

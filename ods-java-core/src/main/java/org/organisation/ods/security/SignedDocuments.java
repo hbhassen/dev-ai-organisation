@@ -49,7 +49,7 @@ public final class SignedDocuments {
             return Json.parse(new String(bytes, java.nio.charset.StandardCharsets.UTF_8));
         } catch (Exception e) { throw new OdsException("POLICY_INVALID", "Signature ou document invalide"); }
     }
-    /** Validates policy structure, all project rules, validity interval and initial provider restriction. Exigences : DEVAI-030, DEVAI-064. */
+    /** Validates policy structure, all project rules and provider references without enabling undeployed providers. Exigences : DEVAI-030, DEVAI-064, DEVAI-190, DEVAI-196. */
     public static void policy(JsonNode policy, Instant now, String expectedInstance) {
         Json.fields(policy, Set.of("schemaVersion", "policyVersion", "issuedAt", "expiresAt", "gitlabInstance", "defaultEffect", "allowedProviders", "models", "projects"));
         if (policy.path("schemaVersion").asInt() != 1 || !policy.path("policyVersion").canConvertToLong() || policy.path("policyVersion").asLong() < 1
@@ -60,13 +60,30 @@ public final class SignedDocuments {
             if (!issued.isBefore(expires) || issued.isAfter(now.plusSeconds(60)) || expires.isAfter(issued.plusSeconds(86400))) throw new IllegalArgumentException();
             if (!now.isBefore(expires)) throw new OdsException("POLICY_EXPIRED", "Politique expirée");
         } catch (OdsException e) { throw e; } catch (Exception e) { throw new OdsException("POLICY_INVALID", "Dates de politique invalides"); }
-        if (!policy.path("allowedProviders").isArray() || policy.path("allowedProviders").size() != 1 || !policy.path("allowedProviders").get(0).asText().equals("MISTRAL"))
-            throw new OdsException("MODEL_NOT_ALLOWED", "Seul Mistral est autorisé");
+        if (!policy.path("allowedProviders").isArray() || policy.path("allowedProviders").isEmpty() || policy.path("allowedProviders").size()>8)
+            throw new OdsException("MODEL_NOT_ALLOWED", "Liste de fournisseurs autorisés invalide");
+        Set<String> providers=new HashSet<>();
+        for(JsonNode provider:policy.path("allowedProviders"))
+            if(!provider.isTextual()||!provider.asText().matches("[A-Z][A-Z0-9_-]{1,31}")||!providers.add(provider.asText()))
+                throw new OdsException("MODEL_NOT_ALLOWED", "Fournisseur autorisé invalide ou dupliqué");
         if(!policy.path("models").isArray()||policy.path("models").isEmpty()) throw new OdsException("POLICY_INVALID","Catalogue de modèles signés requis");
-        Set<String> aliases=new HashSet<>();
+        Set<String> aliases=new HashSet<>(); Map<String,Long> providerQuotas=new HashMap<>(); Set<String> providersWithoutQuota=new HashSet<>();
         for(JsonNode model:policy.path("models")) {
-            Json.fields(model,Set.of("alias","provider","model","tools"));
-            if(!aliases.add(Json.text(model,"alias"))||!model.path("provider").asText().equals("MISTRAL")||!model.path("tools").isBoolean()||!Json.text(model,"model").matches("[a-zA-Z0-9._:-]{1,128}")) throw new OdsException("MODEL_NOT_ALLOWED","Modèle signé invalide ou fournisseur interdit");
+            Json.fields(model,Set.of("alias","provider","model","tools","monthlyProviderTokenQuota","maxContextTokens","maxOutputTokens"));
+            String alias=Json.text(model,"alias"),provider=Json.text(model,"provider");
+            if(model.has("monthlyProviderTokenQuota")&&(!model.path("monthlyProviderTokenQuota").canConvertToLong()||model.path("monthlyProviderTokenQuota").asLong()<0)) throw new OdsException("POLICY_INVALID","Quota fournisseur invalide");
+            boolean hasContext=model.has("maxContextTokens"),hasOutput=model.has("maxOutputTokens");
+            if(hasContext!=hasOutput||(!provider.equals("MISTRAL")&&!hasContext)) throw new OdsException("POLICY_INVALID","Limites de contexte et de sortie requises pour ce fournisseur");
+            if(hasContext&&(!model.path("maxContextTokens").canConvertToLong()||!model.path("maxOutputTokens").canConvertToLong()
+                    ||model.path("maxContextTokens").asLong()<2||model.path("maxContextTokens").asLong()>1_000_000
+                    ||model.path("maxOutputTokens").asLong()<1||model.path("maxOutputTokens").asLong()>65_536
+                    ||model.path("maxOutputTokens").asLong()>=model.path("maxContextTokens").asLong())) throw new OdsException("POLICY_INVALID","Limites de contexte ou de sortie invalides");
+            if(model.has("monthlyProviderTokenQuota")) {
+                if(providersWithoutQuota.contains(provider)||providerQuotas.containsKey(provider)&&providerQuotas.get(provider)!=model.path("monthlyProviderTokenQuota").asLong()) throw new OdsException("POLICY_INVALID","Quota fournisseur incohérent entre modèles");
+                providerQuotas.put(provider,model.path("monthlyProviderTokenQuota").asLong());
+            } else if(providerQuotas.containsKey(provider)) throw new OdsException("POLICY_INVALID","Quota fournisseur absent sur un modèle du même fournisseur");
+            else providersWithoutQuota.add(provider);
+            if(!alias.matches("[a-zA-Z0-9._-]{1,64}")||!aliases.add(alias)||!providers.contains(provider)||!model.path("tools").isBoolean()||!Json.text(model,"model").matches("[a-zA-Z0-9._:-]{1,128}")) throw new OdsException("MODEL_NOT_ALLOWED","Modèle signé invalide ou fournisseur interdit");
         }
         if (!policy.path("projects").isArray()) throw new OdsException("POLICY_INVALID", "Liste de projets requise");
         Set<Long> ids = new HashSet<>();

@@ -6,6 +6,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { EventEmitter } = require('node:events');
+const { PassThrough } = require('node:stream');
 
 /** Loads the real gate with a minimal native trust surface and no workstation authentication. Exigences : DEVAI-169, DEVAI-177. */
 function managed(api, moduleName = 'managed') {
@@ -60,6 +62,40 @@ test('DEVAI-168: closing during native secret access prevents a late gateway pro
     assert.equal(runtime.child, undefined);
     await assert.rejects(runtime.start(), /arrêtée/);
   } finally {
+    assert.ok(fs.realpathSync(directory).startsWith(fs.realpathSync(os.tmpdir()) + path.sep));
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('DEVAI-197: ODS runtime Java and workspace Maven JAVA_HOME remain independent', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'ods-java-scope-'));
+  fs.mkdirSync(path.join(directory, 'runtime'));
+  fs.writeFileSync(path.join(directory, 'runtime/ods-gateway.jar'), 'synthetic');
+  fs.writeFileSync(path.join(directory, 'runtime/ods-gateway.jar.sha256'), crypto.createHash('sha256').update('synthetic').digest('hex'));
+  const originalSpawn = processes.spawn, priorJavaHome = process.env.JAVA_HOME;
+  const priorPath = process.env.PATH, isolatedJavaHome = 'C:\\synthetic-jdk-25';
+  let launched;
+  process.env.JAVA_HOME = isolatedJavaHome;
+  try {
+    processes.spawn = (executable, _args, options) => {
+      launched = { executable, env: options.env };
+      const child = new EventEmitter(); child.stdout = new PassThrough(); child.stderr = new PassThrough(); child.stdin = new PassThrough(); child.exitCode = 0;
+      child.kill = () => {}; child.pid = 1;
+      queueMicrotask(() => child.stdout.write('ODS_READY:32123\n'));
+      return child;
+    };
+    const api = { workspace: { getConfiguration: () => ({ get: () => 'C:\\ods-jdk-21\\bin\\java' }) } };
+    const { ManagedGateway } = managed(api);
+    const runtime = new ManagedGateway({ extensionPath: directory, globalStorageUri: { fsPath: directory }, secrets: { get: async () => 'synthetic' } }, { profileId: 'test', environment: {} }, { uri: { toString: () => 'file:///synthetic', fsPath: directory } }, 'team/project');
+    await runtime.start();
+    assert.equal(launched.executable, 'C:\\ods-jdk-21\\bin\\java');
+    assert.equal(launched.env.JAVA_HOME, isolatedJavaHome);
+    assert.equal(launched.env.PATH, priorPath);
+    runtime.dispose();
+  } finally {
+    processes.spawn = originalSpawn;
+    if (priorJavaHome === undefined) delete process.env.JAVA_HOME; else process.env.JAVA_HOME = priorJavaHome;
+    if (priorPath === undefined) delete process.env.PATH; else process.env.PATH = priorPath;
     assert.ok(fs.realpathSync(directory).startsWith(fs.realpathSync(os.tmpdir()) + path.sep));
     fs.rmSync(directory, { recursive: true, force: true });
   }

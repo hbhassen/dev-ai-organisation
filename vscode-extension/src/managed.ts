@@ -81,7 +81,7 @@ export class GitAccess {
   }
 }
 
-/** Owns the packaged gateway, its private launch token and lifetime. Exigences : DEVAI-168, DEVAI-176. */
+/** Owns the packaged gateway, its private launch token and lifetime while preserving the workspace build JDK. Exigences : DEVAI-168, DEVAI-176, DEVAI-197. */
 export class ManagedGateway implements vscode.Disposable {
   private child?: ChildProcessWithoutNullStreams;
   private starting?: Promise<void>;
@@ -102,7 +102,7 @@ export class ManagedGateway implements vscode.Disposable {
     this.starting = this.launch().finally(() => { this.starting = undefined; });
     return this.starting;
   }
-  /** Creates an isolated launch environment and consumes only the bounded readiness signal. Exigences : DEVAI-168, DEVAI-176. */
+  /** Creates an isolated service environment while carrying installed PATH/JAVA_HOME to workspace build tools. Exigences : DEVAI-168, DEVAI-176, DEVAI-197. */
   private async launch(): Promise<void> {
     const runtime = join(this.context.extensionPath, 'runtime'), jar = join(runtime, 'ods-gateway.jar');
     const expected = readFileSync(jar + '.sha256', 'utf8').trim();
@@ -114,7 +114,7 @@ export class ManagedGateway implements vscode.Disposable {
     if (this.disposed) throw new Error('Démarrage de la gateway annulé');
     this.credential = randomBytes(32).toString('hex');
     const env: NodeJS.ProcessEnv = {};
-    for (const key of ['PATH', 'Path', 'SystemRoot', 'SYSTEMROOT', 'WINDIR', 'TEMP', 'TMP', 'HOME', 'USERPROFILE', 'LANG']) if (process.env[key]) env[key] = process.env[key];
+    for (const key of ['PATH', 'Path', 'JAVA_HOME', 'SystemRoot', 'SYSTEMROOT', 'WINDIR', 'TEMP', 'TMP', 'HOME', 'USERPROFILE', 'LANG']) if (process.env[key]) env[key] = process.env[key];
     Object.assign(env, this.config.environment, { ODS_EMBEDDED: 'true', ODS_LOCAL_TOKEN: this.credential, ODS_BIND_ADDRESS: '127.0.0.1', ODS_GATEWAY_PORT: '0', ODS_RUNTIME_DIRECTORY: runtime, ODS_WORKSPACE: this.root.uri.fsPath, ODS_REPOSITORY: this.repository, ODS_DATA_KEY_BASE64: dataKey, ODS_DATABASE_URL: 'jdbc:h2:file:./gateway;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE', SPRING_PROFILES_ACTIVE: 'local', SPRING_CONFIG_ADDITIONAL_LOCATION: 'optional:' + pathToFileURL(join(runtime, 'config', 'application-organisation.properties')).href });
     env.ODS_PYTHON_COMMAND = process.platform === 'win32' ? 'py' : 'python3.12';
     const java = vscode.workspace.getConfiguration('ods').get<string>('javaPath', 'java');

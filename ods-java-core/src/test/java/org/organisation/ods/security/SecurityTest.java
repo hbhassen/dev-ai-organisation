@@ -55,12 +55,17 @@ class SecurityTest {
             assertEquals(1042,SignedDocuments.allow(granted,1042,action).path("projectId").asInt());
         }
     }
-    /** Rejects a different GitLab instance and a non-Mistral provider. Exigences : DEVAI-030, DEVAI-064. */
+    /** Rejects a different GitLab instance and validates provider membership separately from deployment availability. Exigences : DEVAI-030, DEVAI-064, DEVAI-190. */
     @Test void providerAndInstanceBoundaries() {
         Instant now=Instant.parse("2026-01-01T12:00:00Z");
         assertThrows(OdsException.class,()->SignedDocuments.policy(Json.parse(policy()),now,"https://another.example"));
-        assertThrows(OdsException.class,()->SignedDocuments.policy(Json.parse(policy().replace("MISTRAL","OTHER")),now,"https://gitlab.example"));
+        String openAiPolicy=policy().replace("MISTRAL","OPENAI").replace("\"tools\":true","\"tools\":true,\"maxContextTokens\":32768,\"maxOutputTokens\":4096");
+        assertDoesNotThrow(()->SignedDocuments.policy(Json.parse(openAiPolicy),now,"https://gitlab.example"));
+        assertThrows(OdsException.class,()->SignedDocuments.policy(Json.parse(policy().replace("[\"MISTRAL\"]","[\"MISTRAL\",\"MISTRAL\"]")),now,"https://gitlab.example"));
+        assertThrows(OdsException.class,()->SignedDocuments.policy(Json.parse(policy().replace("\"provider\":\"MISTRAL\"","\"provider\":\"OPENAI\"")),now,"https://gitlab.example"));
         assertThrows(OdsException.class,()->SignedDocuments.policy(Json.parse(policy().replace("\"modelAlias\":\"approved\"","\"modelAlias\":\"unapproved\"")),now,"https://gitlab.example"));
+        assertThrows(OdsException.class,()->SignedDocuments.policy(Json.parse(policy().replace("MISTRAL","OPENAI")),now,"https://gitlab.example"));
+        assertThrows(OdsException.class,()->SignedDocuments.policy(Json.parse(openAiPolicy.replace("\"maxOutputTokens\":4096","\"maxOutputTokens\":32768")),now,"https://gitlab.example"));
     }
     /** Accepts optional signed mappings and rejects malformed keys before any fallback can be used. Exigences : DEVAI-188. */
     @Test void sonarMappingSchema() {

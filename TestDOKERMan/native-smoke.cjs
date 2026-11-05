@@ -1,5 +1,5 @@
-/* Exercise the exact compiled native frontend clients against the real local gateway.
- * No AI generation endpoint is called. VS Code storage/configuration is the only stub. */
+/* Exercise compiled native frontend clients against the real local gateway.
+ * AI generation stays off unless --real-openai explicitly requests one synthetic OpenAI call. Exigences : DEVAI-167, DEVAI-168, DEVAI-177, DEVAI-198. */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -9,6 +9,7 @@ const { randomUUID } = require('node:crypto');
 const root = __dirname;
 const local = path.join(root, '.local');
 const state = JSON.parse(fs.readFileSync(path.join(local, 'state.json')));
+const realOpenAi = process.argv.includes('--real-openai');
 const extensionPath = path.resolve(process.argv[2]);
 const java = path.join(local, 'jdk/bin/java.exe');
 const original = Module._load;
@@ -34,7 +35,7 @@ async function waitJob(client, job) {
 }
 
 async function main() {
-  const evidence = {model: state.model, mistralGenerationCalls: 0, checks: [], failures: []};
+  const evidence = {model: realOpenAi ? state.openaiModel : state.model, realOpenAiRequests: 0, checks: [], failures: []};
   async function probe(label, operation) {
     try { const result = await operation(); evidence.checks.push(label); console.log('PASS: ' + label); return result; }
     catch (error) { evidence.failures.push({check: label, error: error.message}); console.error('FAIL: ' + label + ': ' + error.message); }
@@ -64,6 +65,27 @@ async function main() {
       assert.ok([401, 403].includes(anonymous.status));
       evidence.checks.push(name + ': anonymous gateway access rejected');
       if (name === 'demo-allowed') {
+        if (realOpenAi) {
+          await probe('one real OpenAI generation through the Docker-backed signed-policy gateway', async () => {
+            assert.equal(caps.provider, 'OPENAI');
+            assert.equal(caps.modelAlias, 'openai-docker-smoke');
+            const started = await client.request('/api/v1/ai/chat', 'POST', {projectId: project.projectId,
+              mode: 'QUESTION', task: 'code-generation', message: 'Reply with exactly ODS_OPENAI_DOCKER_OK and no other text.',
+              context: [], stacks: ['JAVA']});
+            evidence.realOpenAiRequests++;
+            const result = await waitJob(client, started);
+            assert.equal(result.result.provider, 'OPENAI');
+            assert.equal(result.result.model, state.openaiModel);
+            const answer = result.result.message && result.result.message.content;
+            assert.equal(typeof answer, 'string');
+            assert.ok(answer.includes('ODS_OPENAI_DOCKER_OK'));
+            assert.ok(result.result.usage.prompt_tokens > 0);
+            assert.ok(result.result.usage.completion_tokens > 0);
+            evidence.realOpenAi = {provider: result.result.provider, model: result.result.model,
+              promptTokens: result.result.usage.prompt_tokens, completionTokens: result.result.usage.completion_tokens,
+              responseCharacters: answer.length};
+          });
+        }
         await probe('workspace fingerprint HTTP response contract', async () => {
           const fingerprint = await client.request('/api/v1/workspace/fingerprint?projectId=' + project.projectId);
           assert.equal(typeof fingerprint.fingerprint, 'string', 'Fingerprint API response: ' + JSON.stringify(fingerprint));

@@ -34,7 +34,7 @@ class PolicyMappingTest {
         KeyPair keys=KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
         GitLabClient git=mock(GitLabClient.class); Store store=mock(Store.class);
         Settings settings=new Settings(new MockEnvironment().withProperty("ods.governance-project-id","99").withProperty("ods.governance-ref","main").withProperty("ods.governance-token","synthetic").withProperty("ods.policy-key",Base64.getEncoder().encodeToString(keys.getPublic().getEncoded())).withProperty("ods.gitlab-url","https://gitlab.invalid").withProperty("ods.sonar-project-1","legacy-one").withProperty("ods.sonar-project-3","legacy-three"));
-        PolicyService service=new PolicyService(settings,git,store);
+        PolicyService service=new PolicyService(settings,git,store,new org.organisation.ods.ai.ManagedProviderRegistry(settings));
         Map<String,Object> first=Map.of("projectId",1,"aiEnabled",false,"allowedActions",List.of(),"monthlyTokenQuota",0);
         publish(git,keys,policy(1,List.of(first)));
         assertEquals("legacy-one",service.sonarProjectKey(1));

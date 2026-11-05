@@ -39,6 +39,8 @@ ods:
   mistral-key: ${ODS_MISTRAL_API_KEY:}
   mistral-model: ${ODS_MISTRAL_MODEL:CHANGE_ME_APPROVED_MISTRAL_MODEL}
   model-alias: ${ODS_MODEL_ALIAS:mistral-coding-approved}
+  provider-registry: ${ODS_PROVIDER_REGISTRY:}
+  openai-api-key: ${ODS_OPENAI_API_KEY:}
   prompt-directory: ${ODS_PROMPT_DIRECTORY:}
   prompt-key: ${ODS_PROMPT_PUBLIC_KEY:}
   sonar-url: ${ODS_SONAR_URL:https://sonar.organisation.example}

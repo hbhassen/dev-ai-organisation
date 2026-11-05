@@ -1,6 +1,6 @@
-# Matrice de réalisation — 181 exigences
+# Matrice de réalisation — 198 exigences
 
-Version applicative **0.3.0**, état du 29 octobre 2026. Ce document ne prononce pas une conformité complète.
+Version applicative **0.7.0**, état du 5 novembre 2026. Ce document ne prononce pas une conformité complète.
 
 - **I** : mécanisme implémenté ; la présence de code ne vaut pas recette exhaustive.
 - **P** : couverture partielle ou vérification incomplète, avec travail restant indiqué.
@@ -198,6 +198,28 @@ La version 0.2.1 corrige la compatibilité d'installation VS Code et conserve le
 | DEVAI-179 — Envoi effectif depuis IA | I | Code et tests par doubles ; preuves et limites dans [VALIDATION](VALIDATION.md). |
 | DEVAI-180 — Changelog via LLM | I | Création/mise à jour ciblée, permissions et diff ; tests dans VALIDATION. |
 | DEVAI-181 — Release notes via LLM | I | Brouillon local, conservation de l’historique, aucune publication automatique. |
+
+## Évolution 0.7.0
+
+| Exigence | État | Couverture / limite | Points de traçabilité |
+|---|---|---|---|
+| DEVAI-182 — Correction automatique validée | I | Branche dédiée, checkpoints, build/tests et nouveau scan avant ouverture du diff. | [correction.ts](../vscode-extension/src/correction.ts) ; [AiService.java](../ods-gateway/src/main/java/org/organisation/ods/ai/AiService.java) |
+| DEVAI-183 — Augmentation de couverture mesurée | I | Objectif et mesures Sonar repris après chaque tentative ; validation dépend des outils projet. | [correction.ts](../vscode-extension/src/correction.ts) ; [LocalAnalysisService.java](../ods-gateway/src/main/java/org/organisation/ods/integration/LocalAnalysisService.java) |
+| DEVAI-184 — Rapport de correction et PDF | I | États et preuves distingués ; export local masquant chemins et secrets. | [correctionPdf.ts](../vscode-extension/src/correctionPdf.ts) ; [correction.ts](../vscode-extension/src/correction.ts) |
+| DEVAI-185 — Plafond de tentatives | I | Nombre configurable de 1 à 100, mémorisé dans le workspace. | [view.ts](../vscode-extension/src/view.ts) ; [correction.ts](../vscode-extension/src/correction.ts) |
+| DEVAI-186 — Pré-revue de Merge Request | I | Revue structurée par fichier et contrôles de fraîcheur avant publication. | [mrReview.ts](../vscode-extension/src/mrReview.ts) ; [GitLabClient.java](../ods-gateway/src/main/java/org/organisation/ods/integration/GitLabClient.java) |
+| DEVAI-187 — Intégrité UTF-8 des propositions | I | JSON-RPC Java explicite en UTF-8 ; empreintes de propositions préservées. | [EngineMain.java](../ods-java-core/src/main/java/org/organisation/ods/runtime/EngineMain.java) ; [WorkspaceTest.java](../ods-java-core/src/test/java/org/organisation/ods/runtime/WorkspaceTest.java) |
+| DEVAI-188 — Mapping Sonar dynamique | I | Mapping signé prioritaire sur properties ; politique invalide reste bloquante. | [PolicyService.java](../ods-gateway/src/main/java/org/organisation/ods/policy/PolicyService.java) ; [PolicyMappingTest.java](../ods-gateway/src/test/java/org/organisation/ods/PolicyMappingTest.java) |
+| DEVAI-189 — Registre administré multi-fournisseurs | P | OpenAI Chat Completions implémenté pour Vibe 3.0.3 ; contrat du runtime empaqueté à terminer, autres styles refusés. | [ManagedProviderRegistry.java](../ods-gateway/src/main/java/org/organisation/ods/ai/ManagedProviderRegistry.java) ; [profil](../config/organisations/mistral-openai/organisation.json) |
+| DEVAI-190 — Politique signée multi-fournisseurs | I | Autorisation cumulée policy/registre et modèles exacts ; tests Java de signature et de refus exécutés. | [SignedDocuments.java](../ods-java-core/src/main/java/org/organisation/ods/security/SignedDocuments.java) ; [PolicyService.java](../ods-gateway/src/main/java/org/organisation/ods/policy/PolicyService.java) |
+| DEVAI-191 — Bridge Vibe isolé | P | Credential envoyé sur stdin privé et configuration Vibe temporaire ; tests HTTP simulés à exécuter. | [VibeProvider.java](../ods-gateway/src/main/java/org/organisation/ods/ai/VibeProvider.java) ; [vibe_bridge.py](../scripts/vibe_bridge.py) |
+| DEVAI-192 — Alias et révocation | P | Alias résolu sur la politique courante ; aucune sélection libre ou fallback. | [AiService.java](../ods-gateway/src/main/java/org/organisation/ods/ai/AiService.java) ; [PolicyService.java](../ods-gateway/src/main/java/org/organisation/ods/policy/PolicyService.java) |
+| DEVAI-193 — Capabilités vérifiées | P | Plafonds de contexte/sortie du modèle signé et outils contrôlés ; streaming/images non qualifiés OpenAI. | [ModelSelection.java](../ods-gateway/src/main/java/org/organisation/ods/ai/ModelSelection.java) ; [ModelBudget.java](../ods-gateway/src/main/java/org/organisation/ods/ai/ModelBudget.java) |
+| DEVAI-194 — Quotas et attribution par fournisseur | P | Estimation conservatrice, quotas atomiques, consommation et attribution testés sous H2 ; qualification PostgreSQL par CI à terminer. | [Store.java](../ods-gateway/src/main/java/org/organisation/ods/data/Store.java) ; [V5 migration](../ods-gateway/src/main/resources/db/migration/V5__provider_quotas.sql) |
+| DEVAI-195 — Confidentialité par fournisseur | P | Clé OpenAI distincte ; qualification réelle des données/rétention reste à la charge de l'organisation. | [profil dual](../config/organisations/mistral-openai/gateway.env.example) ; [CONFIGURATION](CONFIGURATION.md) |
+| DEVAI-196 — Compatibilité et migration | P | Mistral conservé ; tests de contrat à exécuter ; compte réel OpenAI non qualifié. | [Vibe contract](../tools/vibe_contract.py) ; [VALIDATION](VALIDATION.md) |
+| DEVAI-197 — Outils de build du workspace | P | Séparation des environnements ODS/workspace et fixture JDK 25 testées ; build réel d’un projet utilisateur sous JDK 25 non exécuté. | [ProcessRunner.java](../ods-java-core/src/main/java/org/organisation/ods/runtime/ProcessRunner.java) ; [managed.ts](../vscode-extension/src/managed.ts) |
+| DEVAI-198 — Smoke OpenAI réel sur Docker | P | Parcours opt-in avec clé privée, politique GitLab signée, prompt synthétique et outils désactivés ; exécution live à consigner. | [provision.py](../TestDOKERMan/provision.py) ; [native-smoke.cjs](../TestDOKERMan/native-smoke.cjs) ; [vibe_bridge.py](../scripts/vibe_bridge.py) |
 
 
 Le contrôle syntaxique des commentaires Java, TypeScript et Python vérifie les références connues. La revue de responsabilités de cette évolution porte sur la configuration, le contrôle Git, les processus, les transports et les analyses. Elle ne convertit pas les écarts historiques P en conformité acquise. Le code tiers conserve sa documentation originale.

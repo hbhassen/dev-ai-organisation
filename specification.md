@@ -1,18 +1,18 @@
 # Spécification complète — Organisation Development Standard (ODS)
 
-**Version documentaire : 1.4 — 29 octobre 2026 ; version produit cible : 0.3.0.**
+**Version documentaire : 1.7 — 5 novembre 2026 ; version produit : 0.7.0.**
 
 ## 1. Référentiel et décisions
 
 Ce référentiel remplace la conception 1.2 pour les parcours modifiés par la demande utilisateur du 29 octobre 2026. Le PDF `Organisation_Development_Standard_Architecture_avec_Interface.pdf` et le prompt d’implémentation doivent rester cohérents avec ces exigences. Les recettes décrivent les résultats attendus ; les résultats réellement exécutés sont consignés dans `docs/VALIDATION.md`.
 
-Le produit vise VS Code Desktop Windows et Linux, minimum 1.95.0 (dont 1.95.2), Java 21, Maven, TypeScript et Python 3.12 pour le runtime Vibe et les scanners locaux. Les cinq vues Starter, IA, Quality, Security et GitFlow sont conservées. Les fournisseurs IA autres que Mistral restent interdits par défaut.
+Le produit vise VS Code Desktop Windows et Linux, minimum 1.95.0 (dont 1.95.2), Java 21 pour les composants ODS, Maven, TypeScript et Python 3.12 pour le runtime Vibe et les scanners locaux. Les cinq vues Starter, IA, Quality, Security et GitFlow sont conservées. Mistral reste le fournisseur activé par défaut ; un fournisseur supplémentaire exige sa présence dans le registre administré et dans la politique signée.
 
 Le VSIX est autonome vis-à-vis de l’arborescence source et contient le gateway, Vibe et sa configuration administrée. Les runtimes Java/Python et les outils des stacks restent des prérequis du poste. Le mode distribué ne comporte aucune connexion SSO. Un accès Git réel avec les credentials existants du développeur conditionne la connexion au gateway. Les credentials de service sont intégrés au build, en lecture seule dans le parcours utilisateur et masqués dans les logs. **Le propriétaire du poste peut les extraire ; cette limite est explicitement acceptée.**
 
 Les scans portent sur les sources enregistrées et ne nécessitent pas de commit. Les résultats et remédiations sont rattachés à une empreinte locale. La gouvernance signée continue de distinguer les droits IA par projet ; les scans non-IA restent disponibles indépendamment de ces droits. Les destinations et secrets réels doivent être fournis par l’organisation et ne sont jamais inventés ou récupérés sur le poste pour les tests.
 
-Les exigences DEVAI-001 à DEVAI-166 sont conservées avec leurs identifiants ; les sections modifiées remplacent leur prescription antérieure. DEVAI-167 à DEVAI-181 détaillent le mode autonome. Les configurations du serveur séparé historique ne sont pas un prérequis du VSIX. L’intégrité locale détecte une corruption accidentelle, sans garantir l’inviolabilité du poste.
+Les exigences DEVAI-001 à DEVAI-188 sont conservées avec leurs identifiants ; les sections modifiées remplacent leur prescription antérieure. DEVAI-167 à DEVAI-181 détaillent le mode autonome. DEVAI-189 à DEVAI-196 étendent les fournisseurs IA via Vibe ; DEVAI-197 sépare les outils de build ODS de ceux du workspace utilisateur. Les configurations du serveur séparé historique ne sont pas un prérequis du VSIX. L'intégrité locale détecte une corruption accidentelle, sans garantir l'inviolabilité du poste.
 
 ## 2. Cadrage et architecture — DEVAI-001 à DEVAI-012
 
@@ -65,7 +65,7 @@ sequenceDiagram
 
 **Origine historique (PDF 1.0) :** PDF p. 11 ; Utilisateur. **Responsable :** build Java.
 
-Le moteur et la gateway DOIVENT cibler Java 21 et être construits par Maven. Le dépôt DOIT fournir `pom.xml`, `mvnw`, `mvnw.cmd` et les métadonnées du wrapper avec version et empreinte de distribution. Spring Boot 4.x est la famille cible de la gateway ; la version exacte compatible est choisie, documentée et figée à l'implémentation. Gradle n'est pas proposé pour un nouveau starter Java. Un projet existant Gradle peut être détecté sans conversion silencieuse ni promesse de prise en charge non qualifiée.
+Le moteur et la gateway ODS DOIVENT cibler Java 21 et être construits par Maven. Cette exigence s'applique au code et aux processus de build d'ODS, jamais par héritage à un projet ouvert par l'utilisateur. Pour un workspace existant, son `pom.xml`, ses fichiers Maven Toolchains, son wrapper et son environnement de build déterminent le JDK requis ; l'agent ne doit pas imposer Java 21, modifier `java.version` ou injecter `-Djava.version=21` / `-Dmaven.compiler.release=21` afin de satisfaire l'exigence ODS. Le dépôt ODS DOIT fournir `pom.xml`, `mvnw`, `mvnw.cmd` et les métadonnées du wrapper avec version et empreinte de distribution. Spring Boot 4.x est la famille cible de la gateway ; la version exacte compatible est choisie, documentée et figée à l'implémentation. Gradle n'est pas proposé pour un nouveau starter Java. Un projet existant Gradle peut être détecté sans conversion silencieuse ni promesse de prise en charge non qualifiée.
 
 **Recette :** un checkout propre compile et teste les modules Java avec le wrapper en Windows et Linux ; aucun module Java ne dépend d'un build Gradle.
 
@@ -73,7 +73,7 @@ Le moteur et la gateway DOIVENT cibler Java 21 et être construits par Maven. Le
 
 **Origine historique (PDF 1.0) :** PDF p. 11 ; Conception. **Responsable :** extension / packaging.
 
-Le support V1 DOIT couvrir VS Code Desktop Windows et Linux. L'extension vérifie Java 21 et Git avant leur utilisation, ainsi que les SDK nécessaires au starter demandé. Elle affiche une erreur exploitable si un runtime manque, sans installation silencieuse. Les environnements distants non qualifiés sont détectés et déclarés non pris en charge. Un JRE fourni séparément reste une option soumise aux licences et à la qualification.
+Le support V1 DOIT couvrir VS Code Desktop Windows et Linux. L'extension vérifie le Java configuré par `ods.javaPath` pour son moteur ODS, et vérifie séparément les SDK requis par les opérations demandées sur le workspace. `ods.javaPath` ne configure pas Maven du projet utilisateur. Les commandes du workspace héritent de `PATH` et `JAVA_HOME` visibles par l'extension et utilisent le wrapper ou les toolchains déclarés par le projet. Un runtime manquant produit un diagnostic exploitable, sans installation silencieuse. Les environnements distants non qualifiés sont détectés et déclarés non pris en charge. Un JRE ODS fourni séparément reste une option soumise aux licences et à la qualification.
 
 **Recette :** absence de Java, mauvaise version, absence de Python et environnement distant produisent des diagnostics distincts ; les vues statiques restent consultables.
 
@@ -731,11 +731,11 @@ sequenceDiagram
 
 **Origine historique (PDF 1.0) :** PDF p. 5–6 ; Utilisateur. **Responsable :** gateway / connecteur IA.
 
-Le client DOIT demander un alias autorisé ou accepter celui de la politique. La gateway résout fournisseur, modèle exact, limites, paramètres et credentials. **La liste organisationnelle initiale des fournisseurs autorisés contient exclusivement `MISTRAL`, et seuls les modèles Mistral explicitement listés sont utilisables.** La disponibilité d'un modèle chez Mistral ne vaut pas autorisation automatique. L'utilisateur ne peut saisir un endpoint, une clé personnelle ou un modèle hors catalogue dans les fonctions administrées. Le connecteur Mistral utilise une API officielle qualifiée ; les fonctionnalités preview ne sont pas supposées stables. Référence : [API Chat Mistral](https://docs.mistral.ai/api/endpoint/chat).
+Le client DOIT demander un alias autorisé ou accepter celui de la politique. La gateway résout fournisseur, modèle exact, limites, paramètres et credentials. Le profil initial autorise uniquement `MISTRAL`. Tout fournisseur supplémentaire, dont OpenAI, exige une entrée valide du registre administré, une politique signée qui l'autorise et un modèle exact autorisé. La disponibilité d'un modèle chez un fournisseur ne vaut pas autorisation automatique. L'utilisateur ne peut saisir un endpoint, une clé personnelle ou un modèle hors catalogue dans les fonctions administrées. Le connecteur Mistral existant conserve son contrat ; les fonctionnalités preview ne sont pas supposées stables. Référence : [API Chat Mistral](https://docs.mistral.ai/api/endpoint/chat).
 
 Le domaine DOIT définir un port de fournisseur IA indépendant de Mistral : capacités, génération/streaming, annulation si disponible et normalisation d'usage. V1 implémente le connecteur Mistral réel ; les autres fournisseurs ne sont ni installés par nécessité ni activés. Un ajout futur exige connecteur qualifié, secrets administrés, évaluation de confidentialité et activation dans un catalogue signé ainsi que dans les politiques concernées. Un nouveau connecteur peut nécessiter une nouvelle gateway, sans modifier les cinq vues ni le contrat de l'extension.
 
-**Recette :** un modèle Mistral approuvé fonctionne ; un modèle Mistral non listé et tout fournisseur non Mistral sont refusés en configuration initiale, même via un appel direct. Changer d'alias Mistral approuvé conserve le contrat client et inscrit le modèle effectif dans l'audit. Un adaptateur factice de test démontre l'extensibilité sans être activable en production.
+**Recette :** un modèle Mistral approuvé fonctionne ; un modèle non listé ou un fournisseur absent de l'intersection registre/politique est refusé, même via un appel direct. Une configuration initiale sans registre supplémentaire reste Mistral seulement. Changer d'alias approuvé conserve le contrat client et inscrit sa sélection dans l'audit.
 
 ### DEVAI-065 — Construction bornée du contexte
 
@@ -1639,7 +1639,7 @@ Le rapport DOIT indiquer modifications, fichiers principaux, tests/commandes/nom
 
 **Origine historique (PDF 1.0) :** PDF p. 12 ; Utilisateur ; Conception. **Responsable :** architecture / QA / sécurité.
 
-L'acceptation DOIT vérifier la couverture des 166 exigences, les quatre starters remplaçables, les cinq vues fonctionnelles, l'agent de développement outillé de bout en bout, Java/Maven, l'autorisation initiale Mistral seule, les commentaires traçables, l'autorité serveur, les tests négatifs, les connecteurs réels qualifiés et la distribution validée. Les risques résiduels et décisions d'environnement sont approuvés par leurs responsables. Une exception est documentée avec impact et ne transforme pas un contrôle manquant en succès.
+L'acceptation DOIT vérifier la couverture des 197 exigences, les quatre starters remplaçables, les cinq vues fonctionnelles, l'agent de développement outillé de bout en bout, Java/Maven, l'autorisation initiale Mistral seule, la résolution contrôlée des fournisseurs supplémentaires, la séparation des JDK ODS et workspace, les commentaires traçables, l'autorité serveur, les tests négatifs, les connecteurs réels qualifiés et la distribution validée. Les risques résiduels et décisions d'environnement sont approuvés par leurs responsables. Une exception est documentée avec impact et ne transforme pas un contrôle manquant en succès.
 
 **Recette :** la matrice de conformité et les preuves de livraison permettent de décider de la mise en production sans dépendre d'une déclaration narrative de l'IA.
 
@@ -1777,7 +1777,7 @@ L'exécution d'un prompt dans l'onglet IA DOIT pouvoir démarrer une tâche outi
 
 **Origine :** Utilisateur ; Conception. **Responsable :** QA / tech lead.
 
-La recette DOIT démontrer : explication d'un module sans écriture ; création d'une fonctionnalité multifichiers et de ses tests ; correction d'un défaut à partir d'un test en échec ; exécution d'un prompt approuvé ; arrêt/reprise ; modification humaine concurrente ; refus d'un outil hors périmètre ; limite de quota ; refus d'un modèle autre que Mistral ; absence de secret dans les messages et sorties. Un chat qui renvoie uniquement des blocs de code sans agir sur le workspace ne satisfait pas ces exigences.
+La recette DOIT démontrer : explication d'un module sans écriture ; création d'une fonctionnalité multifichiers et de ses tests ; correction d'un défaut à partir d'un test en échec ; exécution d'un prompt approuvé ; arrêt/reprise ; modification humaine concurrente ; refus d'un outil hors périmètre ; limite de quota ; refus d'un fournisseur ou modèle non autorisé par le registre et la politique ; absence de secret dans les messages et sorties. Un chat qui renvoie uniquement des blocs de code sans agir sur le workspace ne satisfait pas ces exigences.
 
 **Recette :** une démonstration de bout en bout produit appels d'outils réels, diff, codes retour et résultats de tests, et permet de relier chaque action à l'exigence, au projet et à la permission de session.
 
@@ -1885,13 +1885,15 @@ La gateway embarquée démarre automatiquement à l'activation, écoute uniqueme
 
 Le parcours autonome ne comporte aucune connexion SSO. Avant de démarrer ou connecter la gateway pour un workspace, l'extension vérifie que son remote appartient au GitLab administré et effectue un accès Git réel avec les credentials déjà disponibles dans l'IDE ou Git. Un échec interdit la connexion à la gateway. Un changement de projet invalide cette autorisation ; un dossier non approuvé ne déclenche aucun accès Git. La lecture des projets et de la politique privée utilise le compte de gouvernance configuré au build. GitFlow conserve les credentials Git déjà disponibles au poste ; les MR nécessitent un jeton utilisateur obtenu par un fournisseur d'authentification VS Code ou le gestionnaire de credentials Git. Aucun compte technique n'est substitué pour publier au nom du développeur. En l'absence de credential utilisateur utilisable pour l'API, l'interface explique la limite sans afficher ni demander un secret de service. Le contrôle de l'interface reste contournable par le propriétaire du poste, conformément à la limite acceptée du mode autonome.
 
-### DEVAI-170 - Mistral API ou Vibe
+### DEVAI-170 - Transports Mistral et Vibe générique
 
-Le build sélectionne API ou VIBE_CLI, VIBE_CLI étant le défaut. Le mode API utilise la clé API administrée. Le mode Vibe accepte la clé API ou le credential Vibe administré selon le mode choisi, avec une URL fixée au build. Aucun fournisseur différent ni compte personnel n'est choisi silencieusement. Les règles, quotas, mesures d'usage et erreurs restent appliqués aux deux transports. Les credentials OAuth interactifs ne sont pas inventés ni assimilés à une clé API exportable.
+Le transport Mistral conserve API ou VIBE_CLI, VIBE_CLI étant le défaut de livraison. Les fournisseurs supplémentaires passent par le backend générique qualifié du runtime Vibe embarqué. La gateway transmet une sélection issue du registre administré et de la politique signée ; aucun fournisseur, endpoint ou modèle libre n'est choisi par le client. Les règles, quotas, mesures d'usage et erreurs s'appliquent à tous les fournisseurs. Les credentials OAuth interactifs ne sont pas inventés ni assimilés à une clé API exportable.
 
 ### DEVAI-171 - Distribution Vibe contrôlée
 
-Le code de la distribution officielle Vibe, sa version figée, ses dépendances et ses licences sont intégrés au VSIX lorsque ce transport est choisi. L'exécution utilise un environnement isolé du .vibe utilisateur et du workspace. Aucun hook, outil ou serveur MCP du projet n'est chargé implicitement. Les actions de l'agent restent soumises aux permissions, outils typés et confirmations ODS. Une dépendance manquante produit un diagnostic, jamais un faux résultat ou un repli silencieux vers l'API.
+Le code de la distribution officielle Vibe, sa version figée, ses dépendances et ses licences sont intégrés au VSIX lorsque ce transport est choisi. L'exécution utilise un environnement isolé du `.vibe` utilisateur et du workspace. Aucun hook, outil ou serveur MCP du projet n'est chargé implicitement. Les actions de l'agent restent soumises aux permissions et outils typés ODS. Une dépendance manquante produit un diagnostic, jamais un faux résultat ou un repli silencieux vers un autre fournisseur.
+
+Le build met en staging les fichiers du cache Vibe immuable en parallèle. Il utilise des liens physiques lorsque la source et la destination les prennent en charge, et une copie normale en repli. Les deux modes produisent les mêmes octets, vérifiés par l'inventaire SHA-256 du runtime et par la validation du VSIX ; le staging ne modifie jamais le cache source et conserve les filtres de fichiers temporaires existants.
 
 ### DEVAI-172 - SBOM CycloneDX du travail local
 
@@ -1941,7 +1943,7 @@ GitFlow expose un bouton Release notes. La tâche administrée git-release-notes
 
 ## Prompt d'implémentation
 
-Lire specification.md et ce document, puis examiner les composants existants et les tests avant modification. Appliquer DEVAI-167 à DEVAI-181 et réviser les exigences antérieures incompatibles sans réutiliser leurs identifiants. Conserver la compatibilité VS Code 1.95.2 et les scripts batch sans PowerShell. Vérifier le protocole Xray dans scan-sbom-xray et les contrats officiels de la version Vibe figée. Implémenter les parcours complets : configuration au build, gateway automatique, credentials Git natifs, deux transports Mistral, SBOM quatre stacks, Graph Scan avec watch, Sonar local, remédiations, envoi Entrée et génération contrôlée de CHANGELOG.md / RELEASE_NOTES.md. Documenter la limite de confidentialité acceptée, les prérequis et chaque cas non vérifiable. Ajouter les commentaires avec références pertinentes sur chaque nouveau symbole et corriger les commentaires devenus faux. Tester avec des doubles, exécuter le build complet, vérifier le VSIX installé et les arrêts de processus, actualiser le PDF, puis publier uniquement les sources et artefacts de démonstration validés sans secret réel.
+Lire specification.md et ses amendements DEVAI-182 à DEVAI-198, puis examiner les composants existants et les tests avant modification. Conserver les compatibilités existantes, notamment VS Code 1.95.2, les scripts batch sans PowerShell et les politiques Mistral. Intégrer OpenAI uniquement par le registre administré, sa clé API Platform et une politique signée ; qualifier le backend générique exact de Vibe avec HTTP simulé. Garder les JDK ODS et workspace séparés : ne pas injecter Java 21 dans un build de projet existant qui exige Java 25, et exécuter les commandes explicitement demandées avec les outils installés visibles par l'extension. Mettre à jour la spécification et la conformité pour chaque classe ou fonction modifiée/ajoutée, ajouter à chaque commentaire de code les IDs DEVAI réels, maintenir documentation, changelog, exemples et PDF. Tester la migration Mistral, les refus de sécurité, les quotas par provider, les secrets et l'artefact VSIX ; signaler les validations réelles non exécutées comme NON VÉRIFIABLE. N'inclure aucun secret réel dans les sources ou la livraison publique.
 
 ## 14. Évolution réalisée 0.5.0
 
@@ -1983,3 +1985,58 @@ Références de contrat : [Vibe](https://github.com/mistralai/mistral-vibe), [So
 ## Évolution 0.6.0 — mapping Sonar dynamique
 
 - **DEVAI-188** — Chaque règle de projet de la politique signée peut définir `sonarProjectKey`. La gateway utilise cette clé en priorité dans les analyses locales et les lectures de rapports Sonar, sans exiger un droit IA. Si le champ ou la règle est absent, elle utilise `ods.sonar-project-<ID_GITLAB>`. Une politique inaccessible, expirée ou invalide reste bloquante ; une clé explicite invalide ne déclenche jamais le repli. Les clés sont des chaînes de 1 à 400 caractères ASCII alphanumériques, tirets, points, deux-points ou underscores, non exclusivement numériques. Les signatures, la durée de validité de 24 heures, la protection anti-rejeu et le cache de 60 secondes restent applicables. Après une première installation compatible, ajouter ou modifier un mapping nécessite seulement une nouvelle version signée de la politique, sans rebuild du VSIX.
+
+## Évolution 0.7.0 — fournisseurs IA génériques et build workspace
+
+### DEVAI-189 — Registre administré des fournisseurs
+
+La gateway DOIT résoudre les fournisseurs depuis `ODS_PROVIDER_REGISTRY`, propriété administrée non modifiable par le workspace. Une entrée comporte un ID stable, backend Vibe, style API qualifié, base HTTPS, hôtes autorisés, référence de credential et capacités explicites. L’implémentation qualifie `OPENAI` avec le backend `generic` et l’adaptateur `openai` de la version Vibe 3.0.3 empaquetée. Le style Responses et les autres styles restent refusés tant qu’un test de contrat sur le runtime embarqué ne les qualifie pas. La configuration par défaut ne déclare aucun fournisseur supplémentaire ; la clé API Platform reste référencée par `ODS_OPENAI_API_KEY` et jamais inscrite en clair dans le registre.
+
+**Recette :** une base non HTTPS, un hôte absent de `allowedHosts`, un style non qualifié, un credential absent ou un provider dupliqué est refusé avant l’appel HTTP.
+
+### DEVAI-190 — Politique signée multi-fournisseurs
+
+`allowedProviders` peut contenir plusieurs ID uniques. Chaque `models[]` référence un ID autorisé, un alias unique, le nom exact attendu par l’API, le droit outils et, au besoin, `monthlyProviderTokenQuota`. Les modèles non-Mistral déclarent aussi `maxContextTokens` et `maxOutputTokens` positifs, bornés et cohérents ; les modèles Mistral historiques gardent leurs valeurs par défaut compatibles. Le provider n’est utilisable que s’il est présent dans le catalogue signé et le registre administré ; une configuration de déploiement seule ne l’active pas. Les règles de projet choisissent un alias signé. Endpoint, credential et modèle effectif ne sont jamais acceptés depuis une requête cliente. Signature, expiration, anti-rejeu et cache restent inchangés.
+
+**Recette :** politique legacy Mistral toujours valide ; alias OpenAI sans registre, provider non listé, quota négatif, alias dupliqué ou modèle absent refusé.
+
+### DEVAI-191 — Bridge Vibe isolé
+
+La gateway transmet au processus Python isolé provider, backend, style, endpoint et modèle déjà résolus, plus le credential associé à sa référence autorisée. Le secret voyage dans le framing privé sur stdin puis devient une variable dédiée du seul processus Vibe. Il n’apparaît ni dans les arguments, les variables du processus workspace, les logs, les erreurs publiques ou une configuration persistante. Le bridge crée `ProviderConfig` et `ModelConfig` pour le modèle sélectionné sans lire `.vibe` utilisateur/workspace, MCP, hooks ou outils Vibe.
+
+**Recette :** un appel OpenAI simulé vérifie l’URL, le style, le modèle et la clé synthétique reçus par l’adaptateur réel, ainsi que l’absence de secret dans les arguments, l’environnement hérité ou les diagnostics.
+
+### DEVAI-192 — Alias et révocation
+
+ODS n’expose pas de saisie libre de fournisseur, modèle ou endpoint. L’alias effectif provient de la règle signée du projet. Si une interface propose plus tard un choix, elle ne montrera que les alias autorisés par cette politique. La révocation ou l’expiration est réévaluée par la gateway à chaque opération sensible ; aucun fallback n’est effectué.
+
+### DEVAI-193 — Capabilités vérifiées
+
+Le registre déclare génération, outils, streaming, images et usage ; le catalogue signé déclare les tailles de contexte et de sortie applicables à l’alias exact. La gateway estime l’entrée de façon conservative par ses octets UTF-8 et le framing des messages, réserve la sortie, refuse si l’ensemble dépasse le contexte et borne `max_tokens` à la limite signée. Cette estimation est explicitement indicative et le fournisseur reste la source des compteurs mesurés. La gateway refuse aussi une action qui exige une capacité absente. Les réponses sont normalisées vers le contrat existant : texte, outils typés, fin de tour et compteurs d’usage. Pour la première qualification OpenAI, génération, outils et usage sont activés ; streaming fournisseur et images restent désactivés.
+
+### DEVAI-194 — Quotas et attribution par fournisseur
+
+Les réservations atomiques continuent d’imposer les limites projet et utilisateur à tous les fournisseurs. Elles utilisent l’estimation d’entrée conservatrice et la sortie réservée ; une limite mensuelle `monthlyProviderTokenQuota` optionnelle peut réduire le budget de chaque modèle signé. La base conserve provider, alias, ID exact du modèle et consommation mesurée ; les plafonds et réservations sont séparés par fournisseur. Une absence de mesure fiable ne devient jamais zéro et ne libère pas implicitement la réservation.
+
+**Recette :** les réservations concurrentes d’un provider ne dépassent ni son budget signé ni les budgets partagés projet/utilisateur ; la réconciliation conserve l’usage mesuré et l’attribution.
+
+### DEVAI-195 — Confidentialité par fournisseur
+
+Avant activation réelle, l’organisation approuve les catégories de données transmises, région, rétention et conditions d’usage du fournisseur. Le profil de démonstration reste Mistral seulement. OpenAI exige une clé d’API Platform administrée distincte ; une session ou un abonnement ChatGPT ne constitue pas cette clé. Une panne ne transfère aucune source à un autre provider.
+
+### DEVAI-196 — Compatibilité et migration
+
+Les politiques et profils Mistral existants restent compatibles sans changement de comportement. L’adaptateur OpenAI Chat Completions de Vibe 3.0.3 est couvert avec un HTTP simulé pour réponses texte, outils, usage, erreurs et destinations. Aucun test automatisé ne contacte OpenAI réel. Le smoke test réel est optionnel, avec credential fourni séparément et autorisation explicite ; sinon sa compatibilité de compte est **NON VÉRIFIABLE**. Le profil initial demeure Mistral seulement.
+
+### DEVAI-197 — Outils de build du workspace utilisateur
+
+Java 21 et `ods.javaPath` sont réservés au moteur et aux builds ODS. Pour un projet utilisateur, l’agent inspecte POM, wrapper, Maven Toolchains, manifests et instructions du projet, puis utilise la commande explicite de l’utilisateur ou les outils installés visibles depuis l’extension. Le processus hérite de `PATH` et `JAVA_HOME` du poste en retirant seulement les secrets ODS. `mvn -version` / `mvnw -version` vérifie le JDK réellement utilisé. Aucun `-Djava.version=21`, `-Dmaven.compiler.release=21`, changement de POM ou conversion de build n’est ajouté à cause de DEVAI-005. Si le JDK utilisé contredit les exigences du projet, l’agent rapporte les versions et demande une décision technique avant de modifier la configuration. Une commande de build ou de test demandée explicitement est déjà autorisée par cette demande ; elle n’appelle pas une deuxième confirmation.
+
+**Recette :** moteur ODS sous JDK 21, `JAVA_HOME`/PATH sous JDK 25 et projet configuré `java.version=25` : `mvn clean install` utilise le Maven et le JDK 25 installés ; le POM reste inchangé et aucune option Java 21 n’est injectée.
+### DEVAI-198 — Smoke OpenAI réel sur le banc Docker
+
+Le corps HTTP produit par le backend générique Vibe 3.0.3 est adapté par le bridge ODS : retrait de `temperature`, remplacement de `max_tokens` par `max_completion_tokens`, et `reasoning_effort=none` pour les familles GPT-6 Luna/Sol qualifiées. Le client TLS refuse les redirections. Les fichiers de la distribution Vibe restent inchangés ; cette adaptation et les erreurs HTTP sont vérifiées sur le runtime empaqueté.
+
+Le banc Docker PEUT activer explicitement un test réel OpenAI au moyen de `provision.py --openai-smoke` et `native-smoke.cjs --real-openai`. L’option exige une clé API Platform renouvelée fournie par `OPENAI_API_KEY`, la place seulement dans le profil privé ignoré par Git et signe une politique temporaire qui autorise OpenAI pour le seul projet de démonstration autorisé. Le test passe par le client natif ODS, le gateway local, GitLab Docker et cette politique signée ; il envoie une seule instruction synthétique sans fichier source et sans outil, puis valide fournisseur, modèle et usage mesuré. Le modèle qualifié pour ce smoke est `gpt-6-luna` via Chat Completions. Le bridge omet les paramètres de température pour cet adaptateur OpenAI. Aucun test automatisé par défaut n’appelle un fournisseur réel ; le résultat ne doit contenir ni clé ni réponse complète. L’opérateur restaure ensuite le profil/politique Mistral avec la procédure normale du banc.
+
+**Recette :** sans option explicite, compteur d’appels réels égal à zéro ; avec option et credential, une requête OpenAI au plus, réponse attribuée à `OPENAI`/`gpt-6-luna` et compteurs fournisseur positifs ; sans credential, arrêt avant provisionnement et appel fournisseur.

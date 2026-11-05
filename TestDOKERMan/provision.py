@@ -1,7 +1,9 @@
-"""Provision isolated test projects, signed governance and Sonar through local APIs only. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
+"""Provision isolated test projects, signed governance and Sonar through local APIs only. Exigences : DEVAI-167, DEVAI-168, DEVAI-177, DEVAI-198."""
+import argparse
 import base64
 from datetime import datetime, timedelta, timezone
 import json
+import os
 from pathlib import Path
 import secrets
 import shutil
@@ -15,6 +17,7 @@ ROOT = Path(__file__).resolve().parent
 LOCAL = ROOT / '.local'
 GITLAB = 'https://localhost:18443'
 SONAR = 'https://localhost:19443'
+OPENAI_MODEL = 'gpt-6-luna'
 
 
 def api(base, route, token=None, data=None, basic=None, method=None):
@@ -58,9 +61,12 @@ def seed_project(project, files):
         'actions': [{'action': 'create', 'file_path': name, 'content': content} for name, content in files.items()]})
 
 
-def publish_policy(state):
-    """Publie la politique IA signee pour les projets du banc. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
-    engine = ROOT.parent / 'ods-java-core/target/ods-java-core-0.5.0-engine.jar'
+def publish_policy(state, openai_smoke=False):
+    """Publie la politique IA signee pour les projets du banc. Exigences : DEVAI-167, DEVAI-168, DEVAI-177, DEVAI-198."""
+    candidates = sorted((ROOT.parent / 'ods-java-core/target').glob('ods-java-core-*-engine.jar'), key=lambda path: path.stat().st_mtime)
+    if not candidates:
+        raise RuntimeError('Build the Java engine before provisioning the Docker policy')
+    engine = candidates[-1]
     java = LOCAL / 'jdk/bin/java.exe'
     keys = LOCAL / 'governance'
     keys.mkdir(exist_ok=True)
@@ -72,10 +78,17 @@ def publish_policy(state):
         'allowedActions': ['CHAT', 'CODE_GENERATION', 'SONAR_REMEDIATION', 'XRAY_REMEDIATION', 'MR_DESCRIPTION', 'AGENT_RUN', 'CHANGELOG', 'RELEASE_NOTES'],
         'modelAlias': 'manual-coding', 'monthlyTokenQuota': 1000000, 'monthlyUserTokenQuota': 250000,
         'allowedAgents': ['implement-requirement'], 'contextMode': 'LOCAL_GOVERNED', 'allowFreeText': True}
+    if openai_smoke:
+        enabled['modelAlias'] = 'openai-docker-smoke'
+        allowed_providers = ['OPENAI']
+        models = [{'alias': 'openai-docker-smoke', 'provider': 'OPENAI', 'model': OPENAI_MODEL, 'tools': False,
+                   'monthlyProviderTokenQuota': 10000, 'maxContextTokens': 32768, 'maxOutputTokens': 128}]
+    else:
+        allowed_providers = ['MISTRAL']
+        models = [{'alias': 'manual-coding', 'provider': 'MISTRAL', 'model': state['model'], 'tools': True}]
     policy = {'schemaVersion': 1, 'policyVersion': int(now.timestamp()), 'issuedAt': now.isoformat(),
         'expiresAt': (now + timedelta(hours=23, minutes=59)).isoformat(), 'gitlabInstance': GITLAB,
-        'defaultEffect': 'DENY', 'allowedProviders': ['MISTRAL'],
-        'models': [{'alias': 'manual-coding', 'provider': 'MISTRAL', 'model': state['model'], 'tools': True}],
+        'defaultEffect': 'DENY', 'allowedProviders': allowed_providers, 'models': models,
         'projects': [enabled, {'projectId': state['demo-denied'], 'aiEnabled': False, 'allowedActions': [], 'monthlyTokenQuota': 0}]}
     document = keys / 'ai-project-policy.json'
     document.write_text(json.dumps(policy, indent=2), encoding='utf8')
@@ -93,11 +106,21 @@ def publish_policy(state):
 
 
 def main():
-    """Configure les projets, la politique signee et les services locaux. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
+    """Configure les projets, la politique signee et les services locaux. Exigences : DEVAI-167, DEVAI-168, DEVAI-177, DEVAI-198."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--openai-smoke', action='store_true', help='Enable one opt-in real OpenAI request using OPENAI_API_KEY')
+    options = parser.parse_args()
+    openai_key = os.environ.get('OPENAI_API_KEY', '').strip() if options.openai_smoke else ''
+    if options.openai_smoke and (not openai_key or any(char in openai_key for char in '\r\n\x00') or '<' in openai_key):
+        raise RuntimeError('A valid rotated OPENAI_API_KEY environment variable is required for the live OpenAI smoke test')
+    os.environ.pop('OPENAI_API_KEY', None)
     accounts = json.loads((LOCAL / 'accounts.json').read_text())
     state_file = LOCAL / 'state.json'
     state = json.loads(state_file.read_text()) if state_file.exists() else {}
     state['model'] = 'mistral-medium-3-5'
+    if options.openai_smoke:
+        state['openaiModel'] = OPENAI_MODEL
+    state_file.write_text(json.dumps(state, indent=2))
     groups = gitlab('groups?search=ods-manual')
     group = next((g for g in groups if g['path'] == 'ods-manual'), None)
     if group is None:
@@ -123,7 +146,7 @@ def main():
         branches = gitlab(f"projects/{state[name]}/repository/branches")
         if not any(branch['name'] == 'develop' for branch in branches):
             gitlab(f"projects/{state[name]}/repository/branches", {'branch': 'develop', 'ref': 'main'})
-    publish_policy(state)
+    publish_policy(state, options.openai_smoke)
     # Configure Sonar idempotently; never print token responses.
     sonar_file = LOCAL / 'sonar.json'
     if sonar_file.exists():
@@ -153,6 +176,12 @@ def main():
         'ODS_SONAR_URL': SONAR, 'ODS_SONAR_USERNAME': 'admin', 'ODS_SONAR_TOKEN': sonar['token'],
         'ODS_JFROG_URL': 'https://localhost:18083', 'ODS_JFROG_AUTH': 'BASIC', 'ODS_JFROG_USERNAME': env['MOCK_XRAY_USER'],
         'ODS_JFROG_PASSWORD': env['MOCK_XRAY_PASSWORD'], 'ODS_JFROG_WATCH': env['MOCK_XRAY_WATCH']}
+    if options.openai_smoke:
+        values.update({'ODS_MODEL_ALIAS': 'openai-docker-smoke', 'ODS_OPENAI_API_KEY': openai_key,
+            'ODS_PROVIDER_REGISTRY': json.dumps([{'id': 'OPENAI', 'backend': 'generic', 'apiStyle': 'openai',
+                'apiBase': 'https://api.openai.com/v1', 'allowedHosts': ['api.openai.com'],
+                'credentialRef': 'ODS_OPENAI_API_KEY', 'generation': True, 'tools': True,
+                'streaming': False, 'images': False, 'usage': True}], separators=(',', ':'))})
     (profile / 'gateway.env').write_text('\n'.join(k + '=' + v for k, v in values.items()) + '\n')
     (profile / 'organisation.json').write_text(json.dumps({'schemaVersion': 1, 'id': 'ods-docker-manual',
         'extension': {'name': 'ods-docker-manual', 'publisher': 'ods-local', 'displayName': 'ODS Docker Manual Test'},
@@ -180,6 +209,8 @@ def main():
         (mvn / 'jvm.config').write_text('-Djavax.net.ssl.trustStore=../../jdk/lib/security/cacerts\n-Djavax.net.ssl.trustStorePassword=changeit\n')
         (mvn / 'maven.config').write_text('-Dsonar.scanner.skipJreProvisioning=true\n"-Dsonar.scanner.javaExePath=' + str(LOCAL / 'jdk/bin/java.exe') + '"\n')
     print('Local GitLab, Sonar, private organisation profile and developer workspaces provisioned.')
+    if options.openai_smoke:
+        print('One real OpenAI request is enabled for the explicit --real-openai smoke option; the key remains private.')
 
 
 if __name__ == '__main__':

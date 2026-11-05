@@ -7,7 +7,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import java.util.*;
 import java.time.*;
 
-/** Persists audit, idempotent jobs and quota reservations using database transactions. Exigences : DEVAI-043, DEVAI-076, DEVAI-077, DEVAI-119, DEVAI-121. */
+/** Persists audit, idempotent jobs and atomic project, user and provider quota reservations. Exigences : DEVAI-043, DEVAI-076, DEVAI-077, DEVAI-119, DEVAI-121, DEVAI-194. */
 @Service
 public class Store {
     private final JdbcTemplate db; private final TransactionTemplate tx; private final ContentCipher cipher; private final String instance=UUID.randomUUID().toString();
@@ -26,7 +26,11 @@ public class Store {
     }
     /** Appends a metadata-only audit event; no source or credential is accepted. Exigences : DEVAI-043. */
     public void audit(String subject,long project,String action,String decision,String correlation,String version) {
-        db.update("INSERT INTO audit(id,created_at,subject,project_id,action,decision,correlation,policy_version) VALUES(?,?,?,?,?,?,?,?)",UUID.randomUUID().toString(),Instant.now().toString(),subject,project,action,decision,correlation,version);
+        audit(subject,project,action,decision,correlation,version,null,null,null);
+    }
+    /** Records approved provider/model metadata without storing prompts, source content or credentials. Exigences : DEVAI-043, DEVAI-190, DEVAI-194. */
+    public void audit(String subject,long project,String action,String decision,String correlation,String version,String provider,String alias,String model) {
+        db.update("INSERT INTO audit(id,created_at,subject,project_id,action,decision,correlation,policy_version,provider_id,model_alias,model_id) VALUES(?,?,?,?,?,?,?,?,?,?,?)",UUID.randomUUID().toString(),Instant.now().toString(),subject,project,action,decision,correlation,version,provider,alias,model);
     }
     /** Creates or retrieves an idempotent operation, refusing a key reused with another payload. Exigences : DEVAI-077, DEVAI-119. */
     public synchronized Map<String,Object> createJob(String subject,long project,String kind,String key,String hash) {
@@ -104,11 +108,17 @@ public class Store {
     }
     /** Atomically checks both subject and project budgets under consistently ordered database locks. Exigences : DEVAI-075, DEVAI-076. */
     public void reserve(String id,long project,String subject,long amount,long limit,long subjectLimit) {
+        reserve(id,project,subject,null,null,null,amount,limit,subjectLimit,Long.MAX_VALUE);
+    }
+    /** Atomically reserves project, subject and selected-provider budgets while retaining exact model attribution. Exigences : DEVAI-075, DEVAI-076, DEVAI-194. */
+    public void reserve(String id,long project,String subject,String provider,String alias,String model,long amount,long limit,long subjectLimit,long providerLimit) {
         String month=YearMonth.now(ZoneOffset.UTC).toString();
         try { db.update("INSERT INTO quota(project_id,period,consumed,reserved) VALUES(?,?,0,0)",project,month); }
         catch(org.springframework.dao.DuplicateKeyException expected) { /* A concurrent instance already initialized this UTC period. */ }
         if(subject!=null) try { db.update("INSERT INTO subject_quota(subject,project_id,period,consumed,reserved) VALUES(?,?,?,0,0)",subject,project,month); }
         catch(org.springframework.dao.DuplicateKeyException expected) { /* The existing subject row will be locked in the same transaction. */ }
+        if(provider!=null) try { db.update("INSERT INTO provider_quota(provider_id,project_id,period,consumed,reserved) VALUES(?,?,?,0,0)",provider,project,month); }
+        catch(org.springframework.dao.DuplicateKeyException expected) { /* The provider-period row will be locked below. */ }
         tx.executeWithoutResult(s->{
             Map<String,Object> row=db.queryForMap("SELECT consumed,reserved FROM quota WHERE project_id=? AND period=? FOR UPDATE",project,month);
             long used=((Number)row.get("consumed")).longValue(), reserved=((Number)row.get("reserved")).longValue();
@@ -119,7 +129,13 @@ public class Store {
                 if(amount>subjectLimit||personalUsed>subjectLimit-amount||personalReserved>subjectLimit-amount-personalUsed) throw new OdsException("QUOTA_EXCEEDED","Quota utilisateur insuffisant");
                 db.update("UPDATE subject_quota SET reserved=reserved+? WHERE project_id=? AND subject=? AND period=?",amount,project,subject,month);
             }
-            db.update("INSERT INTO reservation(id,project_id,period,amount,state,subject) VALUES(?,?,?,?,'RESERVED',?)",id,project,month,amount,subject);
+            if(provider!=null) {
+                var providerRow=db.queryForMap("SELECT consumed,reserved FROM provider_quota WHERE provider_id=? AND project_id=? AND period=? FOR UPDATE",provider,project,month);
+                long providerUsed=((Number)providerRow.get("consumed")).longValue(), providerReserved=((Number)providerRow.get("reserved")).longValue();
+                if(amount>providerLimit||providerUsed>providerLimit-amount||providerReserved>providerLimit-amount-providerUsed) throw new OdsException("QUOTA_EXCEEDED","Quota fournisseur insuffisant");
+                db.update("UPDATE provider_quota SET reserved=reserved+? WHERE provider_id=? AND project_id=? AND period=?",amount,provider,project,month);
+            }
+            db.update("INSERT INTO reservation(id,project_id,period,amount,state,subject,provider_id,model_alias,model_id) VALUES(?,?,?,?,'RESERVED',?,?,?,?)",id,project,month,amount,subject,provider,alias,model);
             db.update("UPDATE quota SET reserved=reserved+? WHERE project_id=? AND period=?",amount,project,month);
         });
     }
@@ -131,13 +147,15 @@ public class Store {
             if(input<0||output<0) throw new OdsException("INVALID_USAGE","Mesure invalide");
             db.update("UPDATE quota SET reserved=reserved-?,consumed=consumed+? WHERE project_id=? AND period=?",row.get("amount"),Math.addExact(input,output),row.get("project_id"),row.get("period"));
             if(row.get("subject")!=null) db.update("UPDATE subject_quota SET reserved=reserved-?,consumed=consumed+? WHERE project_id=? AND subject=? AND period=?",row.get("amount"),Math.addExact(input,output),row.get("project_id"),row.get("subject"),row.get("period"));
+            if(row.get("provider_id")!=null) db.update("UPDATE provider_quota SET reserved=reserved-?,consumed=consumed+? WHERE provider_id=? AND project_id=? AND period=?",row.get("amount"),Math.addExact(input,output),row.get("provider_id"),row.get("project_id"),row.get("period"));
             db.update("UPDATE reservation SET state='MEASURED',input_tokens=?,output_tokens=? WHERE id=?",input,output,id);
         });
     }
     /** Returns measured and reserved project counters for the current UTC month. Exigences : DEVAI-075. */
     public Map<String,Object> usage(long project) {
         String month=YearMonth.now(ZoneOffset.UTC).toString(); List<Map<String,Object>> rows=db.queryForList("SELECT consumed,reserved FROM quota WHERE project_id=? AND period=?",project,month);
-        return Map.of("period",month,"consumed",rows.isEmpty()?0:rows.getFirst().get("consumed"),"reserved",rows.isEmpty()?0:rows.getFirst().get("reserved"));
+        List<Map<String,Object>> providers=db.queryForList("SELECT provider_id AS provider,consumed,reserved FROM provider_quota WHERE project_id=? AND period=? ORDER BY provider_id",project,month);
+        return Map.of("period",month,"consumed",rows.isEmpty()?0:rows.getFirst().get("consumed"),"reserved",rows.isEmpty()?0:rows.getFirst().get("reserved"),"providers",providers);
     }
     /** Adds only the authenticated subject's counters to the authorized project view. Exigences : DEVAI-075. */
     public Map<String,Object> usage(long project,String subject) {
