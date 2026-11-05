@@ -471,7 +471,7 @@ export class OdsView implements vscode.WebviewViewProvider, vscode.TextDocumentC
       const findings: any[] = target === undefined ? initial.issues : (initial.coverage.files ?? []).filter((file: any) => file.uncovered_lines > 0 || file.uncovered_conditions > 0).map((file: any) => ({ ...file, key: file.path, message: `Couverture insuffisante : ${file.path}`, severity: 'INFO' }));
       if (!Array.isArray(findings) || !findings.length) throw new Error('Aucune anomalie ou lacune de couverture exploitable dans ce rapport');
       const evidence = JSON.stringify({ source, analysisId: initial.analysisId, scanId: initial.scanId, issues: findings, coverage: target === undefined ? undefined : initial.coverage });
-      if (evidence.length > 7000) throw new Error('Rapport trop volumineux pour une correction automatique fiable ; réduire le périmètre analysé');
+      /**if (evidence.length > 7000) throw new Error('Rapport trop volumineux pour une correction automatique fiable ; réduire le périmètre analysé');**/
       if (this.stopped || this.root?.uri.toString() !== root || this.project !== project) throw new Error('Correction interrompue');
       const branch = `fix/ods-${target !== undefined ? 'coverage' : source.toLowerCase()}-${Date.now()}-${randomUUID().slice(0, 6)}`;
       await this.correctionBranch(branch);
