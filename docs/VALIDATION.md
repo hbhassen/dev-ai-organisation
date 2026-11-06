@@ -91,18 +91,20 @@ Les scripts batch invoquent Python ou la CLI VS Code directement. Le wrapper Mav
 À la demande explicite de l'utilisateur, `script/vsix` conserve aussi le dossier `suiteInstall/` du correctif. Le commit source est réalisé avant sa reconstruction ; un second commit enregistre la livraison vérifiée. La correspondance se contrôle avec `BUILD.json.sourceCommit` et `SHA256SUMS`. Ce commit contenant des binaires ne doit pas être fusionné dans les branches source.
 
 
-## Validation 0.7.0 — en cours les 5 et 6 novembre 2026
+## Validation 0.7.0 — 6 novembre 2026
 
-- Branche de travail : `feat/genLLM`. Les résultats ci-dessous concernent le travail local ; ils ne constituent pas une release publiée.
-- Réacteur Maven `clean verify` exécuté avec succès : 70 tests Java (4 contrats, 26 moteur, 40 gateway), aucun échec, erreur ou test ignoré.
-- Compilation et lint TypeScript réussis ; 63 tests Node et 12 scénarios Chromium réussis.
-- Démarrage des JAR 0.7.0 : version du moteur, santé de la gateway et refus des requêtes anonymes vérifiés.
-- Tests Python ciblés après adaptation du bridge et du staging : 12 tests réussis ; contrôle de documentation Python réussi sur 17 fichiers source.
+- Branche de travail : `feat/genLLM`. Ces résultats concernent les validations locales ; la release reste conditionnée aux contrôles de livraison et à la qualification OpenAI réelle.
+- Réacteur Maven `clean verify` réussi après correction des capacités des projets sans droit IA : **71 tests Java** (4 contrats, 26 moteur, 41 gateway), aucun échec, erreur ou test ignoré. Le nouveau test HTTP conserve l’accès aux capacités sans alias et vérifie le refus de génération avant tout appel fournisseur.
+- Build complet `tools/build.py --task Build` réussi après le correctif : compilation et lint TypeScript, **63 tests Node et 12 scénarios Chromium réussis**, démarrage des JAR, santé gateway et refus anonyme vérifiés.
+- Tests Python : **36 tests réussis** ; contrôle des références de documentation réussi sur 17 fichiers source.
+- Runtime Vibe 3.0.3 réellement empaqueté : génération, outils et usage Mistral/OpenAI avec HTTP simulé ; **6 cas CLI Mistral et 10 cas CLI OpenAI réussis**, incluant authentification, quota, modèle inconnu, panne, timeout, réponse malformée et redirection. Aucun appel fournisseur réel dans ces contrats.
+- Le contrôle d’intégrité a détecté un bytecode généré par le test CLI. Les processus de qualification utilisent désormais `-B` et vérifient l’absence de `.pyc` dans le runtime. Le VSIX privé a ensuite passé la vérification complète des empreintes ; il contient des credentials locaux et ne constitue pas un artefact public. Le runtime contenant le contrôleur corrigé a ensuite passé le parcours natif Docker.
 - DEVAI-197 : conservation de `JAVA_HOME` et de `PATH` vérifiée par les tests d’environnement, avec fixture JDK 25. Cette fixture ne constitue pas un build réel d’un projet utilisateur sous JDK 25.
-- PDF d’architecture régénéré, 18 pages rendues puis inspectées visuellement.
-- Audit des sources : fichiers privés du banc et ancien PDF contenant des credentials retirés de l’index, conservés localement et ignorés. Le contrôle des 247 fichiers publiables n’a retrouvé aucune des signatures ni des valeurs sensibles recherchées. Les anciennes révisions publiques demeurent inchangées ; les credentials réels anciennement publiés doivent être révoqués.
-- Le contrat sur le runtime Vibe empaqueté a réussi pour la génération Mistral et OpenAI, les outils OpenAI et l’usage mesuré avec HTTP simulé. Le premier cas CLI Mistral a ensuite dépassé son délai de 60 secondes sur le poste saturé en mémoire : le contrat complet reste **EN ÉCHEC**, sans augmentation du délai ni contournement du test.
-- Packaging local interrompu par un redémarrage du poste, puis arrêté après une nouvelle saturation mémoire. Aucun VSIX 0.7.0 ni package final n’est déclaré validé. Appel OpenAI réel avec Docker, livraison finale et CI : **NON EXÉCUTÉS**, à terminer avant publication. Aucun appel fournisseur réel n’a été effectué pendant ces validations.
+- Banc Docker réel : accès GitLab et politique signée, moteur Java IPC, fingerprint, génération Maven CycloneDX et rapport mockXray réussis. Le premier scan Sonar échouait car le `JAVA_HOME` du terminal sélectionnait Java 17 pour un POM Java 21 ; le build et le scanner Sonar réels réussissent avec le JDK 21 du banc dans le seul environnement de test. Le parcours natif complet réussit ensuite : **10 contrôles, aucun échec**, y compris le projet dont l’IA est désactivée.
+- **OpenAI réel : BLOQUÉ PAR LE COMPTE FOURNISSEUR.** La première clé renvoyait HTTP 401 `invalid_api_key`. La nouvelle clé fournie est acceptée (lecture des modèles HTTP 200, modèle du smoke accessible) et la variable utilisateur a été renouvelée. La tentative de génération via la gateway renvoie `MODEL_RATE_LIMITED` ; le diagnostic synthétique borné de Chat Completions confirme HTTP 429 `billing_not_active`. Les dix contrôles Docker de cette même exécution passent. Aucun texte généré avec succès ni consommation positive n’est revendiqué ; la facturation API doit être activée avant de requalifier DEVAI-198. Aucun appel réel Mistral n’a été effectué pendant cette qualification.
+- PDF d’architecture : 18 pages rendues et inspectées visuellement.
+- Confidentialité : les anciens fichiers privés du banc et son PDF contenant des credentials ont été retirés du suivi Git, conservés localement et ignorés. Le dernier audit de 248 fichiers n’a retrouvé aucune des signatures ou valeurs sensibles recherchées. Les anciennes révisions publiques demeurent inchangées ; les credentials anciennement publiés doivent être révoqués.
+- La preuve du package public doit identifier le commit exact dans `suiteInstall/BUILD.json`, avec `sourceDirty: false` ; les résultats CI applicables sont ceux de ce commit dans GitHub Actions. La release reste conditionnée à ces contrôles et à la réussite du smoke OpenAI demandé. Les livraisons privées ne doivent jamais être publiées.
 
 ## Validation 0.6.0 — 2026-11-03
 

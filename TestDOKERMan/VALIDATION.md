@@ -119,3 +119,25 @@ Le parcours r?el **Security** a identifi? les deux entr?es du mock Xray pour `co
 Validation finale du code : `python tools/build.py --task Build` r?ussi ; **61 tests Java, 28 Python, 62 Node et 12 Playwright**, sans ?chec. Le smoke de d?marrage des JAR a r?ussi. Le client natif vers les services Docker a r?ussi ses **10 contr?les**, dont autorisation/refus IA par politique GitLab, SBOM, Sonar et mock Xray, avec z?ro appel Mistral de g?n?ration pour ce smoke. Les quatre tests HTTP du mock ont aussi r?ussi. Les boucles sur compilation ?chou?e, objectif non atteint et plafond de tentatives sont v?rifi?es par tests d?terministes ; les parcours r?els finaux ont abouti ? la premi?re tentative.
 
 Les preuves PDF et les clones de test restent priv?s et ignor?s par Git. Aucun fichier de correction du clone n?a ?t? ?crit manuellement par Codex : les correctifs observ?s proviennent de Mistral. Les commits du clone servent uniquement ? conserver les r?sultats et ? permettre le sc?nario suivant sur une branche propre. La CI Linux et Windows du correctif UTF-8 a r?ussi. La livraison priv?e n?est pas publi?e sur GitHub ; aucun merge main, tag ou release n?est revendiqu?.
+
+## Qualification 0.7.0 — 6 novembre 2026
+
+Les résultats historiques ci-dessus ne sont pas réattribués à cette version.
+
+| Contrôle réellement exécuté | Résultat |
+|---|---|
+| Build complet ODS | SUCCESS ; 71 tests Java, 36 Python, 63 Node, 12 Chromium |
+| Vibe 3.0.3 empaqueté | Contrats Mistral/OpenAI et 16 scénarios CLI réussis, HTTP simulé |
+| Client natif → moteur/gateway → Docker | 10 contrôles réussis, aucun échec après correction |
+| GitLab et politiques signées | Projet IA autorisée et projet IA refusée, accès anonyme bloqué |
+| Maven CycloneDX → mockXray | SBOM réel et rapport simulé normalisé vérifiés |
+| Maven SonarScanner → SonarQube | Build et analyse réels réussis avec le JDK correspondant au POM du banc |
+| Authentification OpenAI renouvelée | HTTP 200 pour la lecture des modèles ; modèle du smoke accessible |
+| Génération OpenAI via la gateway | ÉCHEC : HTTP 429, diagnostic fournisseur `billing_not_active` |
+| Génération réelle et usage positif | NON VALIDÉS, activation de la facturation API nécessaire |
+
+Le test a découvert une régression dans les capacités des projets avec `aiEnabled: false` : l’absence d’alias de modèle provoquait une erreur. Le contrôleur corrigé conserve ces capacités sans résoudre de fournisseur ; un nouveau test HTTP vérifie aussi le refus de génération avant tout appel modèle.
+
+Le terminal du banc utilisait initialement Java 17 via `JAVA_HOME`, alors que `java` sur `PATH` était en version 21. L’environnement du seul processus de test a été aligné sur le JDK 21 du banc, conformément aux POM existants. Aucun JDK n’a été imposé aux projets utilisateur par le produit.
+
+Une première tentative OpenAI avait été refusée avec l’ancienne clé (401). La nouvelle clé est acceptée, mais les tentatives synthétiques bornées de génération restent refusées par la facturation du compte. Aucun appel réel Mistral n’a été effectué. Les fichiers de preuve, profils et clés restent locaux et ignorés par Git ; aucune réponse complète ni donnée de compte n’est publiée.

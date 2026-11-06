@@ -13,7 +13,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import java.util.*;
 import com.fasterxml.jackson.databind.JsonNode;
 
-/** Versioned gateway facade; every project route verifies server-side ownership and action permissions. Exigences : DEVAI-003, DEVAI-117. */
+/** Versioned gateway facade; every project route verifies server-side ownership and action permissions. Exigences : DEVAI-003, DEVAI-117, DEVAI-190, DEVAI-192, DEVAI-196. */
 @RestController
 public class GatewayController {
     private final Settings settings; private final PolicyService policies; private final AiService ai; private final GitLabClient gitlab; private final ScanService scans; private final Store store;
@@ -28,10 +28,11 @@ public class GatewayController {
     @GetMapping("/api/v1/auth/config") public Map<String,Object> authConfig() { return Map.of("issuer",settings.get("oidc-issuer"),"clientId",settings.get("oidc-client-id"),"audience",settings.get("oidc-audience")); }
     /** Resolves a remote repository path on the configured GitLab and checks the developer's access. Exigences : DEVAI-025. */
     @GetMapping("/api/v1/projects/resolve") public Map<String,Object> project(@AuthenticationPrincipal Jwt jwt,@RequestHeader(value="X-ODS-GitLab-Token",required=false) String token,@RequestParam String path) { JsonNode p=gitlab.call("GET","projects/"+RemoteHttp.encode(path),gitlab.readToken(token),null); gitlab.authorize(jwt,p.path("id").asLong(),token); return Map.of("projectId",p.path("id").asLong(),"name",p.path("path_with_namespace").asText(),"gitlabInstance",settings.get("gitlab-url")); }
-    /** Reports effective project actions and only the provider/model alias resolved from signed policy. Exigences : DEVAI-026, DEVAI-033, DEVAI-064, DEVAI-192. */
+    /** Reports signed capabilities without requiring a model for AI-disabled projects. Exigences : DEVAI-026, DEVAI-033, DEVAI-064, DEVAI-190, DEVAI-192, DEVAI-196. */
     @GetMapping("/api/v1/capabilities") public Map<String,Object> capabilities(@AuthenticationPrincipal Jwt jwt,@RequestHeader(value="X-ODS-GitLab-Token",required=false) String token,@RequestParam long projectId) {
         gitlab.authorize(jwt,projectId,token); JsonNode policy=policies.snapshot();
         for(JsonNode rule:policy.path("projects")) if(rule.path("projectId").asLong()==projectId) {
+            if(!rule.path("aiEnabled").asBoolean()) return Map.of("projectId",projectId,"rule",Json.map(rule),"policyVersion",policy.path("policyVersion").asLong(),"validUntil",policy.path("expiresAt").asText(),"usage",store.usage(projectId,PolicyService.subject(jwt)));
             var model=policies.resolveModel(policy,rule);
             return Map.of("projectId",projectId,"rule",Json.map(rule),"policyVersion",policy.path("policyVersion").asLong(),"validUntil",policy.path("expiresAt").asText(),"provider",model.providerId(),"modelAlias",Json.text(rule,"modelAlias"),"usage",store.usage(projectId,PolicyService.subject(jwt)));
         }

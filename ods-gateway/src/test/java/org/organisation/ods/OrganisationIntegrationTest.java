@@ -25,7 +25,7 @@ import java.util.*;
 import java.util.concurrent.atomic.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Exercises real HTTP controllers, JWT validation, TLS adapters, signed policy and persistence with local provider doubles. Exigences : DEVAI-020, DEVAI-135, DEVAI-139. */
+/** Exercises real HTTP controllers, JWT validation, TLS adapters, signed policy and persistence with local provider doubles. Exigences : DEVAI-020, DEVAI-135, DEVAI-139, DEVAI-196. */
 @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT,properties={"spring.datasource.url=jdbc:h2:mem:organisation-integration;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1","spring.datasource.username=sa","spring.datasource.password=","server.address=127.0.0.1","logging.level.root=WARN","debug=false"})
 class OrganisationIntegrationTest {
     private static HttpsServer services;
@@ -68,7 +68,7 @@ class OrganisationIntegrationTest {
         origin="https://localhost:"+services.getAddress().getPort();
         KeyPair rsa=KeyPairGenerator.getInstance("RSA").generateKeyPair(); oidcKey=new RSAKey.Builder((RSAPublicKey)rsa.getPublic()).privateKey((RSAPrivateKey)rsa.getPrivate()).keyID("isolated-oidc").build();
         KeyPair policy=KeyPairGenerator.getInstance("Ed25519").generateKeyPair(); publicPolicyKey=Base64.getEncoder().encodeToString(policy.getPublic().getEncoded());
-        signedPolicy=Json.write(Map.of("schemaVersion",1,"policyVersion",1,"issuedAt",Instant.now().minusSeconds(60).toString(),"expiresAt",Instant.now().plusSeconds(3600).toString(),"gitlabInstance",origin,"defaultEffect","DENY","allowedProviders",List.of("MISTRAL"),"models",List.of(Map.of("alias","approved","provider","MISTRAL","model","synthetic-approved-model","tools",true)),"projects",List.of(Map.of("projectId",1042,"aiEnabled",true,"allowedActions",List.of("CHAT","CODE_GENERATION","AGENT_RUN","MR_DESCRIPTION","SONAR_REMEDIATION","XRAY_REMEDIATION"),"modelAlias","approved","monthlyTokenQuota",1000000,"allowedAgents",List.of("implement-requirement"),"contextMode","LOCAL_GOVERNED","allowFreeText",true))));
+        signedPolicy=Json.write(Map.of("schemaVersion",1,"policyVersion",1,"issuedAt",Instant.now().minusSeconds(60).toString(),"expiresAt",Instant.now().plusSeconds(3600).toString(),"gitlabInstance",origin,"defaultEffect","DENY","allowedProviders",List.of("MISTRAL"),"models",List.of(Map.of("alias","approved","provider","MISTRAL","model","synthetic-approved-model","tools",true)),"projects",List.of(Map.of("projectId",1042,"aiEnabled",true,"allowedActions",List.of("CHAT","CODE_GENERATION","AGENT_RUN","MR_DESCRIPTION","SONAR_REMEDIATION","XRAY_REMEDIATION"),"modelAlias","approved","monthlyTokenQuota",1000000,"allowedAgents",List.of("implement-requirement"),"contextMode","LOCAL_GOVERNED","allowFreeText",true),Map.of("projectId",1043,"aiEnabled",false,"allowedActions",List.of(),"monthlyTokenQuota",0))));
         Signature signer=Signature.getInstance("Ed25519"); signer.initSign(policy.getPrivate()); signer.update(signedPolicy.getBytes(StandardCharsets.UTF_8)); policySignature=Base64.getEncoder().encodeToString(signer.sign());
         services.createContext("/",OrganisationIntegrationTest::route); services.start();
         Files.delete(store); Files.delete(directory);
@@ -92,6 +92,7 @@ class OrganisationIntegrationTest {
                 if(auth==null||!auth.startsWith("Bearer synthetic-")) { reply(exchange,401,Map.of("error","missing synthetic credential")); return; }
                 if(path.equals("/api/v4/user")) { reply(exchange,200,Map.of("id",7)); return; }
                 if(path.equals("/api/v4/projects/1042")||path.equals("/api/v4/projects/demo/payment-service")) { reply(exchange,failure.get().equals("gitlab")?403:200,Map.of("id",1042,"path_with_namespace","demo/payment-service","default_branch","main")); return; }
+                if(path.equals("/api/v4/projects/1043")) { reply(exchange,200,Map.of("id",1043,"path_with_namespace","demo/ai-disabled","default_branch","main")); return; }
                 if(path.contains("/repository/commits/")) { reply(exchange,200,Map.of("id",COMMIT)); return; }
                 if(path.contains("/repository/branches/")) { reply(exchange,200,Map.of("commit",Map.of("id",path.endsWith("develop")?"b".repeat(40):COMMIT))); return; }
                 if(path.endsWith("/repository/compare")) {
@@ -145,6 +146,15 @@ class OrganisationIntegrationTest {
         assertTrue(awaitJob(id,"SUCCEEDED").path("result").path("message").path("content").asText().contains("Maven")); assertEquals(2,modelCalls.get());
         assertTrue(ok("GET","/api/v1/ai/usage?projectId=1042",null).path("consumed").asLong()>=60);
         ok("DELETE","/api/v1/ai/sessions/"+id,null);
+    }
+    /** Keeps an AI-disabled signed project accessible without a model alias and rejects generation before provider calls. Exigences : DEVAI-026, DEVAI-033, DEVAI-190, DEVAI-192, DEVAI-196. */
+    @Test void disabledProjectCapabilitiesDoNotRequireModelAlias() throws Exception {
+        JsonNode capabilities=ok("GET","/api/v1/capabilities?projectId=1043",null);
+        assertFalse(capabilities.path("rule").path("aiEnabled").asBoolean());
+        assertTrue(capabilities.path("rule").path("allowedActions").isEmpty());
+        assertFalse(capabilities.has("modelAlias")); assertFalse(capabilities.has("provider"));
+        assertEquals(403,request("POST","/api/v1/ai/chat",Map.of("projectId",1043,"mode","QUESTION","task","code-generation","message","Synthetic denied request","context",List.of()),token("ods-gateway","7")).statusCode());
+        assertEquals(0,modelCalls.get());
     }
     /** Qualifies both scan tabs, runner dispatch and Sonar pagination without calling an organisational service. Exigences : DEVAI-027, DEVAI-085, DEVAI-088, DEVAI-096, DEVAI-097. */
     @Test void qualityAndSecurityTabs() throws Exception {

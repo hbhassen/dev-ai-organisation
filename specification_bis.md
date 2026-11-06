@@ -80,6 +80,8 @@ Quand l’interface permet le choix d’un modèle, elle affiche uniquement les 
 
 Le changement d’alias est réévalué par la gateway à chaque requête. La révocation d’un fournisseur, d’un modèle ou du droit IA prend effet au prochain contrôle de politique et bloque les appels suivants. Aucun repli silencieux vers Mistral, OpenAI ou un autre modèle n’est permis.
 
+Une règle signée avec `aiEnabled: false` conserve un affichage de capacités valide sans `modelAlias`. La gateway ne résout aucun fournisseur pour cette règle et refuse la génération avant tout appel au modèle. Cette compatibilité est vérifiée par un test HTTP sur le contrôleur réel.
+
 ## 5. Capacités, consommation et données
 
 ### DEVAI-193 — Capacités et contrat de génération

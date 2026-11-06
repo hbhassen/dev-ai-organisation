@@ -21,6 +21,8 @@ Pour la connexion navigateur SonarQube, le compte est `admin` et son mot de pass
 
 Un JDK 21 isolé sous `.local/jdk/` contient l'autorité TLS du banc. Le JDK installé sur le poste reste inchangé. Les clones Git utilisent cette autorité explicitement, avec vérification TLS active.
 
+Les POM de démonstration ciblent Java 21. Dans le terminal réservé au banc, vérifier `mvn -version` avant les scans : Maven choisit `JAVA_HOME`, qui peut différer du `java` trouvé sur `PATH`. Configurer ce terminal avec le JDK du banc si nécessaire (`set "JAVA_HOME=%CD%\TestDOKERMan\.local\jdk"` sous `cmd.exe`, depuis la racine du dépôt). Cette configuration concerne le test local ; `ods.javaPath` sélectionne seulement le runtime ODS et ne remplace pas le JDK des projets ouverts.
+
 Les tokens GitLab de ce banc expirent après 90 jours. La politique IA, distincte des tokens, doit être renouvelée chaque jour de test. L'autorité TLS locale est aussi importée dans le magasin utilisateur Windows pour la navigation ; elle peut être retirée après abandon du banc avec `certutil -user -delstore Root "ODS Manual Test Local CA"`.
 
 Sur ce poste, le lanceur utilise la copie **VS Code 1.95.2** déjà disponible, car l'installation habituelle présente une mise à jour en attente et n'ouvrait pas la nouvelle fenêtre. Son chemin est enregistré uniquement dans `.local/vscode-executable.txt`. Les données et extensions du profil `Test` sont indépendantes des profils habituels.
