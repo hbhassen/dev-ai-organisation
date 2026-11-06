@@ -1,6 +1,6 @@
 # Spécification complète — Organisation Development Standard (ODS)
 
-**Version documentaire : 1.7 — 5 novembre 2026 ; version produit : 0.7.0.**
+**Version documentaire : 1.7 — 5 novembre 2026 ; version produit : 0.7.1.**
 
 ## 1. Référentiel et décisions
 
@@ -2010,9 +2010,13 @@ La gateway transmet au processus Python isolé provider, backend, style, endpoin
 
 ODS n’expose pas de saisie libre de fournisseur, modèle ou endpoint. L’alias effectif provient de la règle signée du projet. Si une interface propose plus tard un choix, elle ne montrera que les alias autorisés par cette politique. La révocation ou l’expiration est réévaluée par la gateway à chaque opération sensible ; aucun fallback n’est effectué.
 
+Le badge affiche le fournisseur et l’identifiant exact résolus par la gateway, puis ceux du résultat de la dernière réponse. Chaque message assistant garde sa propre attribution, indépendamment des actualisations de politique. Une donnée absente produit un libellé neutre ; refus ou déconnexion retire le badge précédent. Les confirmations de transfert nomment la destination configurée sans afficher de secret. Voir DEVAI-192 de `specification_bis.md` pour les critères d’affichage.
+
 ### DEVAI-193 — Capabilités vérifiées
 
 Le registre déclare génération, outils, streaming, images et usage ; le catalogue signé déclare les tailles de contexte et de sortie applicables à l’alias exact. La gateway estime l’entrée de façon conservative par ses octets UTF-8 et le framing des messages, réserve la sortie, refuse si l’ensemble dépasse le contexte et borne `max_tokens` à la limite signée. Cette estimation est explicitement indicative et le fournisseur reste la source des compteurs mesurés. La gateway refuse aussi une action qui exige une capacité absente. Les réponses sont normalisées vers le contrat existant : texte, outils typés, fin de tour et compteurs d’usage. Pour la première qualification OpenAI, génération, outils et usage sont activés ; streaming fournisseur et images restent désactivés.
+
+Les capacités publiques exposent le modèle exact, les outils et la limite de sortie. L’interface distingue technologies locales, fichiers sélectionnés et outils de lecture effectifs. Une nouvelle question sans fichier ni outil de lecture propose un ajout de fichiers ou un envoi explicite sans fichiers ; annuler conserve le brouillon sans appel fournisseur (DEVAI-065, DEVAI-193 et DEVAI-195).
 
 ### DEVAI-194 — Quotas et attribution par fournisseur
 

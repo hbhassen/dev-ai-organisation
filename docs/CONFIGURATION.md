@@ -1,4 +1,6 @@
-# Configuration administrée au build — 0.7.0
+# Configuration administrée au build — 0.7.1
+
+Le badge IA présente `provider` et `model` issus de la gateway, pas un libellé fixe. Chaque réponse conserve ces valeurs issues du job exécuté. `tools: false` interdit au modèle de parcourir le projet ; `SERVER_VERIFIED` retire également les outils de lecture locale. Dans ces cas, joindre explicitement les fichiers et approuver l’aperçu est nécessaire pour une analyse fondée sur leur contenu. La limite `maxOutputTokens` est visible dans l’onglet IA ; une petite limite de smoke test n’est pas adaptée aux explications longues. Modifier ces valeurs passe par la configuration et la politique signée existantes, jamais par le badge.
 
 Les corrections 0.3.1 ne changent pas le format du profil : conserver les URL et secrets administrés, reconstruire le VSIX puis recharger VS Code. Les erreurs de clé, quota et modèle sont maintenant distinguées d'une absence du runtime Vibe ; voir [Diagnostic](INSTALLATION.md#diagnostic-et-limites).
 

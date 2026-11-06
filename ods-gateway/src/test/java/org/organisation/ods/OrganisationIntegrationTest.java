@@ -25,7 +25,7 @@ import java.util.*;
 import java.util.concurrent.atomic.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Exercises real HTTP controllers, JWT validation, TLS adapters, signed policy and persistence with local provider doubles. Exigences : DEVAI-020, DEVAI-135, DEVAI-139, DEVAI-196. */
+/** Exercises real HTTP controllers, JWT validation, TLS adapters, signed policy and persistence with local provider doubles. Exigences : DEVAI-020, DEVAI-135, DEVAI-139, DEVAI-192, DEVAI-193, DEVAI-196. */
 @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT,properties={"spring.datasource.url=jdbc:h2:mem:organisation-integration;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1","spring.datasource.username=sa","spring.datasource.password=","server.address=127.0.0.1","logging.level.root=WARN","debug=false"})
 class OrganisationIntegrationTest {
     private static HttpsServer services;
@@ -147,12 +147,22 @@ class OrganisationIntegrationTest {
         assertTrue(ok("GET","/api/v1/ai/usage?projectId=1042",null).path("consumed").asLong()>=60);
         ok("DELETE","/api/v1/ai/sessions/"+id,null);
     }
+    /** Exposes the resolved identity and safe capabilities without spending a generation or leaking deployment secrets. Exigences : DEVAI-192, DEVAI-193, DEVAI-195. */
+    @Test void capabilitiesExposeResolvedModelAndLimits() throws Exception {
+        JsonNode capabilities=ok("GET","/api/v1/capabilities?projectId=1042",null);
+        assertEquals("MISTRAL",capabilities.path("provider").asText());
+        assertEquals("synthetic-approved-model",capabilities.path("model").asText());
+        assertEquals("approved",capabilities.path("modelAlias").asText());
+        assertTrue(capabilities.path("tools").asBoolean()); assertEquals(4000,capabilities.path("maxOutputTokens").asInt());
+        assertFalse(capabilities.toString().contains("synthetic-mistral"));
+        assertFalse(capabilities.has("apiBase")); assertFalse(capabilities.has("credentialRef")); assertEquals(0,modelCalls.get());
+    }
     /** Keeps an AI-disabled signed project accessible without a model alias and rejects generation before provider calls. Exigences : DEVAI-026, DEVAI-033, DEVAI-190, DEVAI-192, DEVAI-196. */
     @Test void disabledProjectCapabilitiesDoNotRequireModelAlias() throws Exception {
         JsonNode capabilities=ok("GET","/api/v1/capabilities?projectId=1043",null);
         assertFalse(capabilities.path("rule").path("aiEnabled").asBoolean());
         assertTrue(capabilities.path("rule").path("allowedActions").isEmpty());
-        assertFalse(capabilities.has("modelAlias")); assertFalse(capabilities.has("provider"));
+        assertFalse(capabilities.has("modelAlias")); assertFalse(capabilities.has("provider")); assertFalse(capabilities.has("model")); assertFalse(capabilities.has("tools"));
         assertEquals(403,request("POST","/api/v1/ai/chat",Map.of("projectId",1043,"mode","QUESTION","task","code-generation","message","Synthetic denied request","context",List.of()),token("ods-gateway","7")).statusCode());
         assertEquals(0,modelCalls.get());
     }

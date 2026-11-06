@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.1 — 2026-11-06
+
+- Badge IA et auteur de chaque réponse attribués au fournisseur et au modèle exact renvoyés par la gateway ; attribution historique conservée et état neutre sans métadonnées.
+- Capacités publiques enrichies avec modèle, outils et limite de sortie, sans exposer les credentials ; libellés Mistral fixes retirés des parcours communs.
+- Distinction entre technologies détectées et fichiers sélectionnés ; avertissement avant une nouvelle question sans fichier ni outil de lecture, avec ajout de fichiers ou envoi explicite sans fichiers.
+- Critères DEVAI-065, DEVAI-192, DEVAI-193 et DEVAI-195 précisés et couverts par tests natifs, HTTP et navigateur.
+- Retrait de l’index de l’ancien package généré `TestDOKERMan/suiteInstall` ; fichiers locaux conservés et historique distant inchangé.
+
 ## 0.7.0 — 2026-11-06
 
 - Routage OpenAI Chat Completions facultatif via Vibe 3.0.3, avec registre HTTPS limité, credential OpenAI distinct, politique projet signée et configuration de build double fournisseur.

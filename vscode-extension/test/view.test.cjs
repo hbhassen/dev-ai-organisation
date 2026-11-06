@@ -42,3 +42,53 @@ test('DEVAI-169: removing origin stops an already owned gateway on refresh', asy
   assert.equal(view.project, undefined);
   assert.equal(view.capabilities, undefined);
 });
+
+/** Exercises the real chat controller with deterministic native dialogs and gateway job metadata. Exigences : DEVAI-065, DEVAI-135, DEVAI-192, DEVAI-193. */
+function chatView(choice, tools = false) {
+  const dialogs = [], requests = [], messages = [];
+  const api = { workspace: { isTrusted: true }, window: { showWarningMessage: async (text, options, ...choices) => { dialogs.push({ text, choices }); return choice; } } };
+  const original = Module._load;
+  Module._load = function load(request, parent, main) { return request === 'vscode' ? api : original.call(this, request, parent, main); };
+  let OdsView;
+  try { delete require.cache[require.resolve('../dist/view')]; ({ OdsView } = require('../dist/view')); } finally { Module._load = original; }
+  const gateway = { request: async (path, method, body) => { requests.push({ path, method, body }); return { jobId: 'job', consumed: 1 }; } };
+  const view = new OdsView({ workspaceState: { update: async () => {} } }, {}, gateway);
+  view.root = { uri: { toString: () => 'file:///fixture' } }; view.project = 1042;
+  view.capabilities = { provider: 'OPENAI', model: 'selected-model', tools, rule: { contextMode: 'LOCAL_GOVERNED' } };
+  view.prepareContext = async () => [];
+  view.waitJob = async () => ({ status: 'SUCCEEDED', result: { provider: 'OPENAI', model: 'executed-model', message: { content: 'Réponse simulée' } } });
+  view.post = (type, data) => messages.push({ type, ...data });
+  return { view, dialogs, requests, messages };
+}
+
+const question = { mode: 'QUESTION', task: 'code-generation', message: 'Explique le projet' };
+test('DEVAI-065/193: canceling empty context with disabled tools makes no model request and keeps the draft', async () => {
+  const state = chatView(undefined); await state.view.chat(question);
+  assert.equal(state.dialogs.length, 1); assert.match(state.dialogs[0].text, /OpenAI · selected-model/);
+  assert.match(state.dialogs[0].text, /aucun fichier/); assert.equal(state.requests.length, 0);
+  assert.equal(state.messages.some(m => m.type === 'accepted'), false);
+});
+test('DEVAI-065: selecting attachments from the empty-context notice defers sending until preview', async () => {
+  const state = chatView('Ajouter des fichiers'); let attached = false;
+  state.view.attach = async () => { attached = true; };
+  await state.view.chat(question); assert.equal(attached, true); assert.equal(state.requests.length, 0);
+});
+test('DEVAI-192/193: explicit text-only sending retains actual job attribution instead of selected metadata', async () => {
+  const state = chatView('Envoyer sans fichiers'); await state.view.chat(question);
+  assert.equal(state.dialogs.length, 1); assert.deepEqual(state.requests[0].body.context, []);
+  assert.deepEqual(state.messages.find(m => m.role === 'assistant'), { type: 'chat', role: 'assistant', text: 'Réponse simulée', provider: 'OPENAI', model: 'executed-model' });
+  await state.view.chat(question); assert.equal(state.dialogs.length, 1); // Existing conversation retains its history.
+});
+test('DEVAI-065/195: a previewed file suffices when read tools are disabled without misleading tool consent', async () => {
+  const state = chatView(undefined); state.view.prepareContext = async () => [{ path: 'pom.xml', content: '<project/>' }];
+  await state.view.chat(question); assert.equal(state.dialogs.length, 0); assert.equal(state.requests[0].body.context[0].path, 'pom.xml');
+});
+test('DEVAI-192/195: enabled read tools retain consent addressed to the selected provider and model', async () => {
+  const state = chatView('Autoriser cette action', true); await state.view.chat(question);
+  assert.equal(state.dialogs.length, 1); assert.match(state.dialogs[0].text, /transmettre à OpenAI · selected-model/);
+  assert.equal(state.requests[0].path, '/api/v1/ai/chat');
+});
+test('DEVAI-065/193: server-verified context does not advertise local read tools', async () => {
+  const state = chatView(undefined, true); state.view.capabilities.rule.contextMode = 'SERVER_VERIFIED';
+  await state.view.chat(question); assert.match(state.dialogs[0].text, /outils de lecture sont désactivés/); assert.equal(state.requests.length, 0);
+});

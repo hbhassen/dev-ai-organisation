@@ -44,7 +44,7 @@ def footer(canvas, document):
     canvas.line(60, 45, 535, 45)
     canvas.setFillColor(NAVY)
     canvas.setFont("Helvetica", 8)
-    canvas.drawString(60, 30, "Version documentaire 1.7  |  Produit 0.7.0  |  5 novembre 2026")
+    canvas.drawString(60, 30, "Version documentaire 1.7  |  Produit 0.7.1  |  6 novembre 2026")
     canvas.drawRightString(535, 30, str(document.page))
     canvas.restoreState()
 
@@ -81,7 +81,7 @@ def build():
         """Append one readable paragraph without embedding untrusted markup. Exigences : DEVAI-133."""
         story.append(paragraph(content))
 
-    page("Organisation Development Standard", "Architecture technique et interface • Évolution 0.7.0")
+    page("Organisation Development Standard", "Architecture technique et interface • Évolution 0.7.1")
     text("Un environnement de développement gouverné dans VS Code : Starter, IA, Quality, Security et GitFlow. Cette édition remplace les parcours SSO et scans liés à un commit par une connexion Git native et des analyses des sources enregistrées.")
     story.append(Spacer(1, 22))
     story.append(table([["Décision", "Comportement cible"], ["Sans SSO", "Le développeur utilise l’accès Git déjà disponible dans son IDE. Un refus Git interdit la connexion au gateway."], ["Configuration au build", "L’organisation fournit URL, comptes de service, transport Mistral, watch Xray et mappings Sonar. L’interface utilisateur ne les modifie pas."], ["Analyses locales", "SBOM CycloneDX, Graph Scan Xray et scanner Sonar fonctionnent sans attendre un commit."], ["Cycle de vie", "Le gateway embarqué démarre après le contrôle Git et s’arrête avec l’extension ou la fermeture du canal parent."]]))
@@ -95,7 +95,7 @@ def build():
     story.append(table([["Composant", "Responsabilité"], ["Client TypeScript", "Vérification Git, confiance workspace, vues, permissions et processus possédés."], ["Moteur Java 21", "Lecture filtrée, propositions, checkpoints, commandes approuvées et GitFlow."], ["Gateway Java 21", "Politique signée, Mistral, jobs, quotas locaux, Sonar et Xray."], ["Adaptateurs Python", "Backend Vibe isolé et exécution bornée des scanners de stack."]]))
 
     page("2. Les cinq onglets", "DEVAI-013, 019, 172, 174, 179")
-    text("L’onglet IA conserve le compositeur, les pièces jointes, les modes Question / Modification / Agent, les instructions et la consommation. Quality et Security portent sur les fichiers enregistrés.")
+    text("L’onglet IA affiche le fournisseur et le modèle exact de la politique, puis de chaque réponse. Les technologies détectées restent distinctes des fichiers joints après aperçu. L’état des outils de lecture et la limite de sortie sont visibles. Quality et Security portent sur les fichiers enregistrés.")
     capture = ROOT / ".artifacts/interface-900.png"
     if not capture.is_file():
         raise ValueError("Run the Chromium interface tests before rendering the PDF")
@@ -192,7 +192,7 @@ def build():
     text("Le profil privé lit MISTRAL_API_KEY, OPENAI_API_KEY et MISTRAL_MODEL depuis l'environnement du build. Les valeurs ne sont jamais écrites dans le dépôt. Les tests par défaut utilisent des credentials synthétiques et un serveur HTTP simulé ; un smoke Docker explicitement activé peut envoyer une instruction synthétique à OpenAI, sans sources ni outils.")
 
     destination = ROOT / "Organisation_Development_Standard_Architecture_avec_Interface.pdf"
-    document = SimpleDocTemplate(str(destination), pagesize=A4, rightMargin=60, leftMargin=60, topMargin=65, bottomMargin=65, title="ODS - Architecture et interface 0.7.0", author="Organisation Development Standard", subject="VSIX autonome, fournisseurs IA administrés et séparation des JDK")
+    document = SimpleDocTemplate(str(destination), pagesize=A4, rightMargin=60, leftMargin=60, topMargin=65, bottomMargin=65, title="ODS - Architecture et interface 0.7.1", author="Organisation Development Standard", subject="VSIX autonome, fournisseurs IA administrés et séparation des JDK")
     document.build(story, onFirstPage=footer, onLaterPages=footer)
     print("Architecture PDF generated")
 

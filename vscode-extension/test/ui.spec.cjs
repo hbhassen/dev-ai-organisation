@@ -15,11 +15,43 @@ async function open(page, width = 900) {
   });
   await page.goto('http://ods.test/');
   await message(page, { type: 'context', name: 'payment-service', branch: 'main', stacks: ['Spring Boot', 'pom.xml'] });
-  await message(page, { type: 'capabilities', projectId: 1042, policyVersion: 3, rule: { aiEnabled: true, allowedActions: ['CHANGELOG', 'RELEASE_NOTES', 'MR_DESCRIPTION'], modelAlias: 'approved', monthlyTokenQuota: 100000 }, usage: { consumed: 42500, reserved: 0 } });
+  await message(page, { type: 'capabilities', projectId: 1042, policyVersion: 3, provider: 'OPENAI', model: 'approved-model', tools: false, maxOutputTokens: 128, rule: { aiEnabled: true, allowedActions: ['CHANGELOG', 'RELEASE_NOTES', 'MR_DESCRIPTION'], modelAlias: 'approved', monthlyTokenQuota: 100000 }, usage: { consumed: 42500, reserved: 0 } });
 }
 
 /** Sends host presentation data through the same browser event used by VS Code. Exigences : DEVAI-018, DEVAI-135. */
 async function message(page, data) { await page.evaluate(value => window.postMessage(value, '*'), data); }
+
+test('DEVAI-192: selected and executed models remain distinct, historical labels survive refresh and unknown models stay neutral', async ({ page }) => {
+  await open(page, 330); await expect(page.locator('#model-identity')).toHaveText('OpenAI · approved-model');
+  await message(page, { type: 'chat', role: 'assistant', text: 'First answer', provider: 'OPENAI', model: 'executed-model' });
+  await expect(page.locator('#model-identity')).toHaveText('OpenAI · executed-model');
+  await message(page, { type: 'capabilities', rule: { aiEnabled: true }, provider: 'MISTRAL', model: 'mistral-model' });
+  await expect(page.locator('#model-identity')).toHaveText('Mistral · mistral-model');
+  await expect(page.locator('.assistant strong').first()).toHaveText('OpenAI · executed-model');
+  await message(page, { type: 'chat', role: 'assistant', text: 'Legacy answer' });
+  await expect(page.locator('.assistant strong').last()).toHaveText('Assistant · modèle non communiqué');
+  const hostile = '<img src=x onerror="window.injected=true">' + 'model'.repeat(40);
+  await message(page, { type: 'capabilities', rule: { aiEnabled: true }, provider: 'OPENAI', model: hostile });
+  await expect(page.locator('#model-identity img')).toHaveCount(0); await expect(page.locator('#model-identity')).toContainText(hostile);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await message(page, { type: 'capabilities', rule: { aiEnabled: false } });
+  await expect(page.locator('#model-identity')).toHaveText('Modèle non disponible');
+  await message(page, { type: 'capabilities', rule: { aiEnabled: true, modelAlias: 'alias-is-not-a-model' } });
+  await expect(page.locator('#model-identity')).toHaveText('Modèle non communiqué');
+});
+
+test('DEVAI-065/193: local detection is distinct from file selection and effective read tools', async ({ page }) => {
+  await open(page); await expect(page.locator('#context-status')).toContainText('Aucun fichier sélectionné');
+  await expect(page.locator('#model-capabilities')).toContainText('Outils de lecture désactivés');
+  await expect(page.locator('#model-capabilities')).toContainText('128 tokens');
+  await message(page, { type: 'attachments', paths: ['pom.xml', 'README.md'] });
+  await expect(page.locator('#context-status')).toContainText('2 fichier(s) sélectionné(s)');
+  await page.locator('#includeActive').check(); await expect(page.locator('#context-status')).toContainText('Fichier actif demandé');
+  await message(page, { type: 'capabilities', rule: { aiEnabled: true }, tools: true });
+  await expect(page.locator('#model-capabilities')).toContainText('après votre autorisation');
+  await message(page, { type: 'capabilities', rule: { aiEnabled: true, contextMode: 'SERVER_VERIFIED' }, tools: true });
+  await expect(page.locator('#model-capabilities')).toContainText('Outils de lecture désactivés');
+});
 
 test('DEVAI-090/098: coverage threshold and accessible correction cards export the native report', async ({ page }) => {
   await open(page, 500); await page.getByRole('tab', { name: 'Quality', exact: true }).click();
@@ -123,7 +155,7 @@ test('DEVAI-179: Enter reaches the real native controller and HTTP client, then 
     if (request.url === '/api/v1/ai/chat') {
       let body = ''; for await (const chunk of request) body += chunk;
       const input = JSON.parse(body); requests.push(input);
-      completion = { message: { role: 'assistant', content: 'Réponse LLM simulée : ' + input.message }, usage: { prompt_tokens: 8, completion_tokens: 5, total_tokens: 13 } };
+      completion = { provider: 'OPENAI', model: 'executed-model', message: { role: 'assistant', content: 'Réponse LLM simulée : ' + input.message }, usage: { prompt_tokens: 8, completion_tokens: 5, total_tokens: 13 } };
       response.end(JSON.stringify({ jobId: 'mock-run' }));
     } else if (request.url === '/api/v1/jobs/mock-run') response.end(JSON.stringify({ status: 'SUCCEEDED', result: completion }));
     else if (request.url.startsWith('/api/v1/ai/usage')) response.end(JSON.stringify({ consumed: 13, reserved: 0 }));
@@ -150,6 +182,7 @@ test('DEVAI-179: Enter reaches the real native controller and HTTP client, then 
     await composer.dispatchEvent('keydown', { key: 'Enter', isComposing: true }); expect(requests).toHaveLength(0);
     await composer.press('Enter');
     await expect(page.locator('#conversation')).toContainText('Réponse LLM simulée : Vérifier le code');
+    await expect(page.locator('#conversation .assistant strong')).toHaveText('OpenAI · executed-model');
     await expect(composer).toHaveValue(''); expect(requests).toHaveLength(1); expect(requests[0].message).toBe('Vérifier le code');
     await expect(page.getByRole('button', { name: /SSO/ })).toHaveCount(0);
   } finally { await new Promise(resolve => server.close(resolve)); }

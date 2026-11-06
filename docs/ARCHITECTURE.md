@@ -1,4 +1,6 @@
-# Architecture 0.7.0
+# Architecture 0.7.1
+
+La gateway expose le fournisseur, le modèle exact et les capacités de lecture/sortie résolus par la politique. Le contrôleur natif transmet l’attribution de chaque job à la conversation ; la webview ne déduit jamais le modèle de l’alias. Les technologies locales, la sélection de fichiers avant aperçu et les outils de lecture effectifs sont affichés séparément (DEVAI-065, DEVAI-192, DEVAI-193).
 
 La pré-revue GitFlow utilise `GET /api/v1/git/mr-context` : contrôle d’accès GitLab, résolution des deux branches en SHA immuables, puis comparaison avec leur base commune. Seuls chemins, statuts et diffs sont conservés ; les métadonnées personnelles des commits ne sont pas transmises. Les limites et contrôles de secrets s’appliquent avant l’appel au modèle. Le client lance la tâche gouvernée `gitlab-mr-description` en mode Question, valide une réponse structurée couvrant exactement les fichiers et produit un aperçu Markdown. Le POST de création transmet aussi les SHA source/cible, vérifiés à nouveau avant publication. Un changement distant après cette dernière vérification reste possible : les SHA figurent donc explicitement dans la description. Le contrat de comparaison suit l’[API officielle GitLab](https://docs.gitlab.com/api/repositories/#compare-branches-tags-or-commits). Exigences : DEVAI-037, DEVAI-112, DEVAI-113.
 

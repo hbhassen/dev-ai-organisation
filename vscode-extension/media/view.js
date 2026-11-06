@@ -2,15 +2,29 @@
 const vscode = acquireVsCodeApi();
 let busy = false, allowed = false, sonarPage = 1;
 let documentActions = new Set();
+let selectedPaths = [], modelCapabilities = {};
 /** Resolves a static DOM element without evaluating external selectors. Exigences : DEVAI-018. */
 function element(id) { return document.getElementById(id); }
 /** Posts a typed UI action without tokens, paths or native permissions. Exigences : DEVAI-018. */
 function send(message) { vscode.postMessage(message); }
-/** Appends untrusted text using textContent, never HTML interpolation. Exigences : DEVAI-018, DEVAI-151. */
-function entry(role, text) {
+/** Formats authoritative model metadata without substituting an alias or a default provider. Exigences : DEVAI-192, DEVAI-196. */
+function modelLabel(data, fallback) {
+  const provider = data?.provider, model = data?.model;
+  const name = provider === 'OPENAI' ? 'OpenAI' : provider === 'MISTRAL' ? 'Mistral' : provider;
+  return typeof name === 'string' && typeof model === 'string' && name && model ? `${name} · ${model}` : fallback;
+}
+/** Distinguishes pending file selection, local stack detection and effective read-tool availability. Exigences : DEVAI-065, DEVAI-193, DEVAI-195. */
+function contextStatus() {
+  const selected = selectedPaths.length ? `${selectedPaths.length} fichier(s) sélectionné(s), soumis à aperçu avant envoi.` : 'Aucun fichier sélectionné.';
+  element('context-status').textContent = `${selected}${element('includeActive').checked ? ' Fichier actif demandé ; sa présence sera vérifiée avant envoi.' : ''} La détection des technologies ne transmet pas le code.`;
+  const tools = !allowed ? 'Outils de lecture indisponibles.' : modelCapabilities.tools === false || modelCapabilities.rule?.contextMode === 'SERVER_VERIFIED' ? 'Outils de lecture désactivés : joignez les fichiers utiles pour une question sur le projet.' : modelCapabilities.tools === true ? 'Outils de lecture disponibles après votre autorisation.' : 'Disponibilité des outils de lecture non communiquée.';
+  element('model-capabilities').textContent = tools + (allowed && Number.isInteger(modelCapabilities.maxOutputTokens) ? ` Réponse limitée à ${modelCapabilities.maxOutputTokens} tokens.` : '');
+}
+/** Appends inert text and preserves each response's own provider/model across policy refreshes. Exigences : DEVAI-018, DEVAI-151, DEVAI-192. */
+function entry(role, text, identity) {
   element('welcome')?.remove();
   const article = document.createElement('article'); article.className = `entry ${role}`;
-  const label = document.createElement('strong'); label.textContent = { user: 'Vous', assistant: 'Mistral', system: 'ODS', tool: 'Outil' }[role] || 'ODS';
+  const label = document.createElement('strong'); label.textContent = role === 'assistant' ? modelLabel(identity, 'Assistant · modèle non communiqué') : { user: 'Vous', system: 'ODS', tool: 'Outil' }[role] || 'ODS';
   const content = document.createElement('pre'); content.textContent = text;
   article.append(label, content); element('conversation').append(article); article.scrollIntoView({ block: 'nearest' });
 }
@@ -51,7 +65,7 @@ function correctionReport(source, data) {
     const heading = document.createElement('h4'); heading.textContent = `${/CRITICAL|BLOCKER|HIGH|High/.test(item.severity) ? '▲' : '◆'} ${item.severity} · ${item.title}`;
     const key = document.createElement('p'); key.className = 'hint'; key.textContent = `${item.key} · ${item.path}`;
     const evidence = document.createElement('p'); evidence.textContent = item.description;
-    const explanation = document.createElement('p'); explanation.textContent = `Explication Mistral : ${item.explanation || 'Non fournie pour cette anomalie.'}`;
+    const explanation = document.createElement('p'); explanation.textContent = `Explication de l’assistant IA : ${item.explanation || 'Non fournie pour cette anomalie.'}`;
     const original = document.createElement('details'), label = document.createElement('summary'), raw = document.createElement('pre'); label.textContent = 'Constat du rapport initial'; raw.textContent = JSON.stringify(item.initial, null, 2); original.append(label, raw);
     card.append(status, heading, key, evidence, explanation, original); host.append(card);
   }
@@ -69,6 +83,7 @@ document.querySelectorAll('[data-remediate]').forEach(button => button.addEventL
 element('create').addEventListener('click', () => send({ type: 'starter', stack: element('stack').value, name: element('name').value }));
 element('send').addEventListener('click', submit);
 element('message').addEventListener('input', () => { composerState(); });
+element('includeActive').addEventListener('change', contextStatus);
 element('message').addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); submit(); } });
 element('sonar-previous').addEventListener('click', () => send({ type: 'report', source: 'SONAR', page: sonarPage - 1 }));
 element('sonar-next').addEventListener('click', () => send({ type: 'report', source: 'SONAR', page: sonarPage + 1 }));
@@ -76,17 +91,17 @@ window.addEventListener('message', event => {
   const m = event.data;
   switch (m.type) {
     case 'context': element('project-name').textContent = `Projet : ${m.name || 'Aucun'}`; element('context').textContent = `${m.branch || 'Sans branche'} · ${(m.stacks || []).join(' / ') || 'Stack à détecter'}`; element('context-chips').replaceChildren(); for (const stack of m.stacks || []) { const chip = document.createElement('span'); chip.className = 'chip'; chip.textContent = stack; element('context-chips').append(chip); } break;
-    case 'capabilities': allowed = !!m.rule?.aiEnabled; documentActions = new Set(m.rule?.allowedActions || []); element('capabilities').textContent = allowed ? 'IA autorisée' : 'IA indisponible'; element('capabilities').classList.toggle('neutral', !allowed); element('connection').textContent = m.projectId ? 'Connecté' : 'Non connecté'; element('connection').classList.toggle('neutral', !m.projectId); element('connection-detail').textContent = m.reason || `Politique ${m.policyVersion} · ${m.rule?.modelAlias || 'Aucun modèle'}`; quota(m.usage, m.rule?.monthlyTokenQuota); composerState(); break;
+    case 'capabilities': allowed = !!m.rule?.aiEnabled; modelCapabilities = m; documentActions = new Set(m.rule?.allowedActions || []); element('capabilities').textContent = allowed ? 'IA autorisée' : 'IA indisponible'; element('capabilities').classList.toggle('neutral', !allowed); element('connection').textContent = m.projectId ? 'Connecté' : 'Non connecté'; element('connection').classList.toggle('neutral', !m.projectId); element('connection-detail').textContent = m.reason || `Politique ${m.policyVersion} · ${m.rule?.modelAlias || 'Aucun modèle'}`; element('model-identity').textContent = allowed ? modelLabel(m, 'Modèle non communiqué') : 'Modèle non disponible'; element('model-identity').title = allowed ? 'Modèle sélectionné par la politique du projet' : ''; element('model-identity').classList.toggle('neutral', !allowed || !m.provider || !m.model); contextStatus(); quota(m.usage, m.rule?.monthlyTokenQuota); composerState(); break;
     case 'busy': busy = m.value; composerState(); break;
     case 'remediation': element('mode').value = m.mode; element('task').value = m.task; selectTab(element('tab-ai')); composerState(); break;
     case 'accepted': if (element('message').value === m.text) element('message').value = ''; composerState(); break;
-    case 'attachments': element('attachments').replaceChildren(); for (const path of m.paths) { const chip = document.createElement('button'); chip.className = 'chip'; chip.textContent = `${path} ×`; chip.setAttribute('aria-label', `Retirer ${path}`); chip.addEventListener('click', () => send({ type: 'detach', path })); element('attachments').append(chip); } break;
+    case 'attachments': selectedPaths = m.paths; contextStatus(); element('attachments').replaceChildren(); for (const path of m.paths) { const chip = document.createElement('button'); chip.className = 'chip'; chip.textContent = `${path} ×`; chip.setAttribute('aria-label', `Retirer ${path}`); chip.addEventListener('click', () => send({ type: 'detach', path })); element('attachments').append(chip); } break;
     case 'quota': quota(m.usage, m.limit); break;
     case 'status': element('status').textContent = m.message; break;
     case 'error': element('status').textContent = m.message; entry('system', m.message); break;
     case 'info': entry('system', m.message); element('status').textContent = busy ? m.message : 'Opération terminée ; consulter le résultat'; break;
     case 'clearChat': element('conversation').replaceChildren(); break;
-    case 'chat': element('streaming')?.remove(); entry(m.role, m.text); break;
+    case 'chat': element('streaming')?.remove(); entry(m.role, m.text, m); if (m.role === 'assistant' && allowed) { element('model-identity').textContent = modelLabel(m, 'Modèle non communiqué'); element('model-identity').title = 'Modèle utilisé pour la dernière réponse'; element('model-identity').classList.toggle('neutral', !m.provider || !m.model); } break;
     case 'progress': {
       let partial = element('streaming');
       if (!partial) { partial = document.createElement('pre'); partial.id = 'streaming'; partial.className = 'entry assistant'; element('conversation').append(partial); }

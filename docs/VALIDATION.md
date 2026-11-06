@@ -1,5 +1,15 @@
 # Validation de la version 0.3.0
 
+## Correctif 0.7.1 — 6 novembre 2026
+
+Validation locale exécutée avec `py -3.12 tools/build.py --task Build` : **SUCCESS**. Maven `clean verify` : **72 tests** réussis (4 contrats, 26 moteur, 42 gateway), aucun échec ni test ignoré. Python : **38 tests** ; Node : **69 tests** ; Chromium : **14 scénarios**, tous réussis. Compilation TypeScript et contrôles des commentaires Java/Python/TypeScript réussis. Démarrage des JAR 0.7.1, version moteur, santé gateway et refus des requêtes anonymes vérifiés.
+
+Les nouveaux contrôles couvrent l’identité exacte dans les capacités HTTP, son transfert depuis le résultat du job jusqu’au DOM, l’historique après changement de fournisseur, les métadonnées absentes, le rendu de texte hostile, la largeur 330 px et le contexte vide. Annuler ou choisir des fichiers avant envoi ne déclenche aucune génération ; les aperçus et les consentements continuent de protéger les transferts. Le PDF d’architecture a été régénéré et ses 18 pages inspectées avec une capture synthétique 0.7.1.
+
+Aucun appel fournisseur réel n’a été exécuté pour ce correctif. Les générations sont simulées aux frontières HTTP ; les résultats OpenAI réels de 0.7.0 ci-dessous restent historiques. Les livraisons définitives sont fabriquées depuis le commit propre et portent leur provenance dans `suiteInstall/BUILD.json`.
+
+## Historique 0.3.0
+
 Date : 29 octobre 2026. Livraison de développement, profil de démonstration sans identifiants réels. La révision 1.4 des spécifications supprime le SSO du VSIX administré. Les paragraphes 0.2.1 ci-dessous sont conservés comme historique et ne décrivent pas son nouveau parcours de connexion.
 
 ## Contrôles exécutés pour cette évolution

@@ -130,13 +130,15 @@ test('DEVAI-077: stopping the model stage prevents build, rescan and diff', asyn
   await state.view.remediate('SONAR'); assert.deepEqual(state.order, ['branch']); assert.match(state.outcome().message, /arrêtée/); assert.equal(state.outcome().validated, false);
 });
 
-test('DEVAI-042/065: multifile preview sends exactly the approved content and no context after refusal', async () => {
-  let preview, approve = true;
-  const api = { Uri: { joinPath: (base, path) => uri(base.fsPath + '/' + path) }, workspace: { textDocuments: [], openTextDocument: async data => { preview = data.content; return data; } }, window: { showTextDocument: async () => {}, showInformationMessage: async () => approve ? 'Transmettre' : undefined } };
+test('DEVAI-042/065/192: multifile preview names the resolved destination and sends only approved context', async () => {
+  let preview, confirmation, approve = true;
+  const api = { Uri: { joinPath: (base, path) => uri(base.fsPath + '/' + path) }, workspace: { textDocuments: [], openTextDocument: async data => { preview = data.content; return data; } }, window: { showTextDocument: async () => {}, showInformationMessage: async text => { confirmation = text; return approve ? 'Transmettre' : undefined; } } };
   const view = createView(api, { call: async (method, args) => ({ content: `contents of ${args.path}` }) });
   view.attached = ['pom.xml', 'src/Main.java'];
+  view.capabilities = { provider: 'OPENAI', model: 'approved-model' };
   assert.deepEqual(await view.prepareContext(false), [{ path: 'pom.xml', content: 'contents of pom.xml' }, { path: 'src/Main.java', content: 'contents of src/Main.java' }]);
   assert.match(preview, /contents of pom.xml/); assert.match(preview, /contents of src\/Main.java/);
+  assert.match(confirmation, /OpenAI · approved-model/);
   approve = false; assert.equal(await view.prepareContext(false), undefined);
 });
 
