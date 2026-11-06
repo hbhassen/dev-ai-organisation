@@ -128,6 +128,7 @@ Les résultats historiques ci-dessus ne sont pas réattribués à cette version.
 |---|---|
 | Build complet ODS | SUCCESS ; 71 tests Java, 38 Python, 63 Node, 12 Chromium |
 | Vibe 3.0.3 empaqueté | Contrats Mistral/OpenAI et 16 scénarios CLI réussis, HTTP simulé |
+| CI Windows / Linux et PostgreSQL 16.10 | SUCCESS sur le commit `6583281` ; package public téléchargé et démarré localement avec succès |
 | Client natif → moteur/gateway → Docker | 10 contrôles réussis, aucun échec après correction |
 | GitLab et politiques signées | Projet IA autorisée et projet IA refusée, accès anonyme bloqué |
 | Maven CycloneDX → mockXray | SBOM réel et rapport simulé normalisé vérifiés |
