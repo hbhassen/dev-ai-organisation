@@ -14,15 +14,16 @@ import java.nio.file.*;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** Orchestrates authorized provider turns, model budgets, filtered context, reservations and tool conversations. Exigences : DEVAI-063, DEVAI-065, DEVAI-076, DEVAI-153, DEVAI-165, DEVAI-190, DEVAI-191, DEVAI-193, DEVAI-194. */
+/** Orchestrates authorized provider turns, model budgets, filtered context, reservations and tool conversations. Exigences : DEVAI-063, DEVAI-065, DEVAI-076, DEVAI-153, DEVAI-165, DEVAI-190, DEVAI-191, DEVAI-193, DEVAI-194, DEVAI-199. */
 @Service
 public class AiService {
     private final PolicyService policy; private final Store store; private final ModelProvider provider; private final Settings settings; private final GitLabClient gitlab;
     private final Map<String,Conversation> sessions=new ConcurrentHashMap<>();
     private final JobEvents events;
-    /** Holds a bounded working copy of an encrypted, revision-controlled conversation checkpoint. Exigences : DEVAI-067. */
+    /** Holds a bounded working copy of an encrypted, revision-controlled conversation checkpoint. Exigences : DEVAI-067, DEVAI-199. */
     private static final class Conversation {
         private final String owner; private final long project; private final String mode; private final String task; private final String action;
+        private String modelAlias,providerId,modelId;
         private final List<Map<String,Object>> messages=new ArrayList<>(); private final Set<String> pending=new HashSet<>();
         private final Map<String,String> turns=new HashMap<>(), received=new HashMap<>();
         private final Set<String> stacks=new TreeSet<>();
@@ -48,7 +49,7 @@ public class AiService {
     public List<Map<String,String>> tasks() { return catalog().tasks(); }
     /** Creates a real asynchronous AI operation; initial provider/identity failures never return a fabricated answer. Exigences : DEVAI-063, DEVAI-077, DEVAI-119, DEVAI-180, DEVAI-181. */
     public Map<String,Object> start(Jwt jwt,String gitToken,JsonNode body,String key,boolean agent) {
-        Json.fields(body,Set.of("projectId","mode","task","message","context","stacks","action"));
+        Json.fields(body,Set.of("projectId","mode","task","message","context","stacks","action","modelAlias"));
         long project=body.path("projectId").asLong(); String mode=body.path("mode").asText("QUESTION");
         if(!Set.of("QUESTION","MODIFICATION","AGENT").contains(mode)) throw new OdsException("INVALID_REQUEST","Mode inconnu");
         if(agent!=mode.equals("AGENT")) throw new OdsException("INVALID_REQUEST","Mode et route incohérents");
@@ -57,8 +58,10 @@ public class AiService {
         String taskAction=catalog().action(task);
         if(taskAction.equals("AGENT_RUN")&&!agent) throw new OdsException("ACTION_DENIED","Ce prompt exige le mode Agent et son registre autorisé");
         String action=Set.of("code-generation","code-review").contains(task)?(mode.equals("QUESTION")?"CHAT":"CODE_GENERATION"):taskAction;
-        if(agent) policy.authorize(jwt,project,gitToken,"AGENT_RUN",key);
-        PolicyService.Authorization authorization=policy.authorizeResolved(jwt,project,gitToken,action,key); JsonNode rule=authorization.rule();
+        String selected=body.has("modelAlias")?Json.text(body,"modelAlias"):null;
+        if(agent) policy.authorizeResolved(jwt,project,gitToken,"AGENT_RUN",key,selected);
+        PolicyService.Authorization authorization=policy.authorizeResolved(jwt,project,gitToken,action,key,selected); JsonNode rule=authorization.rule();
+        if(!mode.equals("QUESTION")&&!authorization.model().tools()) throw new OdsException("MODEL_NOT_ALLOWED","Ce mode nécessite un modèle autorisé avec outils");
         if(agent&&!java.util.stream.StreamSupport.stream(rule.path("allowedAgents").spliterator(),false).anyMatch(a->a.asText().equals("implement-requirement"))) throw new OdsException("ACTION_DENIED","Agent non autorisé");
         String subject=PolicyService.subject(jwt);
         sessions.entrySet().removeIf(e->!e.getValue().busy&&System.currentTimeMillis()-e.getValue().created>1_800_000);
@@ -67,6 +70,7 @@ public class AiService {
         String id=job.get("jobId").toString();
         if(!store.claim(id)) return job;
         Conversation conversation=new Conversation(subject,project,mode,task,action);
+        conversation.modelAlias=authorization.alias(); conversation.providerId=authorization.model().providerId(); conversation.modelId=authorization.model().model();
         try { conversation.stacks.addAll(gitlab.stacks(project,gitToken)); }
         catch(Exception e) { store.finish(id,"FAILED",Map.of("code",e instanceof OdsException o?o.code():"OPERATION_FAILED","message","Détection serveur des profils impossible")); return store.job(id,subject); }
         conversation.busy=true; save(id,conversation); sessions.put(id,conversation);
@@ -111,23 +115,33 @@ public class AiService {
         }
         return Map.of("accepted",true);
     }
-    /** Resolves a run without leaking another user's conversation. Exigences : DEVAI-067. */
+    /** Resolves a run without leaking another user's conversation. Exigences : DEVAI-067, DEVAI-199. */
     private Conversation owned(String run,Jwt jwt) {
         String subject=PolicyService.subject(jwt); var checkpoint=store.loadSession(run,subject); JsonNode state=(JsonNode)checkpoint.get("content");
         Conversation c=new Conversation(subject,state.path("project").asLong(),Json.text(state,"mode"),Json.text(state,"task"),Json.text(state,"action"));
+        JsonNode identity=state.hasNonNull("modelAlias")?state:Json.MAPPER.valueToTree(store.job(run,subject).get("result"));
+        if(!identity.hasNonNull("modelAlias")||!identity.hasNonNull("provider")||!identity.hasNonNull("model")) throw new OdsException("MODEL_NOT_ALLOWED","Checkpoint sans provenance de modèle ; créer une nouvelle conversation");
+        c.modelAlias=Json.text(identity,"modelAlias"); c.providerId=Json.text(identity,"provider"); c.modelId=Json.text(identity,"model");
         c.created=state.path("created").asLong(); c.revision=((Number)checkpoint.get("revision")).longValue(); c.steps=state.path("steps").asInt(); c.busy=state.path("busy").asBoolean();
         for(JsonNode message:state.path("messages")) c.messages.add(Json.map(message)); for(JsonNode pending:state.path("pending")) c.pending.add(pending.asText()); for(JsonNode stack:state.path("stacks")) c.stacks.add(stack.asText());
         state.path("turns").fields().forEachRemaining(e->c.turns.put(e.getKey(),e.getValue().asText())); state.path("received").fields().forEachRemaining(e->c.received.put(e.getKey(),e.getValue().asText())); return c;
     }
-    /** Serializes only the conversation state into an encrypted checkpoint using its expected revision. Exigences : DEVAI-067, DEVAI-157. */
+    /** Serializes only the conversation state into an encrypted checkpoint using its expected revision. Exigences : DEVAI-067, DEVAI-157, DEVAI-199. */
     private void save(String run,Conversation c) {
         Map<String,Object> state=new LinkedHashMap<>(); state.put("project",c.project); state.put("mode",c.mode); state.put("task",c.task); state.put("action",c.action); state.put("created",c.created); state.put("steps",c.steps); state.put("busy",c.busy); state.put("messages",c.messages); state.put("pending",c.pending); state.put("stacks",c.stacks); state.put("turns",c.turns); state.put("received",c.received);
+        state.put("modelAlias",c.modelAlias); state.put("provider",c.providerId); state.put("model",c.modelId);
         c.revision=store.saveSession(run,c.owner,state,c.revision,c.created+1_800_000);
     }
     /** Publishes a completed checkpoint before its visible job transition, eliminating stale continuation windows. Exigences : DEVAI-119, DEVAI-157. */
     private void complete(String id,Conversation c,String status,Object result) { c.busy=false; save(id,c); store.finish(id,status,result); }
-    /** Revalidates the task action and the additional agent permission on every transition. Exigences : DEVAI-039, DEVAI-153. */
-    private PolicyService.Authorization authorize(Conversation c,Jwt jwt,String token,String correlation) { if(c.mode.equals("AGENT")) policy.authorize(jwt,c.project,token,"AGENT_RUN",correlation); return policy.authorizeResolved(jwt,c.project,token,c.action,correlation); }
+    /** Revalidates the task action and the additional agent permission on every transition. Exigences : DEVAI-039, DEVAI-153, DEVAI-199. */
+    private PolicyService.Authorization authorize(Conversation c,Jwt jwt,String token,String correlation) {
+        if(c.mode.equals("AGENT")) policy.authorizeResolved(jwt,c.project,token,"AGENT_RUN",correlation,c.modelAlias);
+        var authorization=policy.authorizeResolved(jwt,c.project,token,c.action,correlation,c.modelAlias);
+        if(!authorization.model().providerId().equals(c.providerId)||!authorization.model().model().equals(c.modelId)) throw new OdsException("MODEL_NOT_ALLOWED","Le modèle de cette conversation a changé ; créer une nouvelle conversation");
+        if(!c.mode.equals("QUESTION")&&!authorization.model().tools()) throw new OdsException("MODEL_NOT_ALLOWED","Les outils de ce modèle ont été révoqués");
+        return authorization;
+    }
     /** Executes one provider call with a fresh system prompt, explicit tool list and durable quota reservation. Exigences : DEVAI-076, DEVAI-153, DEVAI-165. */
     private void run(String id,Conversation c,Jwt jwt,String token,JsonNode body,JsonNode initialRule) {
         synchronized(c) { c.busy=true; }
@@ -144,7 +158,7 @@ public class AiService {
             long inputEstimate=ModelBudget.estimateInputTokens(messages); int maxOutput=ModelBudget.outputLimit(authorization.model(),4000);
             ModelBudget.requireFits(authorization.model(),inputEstimate,maxOutput);
             store.audit(c.owner,c.project,"PROMPT","APPLIED",id,instructions.get("bundleVersion").toString()+":"+instructions.get("sha256").toString().substring(0,48));
-            store.reserve(reservation,c.project,c.owner,authorization.model().providerId(),Json.text(rule,"modelAlias"),authorization.model().model(),inputEstimate+maxOutput,rule.path("monthlyTokenQuota").asLong(),rule.path("monthlyUserTokenQuota").asLong(rule.path("monthlyTokenQuota").asLong()),authorization.model().providerTokenQuota());
+            store.reserve(reservation,c.project,c.owner,authorization.model().providerId(),authorization.alias(),authorization.model().model(),inputEstimate+maxOutput,rule.path("monthlyTokenQuota").asLong(),rule.path("monthlyUserTokenQuota").asLong(rule.path("monthlyTokenQuota").asLong()),authorization.model().providerTokenQuota());
             List<Map<String,Object>> allowedTools=ToolCatalog.tools(c.mode).stream().filter(t->!rule.path("contextMode").asText().equals("SERVER_VERIFIED")||((Map<?,?>)t.get("function")).get("name").equals("changes_propose")).toList();
             if(!authorization.model().tools()) allowedTools=List.of();
             JsonNode response=provider.stream(authorization.model(),messages,allowedTools,maxOutput,text->events.text(id,text));
@@ -159,7 +173,7 @@ public class AiService {
                 Json.parse(tool.path("function").path("arguments").asText()); c.pending.add(Json.text(tool,"id"));
             }
             c.messages.add(Json.map(message)); c.steps++;
-            Map<String,Object> result=new LinkedHashMap<>(); result.put("message",Json.map(message)); result.put("usage",Json.map(response.path("usage").isObject()?response.path("usage"):Json.parse("{}"))); result.put("provider",authorization.model().providerId()); result.put("modelAlias",Json.text(rule,"modelAlias")); result.put("model",authorization.model().model()); result.put("promptOrigin",instructions.get("origin")); result.put("promptHash",instructions.get("sha256")); result.put("step",c.steps); result.put("runId",id);
+            Map<String,Object> result=new LinkedHashMap<>(); result.put("message",Json.map(message)); result.put("usage",Json.map(response.path("usage").isObject()?response.path("usage"):Json.parse("{}"))); result.put("provider",authorization.model().providerId()); result.put("modelAlias",authorization.alias()); result.put("model",authorization.model().model()); result.put("promptOrigin",instructions.get("origin")); result.put("promptHash",instructions.get("sha256")); result.put("step",c.steps); result.put("runId",id);
             complete(id,c,c.pending.isEmpty()?"SUCCEEDED":"WAITING_APPROVAL",result);
         } catch(Exception e) { complete(id,c,"FAILED",Map.of("code",e instanceof OdsException o?o.code():"OPERATION_FAILED","message",e instanceof OdsException?e.getMessage():"Échec du traitement IA")); }
         finally { synchronized(c) { c.busy=false; } }

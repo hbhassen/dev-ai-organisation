@@ -113,3 +113,11 @@ Après packaging, utiliser `python TestDOKERMan/vscode.py install --profile Test
 Dans Quality, analyser, choisir le nombre maximal de tentatives puis corriger. Vérifier la branche `fix/ods-*`, la compilation, les tests, le nouveau scan et le diff. Enregistrer ensuite les changements dans Git avant de tester **Augmenter la couverture**, avec un objectif mesurable (par exemple 80 %). Le rapport de correction apparaît dans l’onglet et s’exporte en PDF. Aucun commit automatique n’est fait par les corrections.
 
 Le mock Xray signale uniquement `gav://org.apache.commons:commons-lang3:3.17.0` et propose `[3.18.0]` comme version corrigée. Le nouveau scan doit devenir vide après la mise à niveau. Cette anomalie est synthétique, sans prétention de détection d’une CVE réelle. Le test Security suit SBOM → Xray → correction → build/tests → nouveau SBOM/Xray.
+
+## Choix OpenAI et Mistral en mode agent (0.8.0)
+
+`py -3.12 TestDOKERMan/provision.py --agent-models` prépare un catalogue signé avec deux choix : OpenAI `gpt-6-luna` et le modèle Mistral déjà configuré sur le banc. Les deux ont les outils activés ; OpenAI dispose de 2048 tokens de sortie et conserve un quota fournisseur mensuel de 10 000 tokens. Cette commande configure le banc sans appeler les modèles. Elle requiert la variable `OPENAI_API_KEY` comme le smoke et est incompatible avec `--openai-smoke`.
+
+Reconstruire et installer le VSIX privé 0.8.0 avec le profil généré, puis recharger la fenêtre Test. Un ancien VSIX ne comprend pas `allowedModelAliases` : ne pas le conserver connecté pendant la publication de cette politique. Le sélecteur IA propose les deux modèles en Question, Modification et Agent. Un changement ouvre une nouvelle conversation. Un troisième choix reste une possibilité de la politique, après qualification de son modèle exact ; il n'est pas activé par ce script.
+
+Le mode `--openai-smoke` reste un test texte limité à 128 tokens, distinct du profil agent. Ne pas l'utiliser pour une recette d'outils. Les tests automatisés du dépôt simulent les fournisseurs ; un essai réel consomme le quota du compte et doit être explicitement demandé.

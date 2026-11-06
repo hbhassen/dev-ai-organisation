@@ -1,6 +1,6 @@
 # Spécification bis — Fournisseurs IA supplémentaires via Vibe
 
-**Statut :** amendement intégré à `specification.md` (DEVAI-189 à DEVAI-198).
+**Statut :** amendement intégré à `specification.md` (DEVAI-189 à DEVAI-199).
 **Base :** `specification.md` 1.7 et architecture du dépôt au 5 novembre 2026.
 **Portée :** providers IA via le runtime Vibe embarqué, et séparation des outils ODS et du JDK du projet utilisateur.
 
@@ -76,7 +76,7 @@ Chaque requête utilise un environnement Vibe temporaire et isolé. Les valeurs 
 
 ### DEVAI-192 — Choix des alias autorisés
 
-Quand l’interface permet le choix d’un modèle, elle affiche uniquement les alias autorisés pour le projet courant. Le badge DOIT afficher le fournisseur et l’identifiant exact du modèle résolus par la gateway, jamais un fournisseur fixé dans le code ni l’alias à la place du modèle. Avant réponse, il indique la sélection de la politique ; après réponse, il indique le modèle utilisé par cette réponse. Chaque message assistant conserve sa propre attribution fournisseur/modèle issue du résultat du job, même après actualisation de la politique. Sans métadonnées, l’affichage est neutre ; après refus, déconnexion ou changement de projet, le badge précédent est retiré. Les confirmations de contexte utilisent la destination résolue. Aucun affichage ne contient clé, en-têtes ou URL privée. Si la politique impose un alias, cet alias reste sélectionné et aucun choix client ne peut le remplacer.
+Quand l’interface permet le choix d’un modèle, elle affiche uniquement les alias autorisés pour le projet courant. Le badge DOIT afficher le fournisseur et l’identifiant exact du modèle résolus par la gateway, jamais un fournisseur fixé dans le code ni l’alias à la place du modèle. Avant réponse, il indique la sélection de la politique ; après réponse, il indique le modèle utilisé par cette réponse. Chaque message assistant conserve sa propre attribution fournisseur/modèle issue du résultat du job, même après actualisation de la politique. Sans métadonnées, l’affichage est neutre ; après refus, déconnexion ou changement de projet, le badge précédent est retiré. Les confirmations de contexte utilisent la destination résolue. Aucun affichage ne contient clé, en-têtes ou URL privée. Sans liste `allowedModelAliases`, le seul alias imposé reste sélectionné. Avec cette liste, DEVAI-199 permet de choisir uniquement parmi ses 1 à 3 alias signés.
 
 Le changement d’alias est réévalué par la gateway à chaque requête. La révocation d’un fournisseur, d’un modèle ou du droit IA prend effet au prochain contrôle de politique et bloque les appels suivants. Aucun repli silencieux vers Mistral, OpenAI ou un autre modèle n’est permis.
 
@@ -134,3 +134,13 @@ Le corps HTTP produit par le backend générique Vibe 3.0.3 est adapté par le b
 Le banc Docker PEUT activer explicitement un test réel OpenAI au moyen de `provision.py --openai-smoke` et `native-smoke.cjs --real-openai`. L’option exige une clé API Platform renouvelée fournie par `OPENAI_API_KEY`, la place seulement dans le profil privé ignoré par Git et signe une politique temporaire qui autorise OpenAI pour le seul projet de démonstration autorisé. Le test passe par le client natif ODS, le gateway local, GitLab Docker et cette politique signée ; il envoie une seule instruction synthétique sans fichier source et sans outil, puis valide fournisseur, modèle et usage mesuré. Le modèle qualifié pour ce smoke est `gpt-6-luna` via Chat Completions. Le bridge omet les paramètres de température pour cet adaptateur OpenAI. Aucun test automatisé par défaut n’appelle un fournisseur réel ; le résultat ne doit contenir ni clé ni réponse complète. L’opérateur restaure ensuite le profil/politique Mistral avec la procédure normale du banc.
 
 **Recette :** sans option explicite, compteur d’appels réels égal à zéro ; avec option et credential, une requête OpenAI au plus, réponse attribuée à `OPENAI`/`gpt-6-luna` et compteurs fournisseur positifs ; sans credential, arrêt avant provisionnement et appel fournisseur.
+
+### DEVAI-199 — Choix de un à trois modèles autorisés
+
+Une règle de projet peut déclarer `allowedModelAliases`, liste de un à trois alias distincts du catalogue signé, contenant `modelAlias` comme défaut. Sans cette liste, le modèle historique unique reste applicable. Chaque modèle de cette liste doit autoriser génération et outils dans la politique et le registre administré afin de fonctionner en Question, Modification et Agent, sous réserve des permissions de projet et de contexte existantes. Un modèle présent dans le catalogue global mais absent de la liste du projet est refusé.
+
+La gateway expose uniquement les choix résolus et leurs capacités publiques. Le client peut transmettre un alias de cette liste, jamais un fournisseur, un modèle libre, une URL ou un credential. Le choix est revalidé côté serveur à chaque transition. La conversation conserve alias, fournisseur et modèle exacts ; révocation ou réaffectation d’un alias bloque sa reprise sans repli. Les checkpoints historiques utilisent la provenance du dernier résultat ; sans provenance fiable, une nouvelle conversation est requise.
+
+Le sélecteur affiche fournisseur et modèle exacts, reste verrouillé pendant une tâche et ne propose pas d’envoi simultané. Changer le modèle ouvre une nouvelle conversation sans retransmettre l’ancien historique et réinitialise les autorisations de session. Le contexte sélectionné reste soumis à aperçu et consentement. Une configuration historique sans outils continue de permettre les questions, mais les modes nécessitant des outils sont désactivés avant envoi.
+
+Le banc distingue le smoke texte limité à 128 tokens du profil de travail avec outils et limite de sortie administrée. L’activation de ce profil ne lance aucun appel réel. Recette : listes de 1, 2 et 3 modèles ; choix interdit ou révoqué ; reprise et changement de fournisseur ; trois modes et boucle d’outils ; refus sans appel fournisseur ; absence de secrets dans le DOM. Les tests automatiques utilisent un transport simulé.

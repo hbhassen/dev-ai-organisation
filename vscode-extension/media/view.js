@@ -13,6 +13,14 @@ function modelLabel(data, fallback) {
   const name = provider === 'OPENAI' ? 'OpenAI' : provider === 'MISTRAL' ? 'Mistral' : provider;
   return typeof name === 'string' && typeof model === 'string' && name && model ? `${name} · ${model}` : fallback;
 }
+/** Renders the signed per-project choice list as inert labels and retains an explicit revoked-selection state. Exigences : DEVAI-018, DEVAI-199. */
+function renderModels(data) {
+  const select = element('model-choice'); select.replaceChildren();
+  const choices = allowed ? (Array.isArray(data.models) ? data.models : data.modelAlias ? [data] : []) : [];
+  if (!choices.length || data.selectionRequired) { const option = document.createElement('option'); option.value = ''; option.textContent = choices.length ? 'Sélectionner un modèle autorisé' : 'Aucun modèle disponible'; option.disabled = true; select.append(option); }
+  for (const model of choices) { const option = document.createElement('option'); option.value = model.modelAlias; option.textContent = modelLabel(model, 'Modèle non communiqué'); select.append(option); }
+  select.value = data.selectionRequired ? '' : data.modelAlias || '';
+}
 /** Distinguishes pending file selection, local stack detection and effective read-tool availability. Exigences : DEVAI-065, DEVAI-193, DEVAI-195. */
 function contextStatus() {
   const selected = selectedPaths.length ? `${selectedPaths.length} fichier(s) sélectionné(s), soumis à aperçu avant envoi.` : 'Aucun fichier sélectionné.';
@@ -29,7 +37,7 @@ function entry(role, text, identity) {
   article.append(label, content); element('conversation').append(article); article.scrollIntoView({ block: 'nearest' });
 }
 /** Keeps send, mode and stop controls consistent with the actual host task state. Exigences : DEVAI-019, DEVAI-151, DEVAI-180, DEVAI-181. */
-function composerState() { document.querySelectorAll('[data-correction-stop]').forEach(button => { button.hidden = !busy; }); document.querySelectorAll('[data-attempts]').forEach(input => { input.disabled = busy; }); element('send').disabled = busy || !allowed || !element('message').value.trim(); element('stop').hidden = !busy; element('mode').disabled = busy; element('task').disabled = busy; element('attach').disabled = busy; document.querySelectorAll('[data-policy-action]').forEach(button => { button.disabled = busy || !allowed || !documentActions.has(button.dataset.policyAction); }); document.querySelectorAll('[data-scan], [data-remediate], [data-coverage]').forEach(button => { button.disabled = busy || ((button.hasAttribute('data-remediate') || button.hasAttribute('data-coverage')) && !allowed); }); }
+function composerState() { document.querySelectorAll('[data-correction-stop]').forEach(button => { button.hidden = !busy; }); document.querySelectorAll('[data-attempts]').forEach(input => { input.disabled = busy; }); element('model-choice').disabled = busy || !allowed || element('model-choice').options.length < 2; for (const option of element('mode').options) option.disabled = option.value !== 'QUESTION' && modelCapabilities.tools === false; if (modelCapabilities.tools === false && element('mode').value !== 'QUESTION') element('mode').value = 'QUESTION'; element('send').disabled = busy || !allowed || !!modelCapabilities.selectionRequired || !element('message').value.trim(); element('stop').hidden = !busy; element('mode').disabled = busy; element('task').disabled = busy; element('attach').disabled = busy; document.querySelectorAll('[data-policy-action]').forEach(button => { button.disabled = busy || !allowed || !documentActions.has(button.dataset.policyAction); }); document.querySelectorAll('[data-scan], [data-remediate], [data-coverage]').forEach(button => { button.disabled = busy || ((button.hasAttribute('data-remediate') || button.hasAttribute('data-coverage')) && !allowed); }); }
 /** Submits one draft while retaining its text until the native host acknowledges acceptance. Exigences : DEVAI-063, DEVAI-077. */
 function submit() { if (busy || element('send').disabled) return; busy = true; composerState(); send({ type: 'chat', mode: element('mode').value, task: element('task').value, message: element('message').value, includeActive: element('includeActive').checked }); }
 /** Uses one roving tab stop and standard arrow navigation for the five panels. Exigences : DEVAI-013, DEVAI-019. */
@@ -84,6 +92,7 @@ element('create').addEventListener('click', () => send({ type: 'starter', stack:
 element('send').addEventListener('click', submit);
 element('message').addEventListener('input', () => { composerState(); });
 element('includeActive').addEventListener('change', contextStatus);
+element('model-choice').addEventListener('change', () => { const alias = element('model-choice').value; if (alias) send({ type: 'selectModel', modelAlias: alias }); });
 element('message').addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); submit(); } });
 element('sonar-previous').addEventListener('click', () => send({ type: 'report', source: 'SONAR', page: sonarPage - 1 }));
 element('sonar-next').addEventListener('click', () => send({ type: 'report', source: 'SONAR', page: sonarPage + 1 }));
@@ -91,7 +100,7 @@ window.addEventListener('message', event => {
   const m = event.data;
   switch (m.type) {
     case 'context': element('project-name').textContent = `Projet : ${m.name || 'Aucun'}`; element('context').textContent = `${m.branch || 'Sans branche'} · ${(m.stacks || []).join(' / ') || 'Stack à détecter'}`; element('context-chips').replaceChildren(); for (const stack of m.stacks || []) { const chip = document.createElement('span'); chip.className = 'chip'; chip.textContent = stack; element('context-chips').append(chip); } break;
-    case 'capabilities': allowed = !!m.rule?.aiEnabled; modelCapabilities = m; documentActions = new Set(m.rule?.allowedActions || []); element('capabilities').textContent = allowed ? 'IA autorisée' : 'IA indisponible'; element('capabilities').classList.toggle('neutral', !allowed); element('connection').textContent = m.projectId ? 'Connecté' : 'Non connecté'; element('connection').classList.toggle('neutral', !m.projectId); element('connection-detail').textContent = m.reason || `Politique ${m.policyVersion} · ${m.rule?.modelAlias || 'Aucun modèle'}`; element('model-identity').textContent = allowed ? modelLabel(m, 'Modèle non communiqué') : 'Modèle non disponible'; element('model-identity').title = allowed ? 'Modèle sélectionné par la politique du projet' : ''; element('model-identity').classList.toggle('neutral', !allowed || !m.provider || !m.model); contextStatus(); quota(m.usage, m.rule?.monthlyTokenQuota); composerState(); break;
+    case 'capabilities': allowed = !!m.rule?.aiEnabled; modelCapabilities = m; renderModels(m); documentActions = new Set(m.rule?.allowedActions || []); element('capabilities').textContent = allowed ? 'IA autorisée' : 'IA indisponible'; element('capabilities').classList.toggle('neutral', !allowed); element('connection').textContent = m.projectId ? 'Connecté' : 'Non connecté'; element('connection').classList.toggle('neutral', !m.projectId); element('connection-detail').textContent = m.reason || `Politique ${m.policyVersion} · ${m.rule?.modelAlias || 'Aucun modèle'}`; element('model-identity').textContent = allowed ? modelLabel(m, 'Modèle non communiqué') : 'Modèle non disponible'; element('model-identity').title = allowed ? 'Modèle sélectionné par la politique du projet' : ''; element('model-identity').classList.toggle('neutral', !allowed || !m.provider || !m.model); contextStatus(); quota(m.usage, m.rule?.monthlyTokenQuota); composerState(); break;
     case 'busy': busy = m.value; composerState(); break;
     case 'remediation': element('mode').value = m.mode; element('task').value = m.task; selectTab(element('tab-ai')); composerState(); break;
     case 'accepted': if (element('message').value === m.text) element('message').value = ''; composerState(); break;

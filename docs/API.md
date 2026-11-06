@@ -80,3 +80,9 @@ Les erreurs portent un code stable et un message filtré : `ACTION_DENIED`, `MOD
 `GET /api/v1/quality/reports` accepte `page` entre 1 et 10000 et retourne `paging` avec les résultats normalisés. La vue utilise Précédent/Suivant. `GET /api/v1/security/reports` expose `issues` normalisées (`key`, `message`, `severity`, `components`, `cves`, `providerEvidence`) et conserve `report`. `commitVerified: false` indique explicitement que le build summary ne prouve pas sa correspondance avec le commit du workspace.
 
 Les boutons de documents GitFlow utilisent le contrat existant `POST /api/v1/ai/chat` avec `mode: MODIFICATION` et `task: git-changelog` ou `git-release-notes`. Les actions de politique correspondantes sont `CHANGELOG` et `RELEASE_NOTES`. Le LLM propose via `changes_propose` ; le client limite la cible à `CHANGELOG.md` ou `RELEASE_NOTES.md` et applique le diff uniquement après validation. Il n'existe pas de nouvel endpoint de publication de release.
+
+## Sélection de modèle (0.8.0, DEVAI-199)
+
+`GET /api/v1/capabilities` conserve les champs du modèle par défaut et ajoute `models`, liste de 1 à 3 objets `{modelAlias, provider, model, tools, maxOutputTokens}` pour le projet autorisé. Aucune URL ni clé n'est exposée. Une règle sans `allowedModelAliases` retourne son seul modèle historique ; un projet IA désactivé ne résout aucun modèle.
+
+Les créations `/ai/chat` et `/ai/agents/run` acceptent `modelAlias` facultatif. Son absence sélectionne le défaut de la règle ; une valeur étrangère à la liste signée du projet est refusée. Les tours et résultats d'outils ne permettent pas de changer de modèle. L'alias, le fournisseur et l'identifiant exact sont conservés dans le checkpoint, revalidés à chaque transition et utilisés pour l'audit et les quotas. Révocation, changement d'identité ou absence d'outils requis donnent `MODEL_NOT_ALLOWED` avant un nouvel appel fournisseur.

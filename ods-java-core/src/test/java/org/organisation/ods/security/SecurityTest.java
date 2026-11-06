@@ -8,7 +8,7 @@ import java.time.Instant;
 import java.util.Base64;
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Verifies signatures, fail-closed permissions and workspace isolation with real primitives. Exigences : DEVAI-026, DEVAI-029, DEVAI-040. */
+/** Verifies signatures, fail-closed permissions and workspace isolation with real primitives. Exigences : DEVAI-026, DEVAI-029, DEVAI-040, DEVAI-199. */
 class SecurityTest {
     @TempDir Path root;
     /** Supplies a bounded policy with one explicit authorized project. Exigences : DEVAI-030. */
@@ -44,6 +44,25 @@ class SecurityTest {
         assertThrows(OdsException.class,()->SignedDocuments.allow(p,1043,"CHAT"));
         assertThrows(OdsException.class,()->SignedDocuments.allow(p,1042,"AGENT_RUN"));
         assertEquals("POLICY_EXPIRED",assertThrows(OdsException.class,()->SignedDocuments.policy(p,Instant.parse("2026-01-02T00:00:00Z"),"https://gitlab.example")).code());
+    }
+    /** Accepts bounded tool-capable choices and rejects malformed, foreign or duplicate aliases. Exigences : DEVAI-199. */
+    @Test void signedModelChoiceBoundaries() {
+        var document=(com.fasterxml.jackson.databind.node.ObjectNode)Json.parse(policy());
+        var models=(com.fasterxml.jackson.databind.node.ArrayNode)document.path("models");
+        for(String alias:java.util.List.of("second","third","fourth")) { var model=models.get(0).deepCopy(); ((com.fasterxml.jackson.databind.node.ObjectNode)model).put("alias",alias); models.add(model); }
+        var rule=(com.fasterxml.jackson.databind.node.ObjectNode)document.path("projects").get(0);
+        Instant now=Instant.parse("2026-01-01T12:00:00Z");
+        for(var allowed:java.util.List.of(java.util.List.of("approved"),java.util.List.of("approved","second"),java.util.List.of("approved","second","third"))) {
+            rule.set("allowedModelAliases",Json.MAPPER.valueToTree(allowed)); assertDoesNotThrow(()->SignedDocuments.policy(document,now,"https://gitlab.example"));
+        }
+        for(Object invalid:java.util.Arrays.asList(null,"approved",java.util.List.of(),java.util.List.of("approved","approved"),java.util.List.of("approved","unknown"),java.util.List.of("second"),java.util.List.of("approved","second","third","fourth"))) {
+            rule.set("allowedModelAliases",Json.MAPPER.valueToTree(invalid)); assertThrows(OdsException.class,()->SignedDocuments.policy(document,now,"https://gitlab.example"));
+        }
+        rule.set("allowedModelAliases",Json.MAPPER.valueToTree(java.util.List.of("approved","second")));
+        ((com.fasterxml.jackson.databind.node.ObjectNode)models.get(1)).put("tools",false);
+        assertEquals("MODEL_NOT_ALLOWED",assertThrows(OdsException.class,()->SignedDocuments.policy(document,now,"https://gitlab.example")).code());
+        rule.remove("allowedModelAliases"); ((com.fasterxml.jackson.databind.node.ObjectNode)models.get(0)).put("tools",false);
+        assertDoesNotThrow(()->SignedDocuments.policy(document,now,"https://gitlab.example"));
     }
     /** Requires separate signed permissions for each GitFlow document rather than inferring rights from chat. Exigences : DEVAI-180, DEVAI-181. */
     @Test void documentActionsRequireExplicitPermission() {

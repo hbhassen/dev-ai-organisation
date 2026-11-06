@@ -1,6 +1,6 @@
 # Spécification complète — Organisation Development Standard (ODS)
 
-**Version documentaire : 1.7 — 5 novembre 2026 ; version produit : 0.7.1.**
+**Version documentaire : 1.8 — 7 novembre 2026 ; version produit : 0.8.0.**
 
 ## 1. Référentiel et décisions
 
@@ -1639,7 +1639,7 @@ Le rapport DOIT indiquer modifications, fichiers principaux, tests/commandes/nom
 
 **Origine historique (PDF 1.0) :** PDF p. 12 ; Utilisateur ; Conception. **Responsable :** architecture / QA / sécurité.
 
-L'acceptation DOIT vérifier la couverture des 197 exigences, les quatre starters remplaçables, les cinq vues fonctionnelles, l'agent de développement outillé de bout en bout, Java/Maven, l'autorisation initiale Mistral seule, la résolution contrôlée des fournisseurs supplémentaires, la séparation des JDK ODS et workspace, les commentaires traçables, l'autorité serveur, les tests négatifs, les connecteurs réels qualifiés et la distribution validée. Les risques résiduels et décisions d'environnement sont approuvés par leurs responsables. Une exception est documentée avec impact et ne transforme pas un contrôle manquant en succès.
+L'acceptation DOIT vérifier la couverture des 199 exigences, les quatre starters remplaçables, les cinq vues fonctionnelles, l'agent de développement outillé de bout en bout, Java/Maven, l'autorisation initiale Mistral seule, la résolution contrôlée des fournisseurs supplémentaires, la séparation des JDK ODS et workspace, les commentaires traçables, l'autorité serveur, les tests négatifs, les connecteurs réels qualifiés et la distribution validée. Les risques résiduels et décisions d'environnement sont approuvés par leurs responsables. Une exception est documentée avec impact et ne transforme pas un contrôle manquant en succès.
 
 **Recette :** la matrice de conformité et les preuves de livraison permettent de décider de la mise en production sans dépendre d'une déclaration narrative de l'IA.
 
@@ -1943,7 +1943,7 @@ GitFlow expose un bouton Release notes. La tâche administrée git-release-notes
 
 ## Prompt d'implémentation
 
-Lire specification.md et ses amendements DEVAI-182 à DEVAI-198, puis examiner les composants existants et les tests avant modification. Conserver les compatibilités existantes, notamment VS Code 1.95.2, les scripts batch sans PowerShell et les politiques Mistral. Intégrer OpenAI uniquement par le registre administré, sa clé API Platform et une politique signée ; qualifier le backend générique exact de Vibe avec HTTP simulé. Garder les JDK ODS et workspace séparés : ne pas injecter Java 21 dans un build de projet existant qui exige Java 25, et exécuter les commandes explicitement demandées avec les outils installés visibles par l'extension. Mettre à jour la spécification et la conformité pour chaque classe ou fonction modifiée/ajoutée, ajouter à chaque commentaire de code les IDs DEVAI réels, maintenir documentation, changelog, exemples et PDF. Tester la migration Mistral, les refus de sécurité, les quotas par provider, les secrets et l'artefact VSIX ; signaler les validations réelles non exécutées comme NON VÉRIFIABLE. N'inclure aucun secret réel dans les sources ou la livraison publique.
+Lire specification.md et ses amendements DEVAI-182 à DEVAI-199, puis examiner les composants existants et les tests avant modification. Conserver les compatibilités existantes, notamment VS Code 1.95.2, les scripts batch sans PowerShell et les politiques Mistral. Intégrer OpenAI uniquement par le registre administré, sa clé API Platform et une politique signée ; qualifier le backend générique exact de Vibe avec HTTP simulé. Garder les JDK ODS et workspace séparés : ne pas injecter Java 21 dans un build de projet existant qui exige Java 25, et exécuter les commandes explicitement demandées avec les outils installés visibles par l'extension. Mettre à jour la spécification et la conformité pour chaque classe ou fonction modifiée/ajoutée, ajouter à chaque commentaire de code les IDs DEVAI réels, maintenir documentation, changelog, exemples et PDF. Tester la migration Mistral, les refus de sécurité, les quotas par provider, les secrets et l'artefact VSIX ; signaler les validations réelles non exécutées comme NON VÉRIFIABLE. N'inclure aucun secret réel dans les sources ou la livraison publique.
 
 ## 14. Évolution réalisée 0.5.0
 
@@ -2008,7 +2008,7 @@ La gateway transmet au processus Python isolé provider, backend, style, endpoin
 
 ### DEVAI-192 — Alias et révocation
 
-ODS n’expose pas de saisie libre de fournisseur, modèle ou endpoint. L’alias effectif provient de la règle signée du projet. Si une interface propose plus tard un choix, elle ne montrera que les alias autorisés par cette politique. La révocation ou l’expiration est réévaluée par la gateway à chaque opération sensible ; aucun fallback n’est effectué.
+ODS n’expose pas de saisie libre de fournisseur, modèle ou endpoint. L’alias effectif provient de la règle signée du projet. Le sélecteur DEVAI-199 propose uniquement les alias autorisés par cette politique. La révocation ou l’expiration est réévaluée par la gateway à chaque opération sensible ; aucun fallback n’est effectué.
 
 Le badge affiche le fournisseur et l’identifiant exact résolus par la gateway, puis ceux du résultat de la dernière réponse. Chaque message assistant garde sa propre attribution, indépendamment des actualisations de politique. Une donnée absente produit un libellé neutre ; refus ou déconnexion retire le badge précédent. Les confirmations de transfert nomment la destination configurée sans afficher de secret. Voir DEVAI-192 de `specification_bis.md` pour les critères d’affichage.
 
@@ -2046,3 +2046,13 @@ Le corps HTTP produit par le backend générique Vibe 3.0.3 est adapté par le b
 Le banc Docker PEUT activer explicitement un test réel OpenAI au moyen de `provision.py --openai-smoke` et `native-smoke.cjs --real-openai`. L’option exige une clé API Platform renouvelée fournie par `OPENAI_API_KEY`, la place seulement dans le profil privé ignoré par Git et signe une politique temporaire qui autorise OpenAI pour le seul projet de démonstration autorisé. Le test passe par le client natif ODS, le gateway local, GitLab Docker et cette politique signée ; il envoie une seule instruction synthétique sans fichier source et sans outil, puis valide fournisseur, modèle et usage mesuré. Le modèle qualifié pour ce smoke est `gpt-6-luna` via Chat Completions. Le bridge omet les paramètres de température pour cet adaptateur OpenAI. Aucun test automatisé par défaut n’appelle un fournisseur réel ; le résultat ne doit contenir ni clé ni réponse complète. L’opérateur restaure ensuite le profil/politique Mistral avec la procédure normale du banc.
 
 **Recette :** sans option explicite, compteur d’appels réels égal à zéro ; avec option et credential, une requête OpenAI au plus, réponse attribuée à `OPENAI`/`gpt-6-luna` et compteurs fournisseur positifs ; sans credential, arrêt avant provisionnement et appel fournisseur.
+
+### DEVAI-199 — Choix de un à trois modèles autorisés
+
+Une règle de projet peut déclarer `allowedModelAliases`, liste de un à trois alias distincts du catalogue signé, contenant `modelAlias` comme défaut. Sans cette liste, le modèle historique unique reste applicable. Chaque modèle de cette liste doit autoriser génération et outils dans la politique et le registre administré afin de fonctionner en Question, Modification et Agent, sous réserve des permissions de projet et de contexte existantes. Un modèle présent dans le catalogue global mais absent de la liste du projet est refusé.
+
+La gateway expose uniquement les choix résolus et leurs capacités publiques. Le client peut transmettre un alias de cette liste, jamais un fournisseur, un modèle libre, une URL ou un credential. Le choix est revalidé côté serveur à chaque transition. La conversation conserve alias, fournisseur et modèle exacts ; révocation ou réaffectation d’un alias bloque sa reprise sans repli. Les checkpoints historiques utilisent la provenance du dernier résultat ; sans provenance fiable, une nouvelle conversation est requise.
+
+Le sélecteur affiche fournisseur et modèle exacts, reste verrouillé pendant une tâche et ne propose pas d’envoi simultané. Changer le modèle ouvre une nouvelle conversation sans retransmettre l’ancien historique et réinitialise les autorisations de session. Le contexte sélectionné reste soumis à aperçu et consentement. Une configuration historique sans outils continue de permettre les questions, mais les modes nécessitant des outils sont désactivés avant envoi.
+
+Le banc distingue le smoke texte limité à 128 tokens du profil de travail avec outils et limite de sortie administrée. L’activation de ce profil ne lance aucun appel réel. Recette : listes de 1, 2 et 3 modèles ; choix interdit ou révoqué ; reprise et changement de fournisseur ; trois modes et boucle d’outils ; refus sans appel fournisseur ; absence de secrets dans le DOM. Les tests automatiques utilisent un transport simulé.

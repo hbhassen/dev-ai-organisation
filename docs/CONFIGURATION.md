@@ -1,4 +1,4 @@
-# Configuration administrée au build — 0.7.1
+# Configuration administrée au build — 0.8.0
 
 Le badge IA présente `provider` et `model` issus de la gateway, pas un libellé fixe. Chaque réponse conserve ces valeurs issues du job exécuté. `tools: false` interdit au modèle de parcourir le projet ; `SERVER_VERIFIED` retire également les outils de lecture locale. Dans ces cas, joindre explicitement les fichiers et approuver l’aperçu est nécessaire pour une analyse fondée sur leur contenu. La limite `maxOutputTokens` est visible dans l’onglet IA ; une petite limite de smoke test n’est pas adaptée aux explications longues. Modifier ces valeurs passe par la configuration et la politique signée existantes, jamais par le badge.
 
@@ -110,3 +110,19 @@ Dans une règle existante de `projects` du fichier `ai-project-policy.json`, ajo
 La clé Sonar accepte 1 à 400 caractères parmi lettres ASCII, chiffres, `-`, `_`, `.`, `:` et au moins un caractère non numérique. L’analyse reste possible pour une règle `aiEnabled: false` ; les autorisations IA ne sont pas élargies.
 
 Pour ajouter un projet : créer le projet Sonar et accorder les droits nécessaires au compte de service ; ajouter sa règle et sa clé Sonar dans la politique ; augmenter `policyVersion`, renouveler les dates (24 heures au maximum), signer les octets finaux et publier JSON et SIG ensemble. Attendre au maximum 60 secondes pour le cache puis actualiser, ou reconnecter l’extension. Aucun changement de clé de confiance ni rebuild n’est requis. Un premier VSIX 0.6.0 doit cependant être installé : les versions antérieures refusent ce champ inconnu. Les URL et credentials des services restent administrés au build.
+
+## Choisir un à trois modèles par projet (DEVAI-199)
+
+La règle de projet signée peut ajouter `allowedModelAliases`, liste de **1 à 3 alias distincts** du catalogue `models`. Le `modelAlias` existant reste le choix par défaut et doit appartenir à cette liste. Exemple à ajouter à une règle déjà complète :
+
+```json
+{"modelAlias":"openai-approved","allowedModelAliases":["openai-approved","mistral-approved"]}
+```
+
+Les deux alias correspondent au catalogue illustré plus haut. Un troisième choix nécessite un alias et un identifiant exact de modèle déjà approuvés et qualifiés par l'organisation ; il ne crée pas un nouveau fournisseur automatiquement. Chaque choix doit avoir `tools: true` dans la politique **et** dans le registre de déploiement. Les modes Question, Modification et Agent restent soumis aux droits d'action, aux agents autorisés, au contexte et aux quotas du projet.
+
+L'onglet IA affiche le fournisseur et le modèle exact de chaque choix. Un seul modèle travaille à la fois. Changer de choix ouvre une nouvelle conversation et réinitialise les consentements de session ; l'ancien historique n'est pas transmis au nouveau modèle. Le choix est mémorisé par workspace et verrouillé pendant une tâche. Un alias révoqué impose une nouvelle sélection explicite. Réaffecter un alias à un autre modèle bloque les anciennes conversations.
+
+Sans `allowedModelAliases`, le comportement historique reste un modèle par défaut. Un ancien profil `tools: false` reste utilisable en Question, avec Modification et Agent désactivés dans l'interface. Le profil smoke à 128 tokens sert uniquement à vérifier une connexion : utiliser une politique avec outils et un plafond de sortie adapté pour travailler.
+
+Installer le VSIX **0.8.0 ou ultérieur avant de publier ce nouveau champ**, puis actualiser après le renouvellement du cache de politique (60 secondes au maximum). Les anciennes versions rejettent les champs inconnus. Une ancienne conversation n'est reprise que si son dernier résultat contient une provenance fournisseur/alias/modèle fiable ; sinon ouvrir une nouvelle conversation.

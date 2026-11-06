@@ -15,11 +15,38 @@ async function open(page, width = 900) {
   });
   await page.goto('http://ods.test/');
   await message(page, { type: 'context', name: 'payment-service', branch: 'main', stacks: ['Spring Boot', 'pom.xml'] });
-  await message(page, { type: 'capabilities', projectId: 1042, policyVersion: 3, provider: 'OPENAI', model: 'approved-model', tools: false, maxOutputTokens: 128, rule: { aiEnabled: true, allowedActions: ['CHANGELOG', 'RELEASE_NOTES', 'MR_DESCRIPTION'], modelAlias: 'approved', monthlyTokenQuota: 100000 }, usage: { consumed: 42500, reserved: 0 } });
+  await message(page, { type: 'capabilities', projectId: 1042, policyVersion: 3, provider: 'OPENAI', model: 'approved-model', modelAlias: 'approved', tools: true, maxOutputTokens: 2048, models: [{modelAlias: 'approved', provider: 'OPENAI', model: 'approved-model', tools: true}], rule: { aiEnabled: true, allowedActions: ['CHANGELOG', 'RELEASE_NOTES', 'MR_DESCRIPTION'], modelAlias: 'approved', monthlyTokenQuota: 100000 }, usage: { consumed: 42500, reserved: 0 } });
 }
 
 /** Sends host presentation data through the same browser event used by VS Code. Exigences : DEVAI-018, DEVAI-135. */
 async function message(page, data) { await page.evaluate(value => window.postMessage(value, '*'), data); }
+
+for (const count of [1, 2, 3]) test(`DEVAI-199: ${count} authorized model(s) support all modes and lock during a task`, async ({ page }) => {
+  await open(page, 330);
+  const models = Array.from({ length: count }, (_, i) => ({ modelAlias: `approved-${i}`, provider: i === 0 ? 'MISTRAL' : 'OPENAI', model: `qualified-model-${i}`, tools: true, maxOutputTokens: 2048 }));
+  await message(page, { type: 'capabilities', rule: { aiEnabled: true }, models, ...models[0] });
+  await expect(page.locator('#model-choice option')).toHaveCount(count);
+  if (count === 1) await expect(page.locator('#model-choice')).toBeDisabled();
+  else {
+    await page.locator('#model-choice').selectOption(models.at(-1).modelAlias);
+    expect(await page.evaluate(() => window.sent.at(-1))).toEqual({ type: 'selectModel', modelAlias: models.at(-1).modelAlias });
+    await message(page, { type: 'capabilities', rule: { aiEnabled: true }, models, ...models.at(-1) });
+    await expect(page.locator('#model-identity')).toContainText(models.at(-1).model);
+  }
+  for (const mode of ['QUESTION', 'MODIFICATION', 'AGENT']) { await page.locator('#mode').selectOption(mode); await expect(page.locator('#mode')).toHaveValue(mode); }
+  await message(page, { type: 'busy', value: true }); await expect(page.locator('#model-choice')).toBeDisabled();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('DEVAI-199: text smoke disables unsupported modes; revocation requires a new explicit choice', async ({ page }) => {
+  await open(page);
+  await message(page, { type: 'capabilities', rule: { aiEnabled: true }, tools: false, modelAlias: 'smoke', provider: 'OPENAI', model: 'text-only' });
+  await expect(page.locator('#mode option[value=AGENT]')).toBeDisabled(); await expect(page.locator('#mode option[value=MODIFICATION]')).toBeDisabled();
+  const models = [{ modelAlias: 'approved', provider: 'OPENAI', model: 'qualified', tools: true }];
+  await message(page, { type: 'capabilities', rule: { aiEnabled: true }, models, selectionRequired: true });
+  await page.locator('#message').fill('Question'); await expect(page.locator('#send')).toBeDisabled();
+  await expect(page.locator('#model-choice')).toHaveValue(''); await expect(page.locator('#model-choice')).toBeEnabled();
+});
 
 test('DEVAI-192: selected and executed models remain distinct, historical labels survive refresh and unknown models stay neutral', async ({ page }) => {
   await open(page, 330); await expect(page.locator('#model-identity')).toHaveText('OpenAI · approved-model');
@@ -41,7 +68,7 @@ test('DEVAI-192: selected and executed models remain distinct, historical labels
 });
 
 test('DEVAI-065/193: local detection is distinct from file selection and effective read tools', async ({ page }) => {
-  await open(page); await expect(page.locator('#context-status')).toContainText('Aucun fichier sélectionné');
+  await open(page); await message(page, { type: 'capabilities', rule: { aiEnabled: true }, tools: false, maxOutputTokens: 128 }); await expect(page.locator('#context-status')).toContainText('Aucun fichier sélectionné');
   await expect(page.locator('#model-capabilities')).toContainText('Outils de lecture désactivés');
   await expect(page.locator('#model-capabilities')).toContainText('128 tokens');
   await message(page, { type: 'attachments', paths: ['pom.xml', 'README.md'] });

@@ -92,3 +92,41 @@ test('DEVAI-065/193: server-verified context does not advertise local read tools
   const state = chatView(undefined, true); state.view.capabilities.rule.contextMode = 'SERVER_VERIFIED';
   await state.view.chat(question); assert.match(state.dialogs[0].text, /outils de lecture sont désactivés/); assert.equal(state.requests.length, 0);
 });
+
+test('DEVAI-199: changing model clears the old conversation and grants and sends only the native-approved alias', async () => {
+  const state = chatView('Autoriser cette action', true);
+  state.view.capabilities.models = [{ modelAlias: 'first', provider: 'MISTRAL', model: 'mistral-model', tools: true }, { modelAlias: 'second', provider: 'OPENAI', model: 'openai-model', tools: true }];
+  state.view.applyCapabilities(state.view.capabilities, 'first'); state.view.conversation = { id: 'old-history', mode: 'QUESTION', task: 'code-generation', modelAlias: 'first' }; state.view.grants.add('edit');
+  await state.view.selectModel('second'); assert.equal(state.view.conversation, undefined); assert.equal(state.view.grants.size, 0);
+  await state.view.chat({ ...question, modelAlias: 'forged-alias' });
+  assert.equal(state.requests[0].path, '/api/v1/ai/chat'); assert.equal(state.requests[0].body.modelAlias, 'second');
+  assert.equal(state.view.conversation.modelAlias, 'second');
+  await assert.rejects(() => state.view.selectModel('foreign'), /absent des choix/);
+  state.view.activeRun = 'active'; await assert.rejects(() => state.view.selectModel('first'), /Arrêter la tâche/);
+});
+test('DEVAI-199: revoked selection requires an explicit replacement and never falls back silently', async () => {
+  const state = chatView('Autoriser cette action', true);
+  state.view.applyCapabilities({ rule: { aiEnabled: true }, modelAlias: 'default', models: [{ modelAlias: 'default', provider: 'OPENAI', model: 'approved', tools: true }] }, 'revoked');
+  assert.equal(state.view.capabilities.selectionRequired, true);
+  state.view.applyCapabilities(state.view.capabilities, state.view.selectedModel); assert.equal(state.view.capabilities.selectionRequired, true); assert.equal(state.view.selectedModel, 'revoked');
+  await assert.rejects(() => state.view.chat(question), /sélectionner un modèle/); assert.equal(state.requests.length, 0);
+  await state.view.selectModel('default'); assert.equal(state.view.capabilities.selectionRequired, false);
+  await state.view.chat(question); assert.equal(state.requests[0].body.modelAlias, 'default');
+});
+test('DEVAI-199: the historical text-only profile rejects modification and agent before any request', async () => {
+  const state = chatView('Envoyer sans fichiers', false);
+  for (const mode of ['MODIFICATION', 'AGENT']) await assert.rejects(() => state.view.chat({ ...question, mode }), /outils nécessaires/);
+  assert.equal(state.requests.length, 0); assert.equal(state.dialogs.length, 0);
+});
+
+for (const compatible of [true, false]) test(`DEVAI-199: legacy resume verifies persisted model provenance (${compatible})`, async () => {
+  const state = chatView('Reprendre', true);
+  state.view.capabilities.modelAlias = 'approved';
+  const saved = { id: 'legacy', mode: 'QUESTION', task: 'code-generation' };
+  state.view.context.workspaceState.get = () => saved;
+  state.view.gateway.request = async path => { assert.equal(path, '/api/v1/jobs/legacy'); return { result: compatible ? { modelAlias: 'approved', provider: 'OPENAI', model: 'selected-model' } : {} }; };
+  let resumed;
+  state.view.chat = async input => { resumed = input; };
+  if (compatible) { await state.view.handle({ type: 'resume' }); assert.equal(resumed.resume, true); assert.equal(saved.modelAlias, 'approved'); }
+  else { await assert.rejects(() => state.view.handle({ type: 'resume' }), /Provenance/); assert.equal(resumed, undefined); }
+});

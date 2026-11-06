@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.0 — 2026-11-07
+
+- Choix d'un à trois modèles autorisés par projet, avec fournisseur et modèle exacts, sélection mémorisée par workspace et verrouillée pendant une tâche.
+- Nouvelle règle signée `allowedModelAliases` ; chacun de ses modèles doit disposer des outils pour Question, Modification et Agent, sous les permissions existantes.
+- Provenance du modèle conservée dans les checkpoints, quotas et audits ; révocation ou réaffectation bloque la suite. Changer de modèle ouvre une nouvelle conversation sans transfert de l'ancien historique.
+- Compatibilité des politiques historiques à un seul modèle ; un profil texte sans outils ne propose plus les modes Modification et Agent.
+- Banc Docker : option `--agent-models` pour OpenAI et Mistral, séparée du smoke texte à 128 tokens. Aucune génération n'est déclenchée par cette configuration.
+- Spécification DEVAI-199, documentation d'administration, API, prompt de développement, tests de non-régression et PDF actualisés. Installer cette version avant de publier le nouveau champ de politique ; les anciennes versions le refusent.
+
 ## 0.7.1 — 2026-11-06
 
 - Badge IA et auteur de chaque réponse attribués au fournisseur et au modèle exact renvoyés par la gateway ; attribution historique conservée et état neutre sans métadonnées.

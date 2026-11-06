@@ -25,7 +25,7 @@ import java.util.*;
 import java.util.concurrent.atomic.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Exercises real HTTP controllers, JWT validation, TLS adapters, signed policy and persistence with local provider doubles. Exigences : DEVAI-020, DEVAI-135, DEVAI-139, DEVAI-192, DEVAI-193, DEVAI-196. */
+/** Exercises real HTTP controllers, JWT validation, TLS adapters, signed policy and persistence with local provider doubles. Exigences : DEVAI-020, DEVAI-135, DEVAI-139, DEVAI-192, DEVAI-193, DEVAI-196, DEVAI-199. */
 @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT,properties={"spring.datasource.url=jdbc:h2:mem:organisation-integration;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1","spring.datasource.username=sa","spring.datasource.password=","server.address=127.0.0.1","logging.level.root=WARN","debug=false"})
 class OrganisationIntegrationTest {
     private static HttpsServer services;
@@ -153,6 +153,7 @@ class OrganisationIntegrationTest {
         assertEquals("MISTRAL",capabilities.path("provider").asText());
         assertEquals("synthetic-approved-model",capabilities.path("model").asText());
         assertEquals("approved",capabilities.path("modelAlias").asText());
+        assertEquals(1,capabilities.path("models").size()); assertEquals("approved",capabilities.path("models").get(0).path("modelAlias").asText());
         assertTrue(capabilities.path("tools").asBoolean()); assertEquals(4000,capabilities.path("maxOutputTokens").asInt());
         assertFalse(capabilities.toString().contains("synthetic-mistral"));
         assertFalse(capabilities.has("apiBase")); assertFalse(capabilities.has("credentialRef")); assertEquals(0,modelCalls.get());

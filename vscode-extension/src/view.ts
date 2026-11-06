@@ -9,7 +9,7 @@ import { MrEvidence, mrReviewPrompt, renderMrReview } from './mrReview';
 import { CorrectionReport, coverageChange, coverageIntact, stillPresent, testIntegrity } from './correction';
 import { correctionPdf } from './correctionPdf';
 
-/** Native IDE boundary for five views, user approvals, diff and development agent tools. Exigences : DEVAI-013, DEVAI-018, DEVAI-065, DEVAI-151, DEVAI-192, DEVAI-193, DEVAI-195. */
+/** Native IDE boundary for five views, user approvals, diff and development agent tools. Exigences : DEVAI-013, DEVAI-018, DEVAI-065, DEVAI-151, DEVAI-192, DEVAI-193, DEVAI-195, DEVAI-199. */
 export class OdsView implements vscode.WebviewViewProvider, vscode.TextDocumentContentProvider {
   private view?: vscode.WebviewView;
   private root?: vscode.WorkspaceFolder;
@@ -19,7 +19,8 @@ export class OdsView implements vscode.WebviewViewProvider, vscode.TextDocumentC
   private chatBusy = false;
   private activeRun?: string;
   private activeProcess?: string;
-  private conversation?: { id: string; mode: string; task: string };
+  private conversation?: { id: string; mode: string; task: string; modelAlias?: string };
+  private selectedModel?: string;
   private capabilities: any;
   private promptHash?: string;
   private attached: string[] = [];
@@ -61,12 +62,13 @@ export class OdsView implements vscode.WebviewViewProvider, vscode.TextDocumentC
       this.stopped = true;
       if (this.activeRun) await this.gateway.request(`/api/v1/jobs/${this.activeRun}/cancel`, 'POST', {});
       if (this.activeProcess) await this.engine.call('process.cancel', { processId: this.activeProcess });
-      this.grants.clear(); this.reports.clear(); this.corrections.clear(); this.post('clearCorrections', {}); this.attached = []; this.mrDraft = undefined; this.post('attachments', { paths: [] }); this.conversation = undefined; this.project = undefined; this.root = selected;
+      this.grants.clear(); this.reports.clear(); this.corrections.clear(); this.post('clearCorrections', {}); this.attached = []; this.mrDraft = undefined; this.post('attachments', { paths: [] }); this.conversation = undefined; this.selectedModel = undefined; this.project = undefined; this.root = selected;
     }
     await this.engine.open(selected);
   }
   /** Refreshes local Git/stack details and revokes the owned gateway on any failed access resolution. Exigences : DEVAI-013, DEVAI-025, DEVAI-033, DEVAI-169. */
   public async refresh(): Promise<void> {
+    const previous = this.capabilities;
     this.capabilities = undefined; this.post('capabilities', { aiEnabled: false, reason: 'Vérification du projet en cours' });
     await this.selectRoot(); this.inspection = await this.engine.call('project.inspect');
     this.post('correctionSettings', { maxAttempts: this.context.workspaceState.get<number>('ods.correction.maxAttempts') ?? 3 });
@@ -80,9 +82,33 @@ export class OdsView implements vscode.WebviewViewProvider, vscode.TextDocumentC
       const remoteHost = remote.includes('://') ? new URL(remote).hostname : /^git@([^:]+):/.exec(remote)?.[1];
       if (!remoteHost || remoteHost.toLowerCase() !== new URL(project.gitlabInstance).hostname.toLowerCase()) throw new Error('Le remote appartient à une autre instance GitLab');
       this.project = project.projectId;
-      const capabilities = await this.gateway.request(`/api/v1/capabilities?projectId=${this.project}`); this.capabilities = capabilities; this.post('capabilities', capabilities);
+      const capabilities = await this.gateway.request(`/api/v1/capabilities?projectId=${this.project}`);
+      this.applyCapabilities(capabilities, this.selectedModel ?? this.context.workspaceState.get<string>(`ods.model.${this.root!.uri.toString()}`) ?? capabilities.modelAlias);
+      if (previous && (previous.provider !== this.capabilities?.provider || previous.model !== this.capabilities?.model)) { this.conversation = undefined; this.grants.clear(); this.post('clearChat', {}); }
       this.post('tasks', { tasks: await this.gateway.request('/api/v1/prompts') });
     } catch (error) { this.gateway.dispose(); this.project = undefined; this.capabilities = undefined; this.post('capabilities', { aiEnabled: false, reason: (error as Error).message }); }
+  }
+  /** Applies only server-supplied choices and blocks sending after revocation until an explicit new selection. Exigences : DEVAI-192, DEVAI-199. */
+  private applyCapabilities(capabilities: any, alias?: string): void {
+    const choices = Array.isArray(capabilities.models) ? capabilities.models : [];
+    const selected = choices.find((model: any) => model.modelAlias === alias);
+    const selectionRequired = !!capabilities.rule?.aiEnabled && !!choices.length && !selected;
+    this.selectedModel = selected?.modelAlias ?? (choices.length ? alias : capabilities.modelAlias);
+    this.capabilities = { ...capabilities, ...(selected ?? {}), selectionRequired };
+    if (selectionRequired) { this.capabilities.provider = undefined; this.capabilities.model = undefined; this.capabilities.modelAlias = ''; this.conversation = undefined; this.grants.clear(); }
+    this.post('capabilities', this.capabilities);
+  }
+  /** Starts a fresh conversation for one authorized model without forwarding prior history or retaining grants. Exigences : DEVAI-195, DEVAI-199. */
+  private async selectModel(alias: unknown): Promise<void> {
+    if (this.chatBusy || this.activeRun || this.remediationBusy || this.mrBusy || this.documentationTarget) throw new Error('Arrêter la tâche avant de changer de modèle');
+    this.requireProject();
+    if (typeof alias !== 'string' || !this.capabilities?.models?.some((model: any) => model.modelAlias === alias)) throw new Error('Modèle absent des choix autorisés');
+    if (alias === this.selectedModel && !this.capabilities.selectionRequired) return;
+    this.conversation = undefined; this.grants.clear(); this.promptHash = undefined; this.mrDraft = undefined;
+    this.applyCapabilities(this.capabilities, alias);
+    await this.context.workspaceState.update(`ods.model.${this.root!.uri.toString()}`, alias);
+    await this.context.workspaceState.update(`ods.lastRun.${this.root!.uri.toString()}`, undefined);
+    this.post('clearChat', {}); this.post('info', { message: `Nouvelle conversation avec ${this.modelLabel()}. L’historique précédent ne sera pas transmis.` });
   }
   /** Revokes the closed root immediately and stops its local tools before selecting another folder. Exigences : DEVAI-017, DEVAI-024, DEVAI-158. */
   public async workspaceChanged(): Promise<void> {
@@ -111,11 +137,18 @@ export class OdsView implements vscode.WebviewViewProvider, vscode.TextDocumentC
         case 'signOut': await this.signOut(); break;
         case 'starter': await this.starter(m); break;
         case 'chat': await this.chat(m); break;
+        case 'selectModel': await this.selectModel(m.modelAlias); break;
         case 'newChat': if (this.activeRun) throw new Error('Arrêter la tâche active avant une nouvelle conversation'); this.conversation = undefined; this.grants.clear(); this.post('clearChat', {}); break;
         case 'resume': {
           this.requireProject(); if (this.activeRun) throw new Error('Une tâche est déjà active');
-          const saved = this.context.workspaceState.get<{ id: string; mode: string; task: string }>(`ods.lastRun.${this.root!.uri.toString()}`);
+          const saved = this.context.workspaceState.get<{ id: string; mode: string; task: string; modelAlias?: string }>(`ods.lastRun.${this.root!.uri.toString()}`);
           if (!saved) throw new Error('Aucun checkpoint de conversation pour ce dossier');
+          if (!saved.modelAlias) {
+            const result = (await this.gateway.request(`/api/v1/jobs/${saved.id}`)).result;
+            if (!result?.modelAlias || result.modelAlias !== this.capabilities?.modelAlias || result.provider !== this.capabilities?.provider || result.model !== this.capabilities?.model) throw new Error('Provenance du checkpoint incompatible avec le modèle sélectionné ; ouvrir une nouvelle conversation');
+            saved.modelAlias = result.modelAlias;
+          }
+          if (saved.modelAlias && saved.modelAlias !== this.capabilities?.modelAlias) throw new Error('Ce checkpoint appartient à un autre modèle ; sélectionner son modèle avant la reprise');
           if (!(await vscode.window.showWarningMessage('Reprendre le checkpoint serveur ? Les effets interrompus seront marqués incertains et les fichiers devront être réinspectés. Un appel fournisseur déjà soumis peut rester facturé.', { modal: true }, 'Reprendre'))) return;
           this.conversation = saved; this.grants.clear(); await this.chat({ mode: saved.mode, task: saved.task, message: 'Reprise du checkpoint', resume: true }); break;
         }
@@ -220,11 +253,14 @@ export class OdsView implements vscode.WebviewViewProvider, vscode.TextDocumentC
     const projectId = this.requireProject(); if (!['QUESTION', 'MODIFICATION', 'AGENT'].includes(m.mode) || typeof m.message !== 'string' || !m.message.trim()) throw new Error('Mode ou demande invalide');
     const rootKey = this.root!.uri.toString();
     if (this.activeRun) throw new Error('Une tâche est déjà active');
+    if (this.capabilities?.selectionRequired) throw new Error('Le modèle précédent n’est plus autorisé ; sélectionner un modèle');
+    if (m.mode !== 'QUESTION' && this.capabilities?.tools === false) throw new Error('Ce modèle ne dispose pas des outils nécessaires ; sélectionner un modèle avec outils');
     const context = this.remediation || this.mrBusy ? [] : await this.prepareContext(!!m.includeActive); if (!context) return;
     const task = m.task === 'implement-requirement' && m.mode !== 'AGENT' ? 'code-generation' : String(m.task);
-    const body = { projectId, mode: m.mode, task, message: m.message, stacks: this.inspection.stacks ?? [], context };
+    const selection = this.capabilities?.modelAlias ? { modelAlias: String(this.capabilities.modelAlias) } : {};
+    const body = { projectId, mode: m.mode, task, message: m.message, stacks: this.inspection.stacks ?? [], context, ...selection };
     const agent = m.mode === 'AGENT';
-    const resume = this.conversation?.mode === m.mode && this.conversation?.task === task;
+    const resume = this.conversation?.mode === m.mode && this.conversation?.task === task && this.conversation?.modelAlias === selection.modelAlias;
     const readTools = this.capabilities?.tools !== false && this.capabilities?.rule?.contextMode !== 'SERVER_VERIFIED';
     if (!resume && !this.remediation && !this.mrBusy && !this.documentationTarget && !context.length && !readTools) {
       const choice = await vscode.window.showWarningMessage(`${this.modelLabel()} ne recevra aucun fichier du projet et ses outils de lecture sont désactivés par la configuration. Pour expliquer l’architecture, joignez le README, le fichier de build et les points d’entrée.`, { modal: true }, 'Ajouter des fichiers', 'Envoyer sans fichiers');
@@ -235,7 +271,7 @@ export class OdsView implements vscode.WebviewViewProvider, vscode.TextDocumentC
     if (this.stopped) throw new Error('Demande arrêtée avant envoi');
     const started = resume ? await this.gateway.request(`/api/v1/ai/agents/${this.conversation!.id}/turns`, 'POST', m.resume ? { resume: true } : { message: m.message, context }) : await this.gateway.request(agent ? '/api/v1/ai/agents/run' : '/api/v1/ai/chat', 'POST', body);
     this.post('accepted', { text: m.message }); this.post('chat', { role: 'user', text: m.message });
-    this.activeRun = started.jobId; this.conversation = { id: started.jobId, mode: m.mode, task };
+    this.activeRun = started.jobId; this.conversation = { id: started.jobId, mode: m.mode, task, ...selection };
     try {
       if (this.stopped || this.root?.uri.toString() !== rootKey || this.project !== projectId) { this.stopped = true; await this.gateway.request(`/api/v1/jobs/${this.activeRun}/cancel`, 'POST', {}); return; }
       await this.context.workspaceState.update(`ods.lastRun.${rootKey}`, this.conversation);

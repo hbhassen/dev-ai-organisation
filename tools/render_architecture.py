@@ -1,4 +1,4 @@
-"""Render the maintained architecture PDF from explicit product contracts and the verified UI capture. Exigences : DEVAI-133, DEVAI-167, DEVAI-178, DEVAI-189, DEVAI-193, DEVAI-197."""
+"""Render the maintained architecture PDF from explicit product contracts and the verified UI capture. Exigences : DEVAI-133, DEVAI-167, DEVAI-178, DEVAI-189, DEVAI-193, DEVAI-197, DEVAI-199."""
 from pathlib import Path
 from xml.sax.saxutils import escape
 from reportlab.lib import colors
@@ -44,7 +44,7 @@ def footer(canvas, document):
     canvas.line(60, 45, 535, 45)
     canvas.setFillColor(NAVY)
     canvas.setFont("Helvetica", 8)
-    canvas.drawString(60, 30, "Version documentaire 1.7  |  Produit 0.7.1  |  6 novembre 2026")
+    canvas.drawString(60, 30, "Version documentaire 1.8  |  Produit 0.8.0  |  7 novembre 2026")
     canvas.drawRightString(535, 30, str(document.page))
     canvas.restoreState()
 
@@ -67,7 +67,7 @@ def architecture():
 
 
 def build():
-    """Produce maintained architecture pages for providers and independent JDK scopes. Exigences : DEVAI-133, DEVAI-167, DEVAI-178, DEVAI-189, DEVAI-193, DEVAI-197."""
+    """Produce maintained architecture pages for providers and independent JDK scopes. Exigences : DEVAI-133, DEVAI-167, DEVAI-178, DEVAI-189, DEVAI-193, DEVAI-197, DEVAI-199."""
     story = []
 
     def page(title, reference):
@@ -81,13 +81,13 @@ def build():
         """Append one readable paragraph without embedding untrusted markup. Exigences : DEVAI-133."""
         story.append(paragraph(content))
 
-    page("Organisation Development Standard", "Architecture technique et interface • Évolution 0.7.1")
+    page("Organisation Development Standard", "Architecture technique et interface • Évolution 0.8.0")
     text("Un environnement de développement gouverné dans VS Code : Starter, IA, Quality, Security et GitFlow. Cette édition remplace les parcours SSO et scans liés à un commit par une connexion Git native et des analyses des sources enregistrées.")
     story.append(Spacer(1, 22))
     story.append(table([["Décision", "Comportement cible"], ["Sans SSO", "Le développeur utilise l’accès Git déjà disponible dans son IDE. Un refus Git interdit la connexion au gateway."], ["Configuration au build", "L’organisation fournit URL, comptes de service, transport Mistral, watch Xray et mappings Sonar. L’interface utilisateur ne les modifie pas."], ["Analyses locales", "SBOM CycloneDX, Graph Scan Xray et scanner Sonar fonctionnent sans attendre un commit."], ["Cycle de vie", "Le gateway embarqué démarre après le contrôle Git et s’arrête avec l’extension ou la fermeture du canal parent."]]))
     story.append(Spacer(1, 20))
     text("Limite acceptée : les secrets distribués dans un VSIX autonome restent extractibles par le propriétaire du poste. Le verrouillage de l’interface, les empreintes et le masquage des logs ne garantissent pas leur confidentialité contre lui.")
-    text("Référentiel : specification.md, exigences DEVAI-001 à DEVAI-198. Les résultats réellement exécutés sont séparés des objectifs de recette dans docs/VALIDATION.md.")
+    text("Référentiel : specification.md, exigences DEVAI-001 à DEVAI-199. Les résultats réellement exécutés sont séparés des objectifs de recette dans docs/VALIDATION.md.")
 
     page("1. Architecture et responsabilités", "DEVAI-002, 003, 168, 169")
     story.append(architecture())
@@ -99,7 +99,8 @@ def build():
     capture = ROOT / ".artifacts/interface-900.png"
     if not capture.is_file():
         raise ValueError("Run the Chromium interface tests before rendering the PDF")
-    story.append(Image(str(capture), width=440, height=440 * 1000 / 900, hAlign="CENTER"))
+    width, height = ImageReader(str(capture)).getSize()
+    story.append(Image(str(capture), width=440, height=min(500, 440 * height / width), hAlign="CENTER"))
     text("Capture issue des tests de l’interface réelle avec contexte synthétique ; elle ne prouve pas une connexion à un service d’organisation. Aucun secret n’est transmis à la webview.")
 
     page("3. Construire le profil d’organisation", "DEVAI-009, 127, 167, 176")
@@ -191,8 +192,14 @@ def build():
     story.append(table([["Décision", "Comportement"], ["Mistral par défaut", "Profil demo inchangé ; transport Mistral et modèle exact résolus depuis la configuration et la politique signée."], ["OpenAI facultatif", "Profil mistral-openai : backend générique Vibe 3.0.3, Chat Completions, endpoint HTTPS et hôte api.openai.com fixes."], ["Autorisation", "La politique signée et le registre administré doivent tous deux autoriser le fournisseur, l'alias et le modèle exact."], ["Limites modèle", "maxContextTokens et maxOutputTokens sont signés par alias ; l'entrée est estimée depuis UTF-8, la sortie est plafonnée et l'appel refusé si le budget ne tient pas."], ["Credential", "La clé API Platform est référencée séparément par ODS_OPENAI_API_KEY et ne vient jamais d'un compte ChatGPT personnel."], ["Quotas", "Réservations et usages conservent fournisseur, alias et modèle ; aucun basculement silencieux entre fournisseurs."], ["JDK ODS", "Java 21 et ods.javaPath sont utilisés pour le moteur/gateway ODS."], ["JDK projet", "Les outils Maven du workspace héritent de PATH/JAVA_HOME et peuvent donc utiliser Java 25 conformément au POM."]]))
     text("Le profil privé lit MISTRAL_API_KEY, OPENAI_API_KEY et MISTRAL_MODEL depuis l'environnement du build. Les valeurs ne sont jamais écrites dans le dépôt. Les tests par défaut utilisent des credentials synthétiques et un serveur HTTP simulé ; un smoke Docker explicitement activé peut envoyer une instruction synthétique à OpenAI, sans sources ni outils.")
 
+    page("18. Choisir un modèle autorisé", "DEVAI-199 / Version 0.8.0")
+    text("L'administrateur propose un, deux ou trois alias dans allowedModelAliases. Le modèle par défaut reste modelAlias. Chaque choix doit disposer des outils dans la politique signée et le registre de déploiement ; Question, Modification et Agent conservent leurs permissions existantes.")
+    story.append(table([["Étape", "Comportement"], ["Capacités", "La gateway expose les seuls alias du projet, leurs fournisseur, modèle exact, outils et plafond de sortie. Aucune URL ni clé n'est publiée."], ["Sélection", "Le choix est mémorisé par workspace et verrouillé pendant une tâche. Un seul modèle est actif."], ["Conversation", "Changer de modèle ouvre une nouvelle conversation et réinitialise ses consentements. L'ancien historique n'est pas transmis."], ["Reprise", "Le checkpoint conserve alias, fournisseur et modèle exact. La gateway les revalide à chaque transition et refuse une révocation ou réaffectation."], ["Compatibilité", "Sans liste, l'ancien modèle unique reste valide. Un profil texte sans outils conserve Question ; Modification et Agent sont désactivés."], ["Migration", "Installer le VSIX 0.8.0 avant de publier le nouveau champ. Une ancienne conversation sans provenance fiable exige une nouvelle conversation."]]))
+    text("Banc Docker : --agent-models prépare OpenAI et Mistral avec outils, sans appel fournisseur. Le smoke OpenAI reste séparé, limité à 128 tokens ; le profil agent utilise 2048 tokens de sortie OpenAI et un quota fournisseur de 10 000 tokens. Un troisième modèle nécessite sa propre qualification.")
+    text("Les tests automatisés vérifient les listes de un, deux et trois choix, les trois modes, l'isolation des sessions, les refus et l'interface avec des fournisseurs simulés. Les qualifications réelles sont consignées séparément dans docs/VALIDATION.md.")
+
     destination = ROOT / "Organisation_Development_Standard_Architecture_avec_Interface.pdf"
-    document = SimpleDocTemplate(str(destination), pagesize=A4, rightMargin=60, leftMargin=60, topMargin=65, bottomMargin=65, title="ODS - Architecture et interface 0.7.1", author="Organisation Development Standard", subject="VSIX autonome, fournisseurs IA administrés et séparation des JDK")
+    document = SimpleDocTemplate(str(destination), pagesize=A4, rightMargin=60, leftMargin=60, topMargin=65, bottomMargin=65, title="ODS - Architecture et interface 0.8.0", author="Organisation Development Standard", subject="VSIX autonome, fournisseurs IA administrés et séparation des JDK")
     document.build(story, onFirstPage=footer, onLaterPages=footer)
     print("Architecture PDF generated")
 

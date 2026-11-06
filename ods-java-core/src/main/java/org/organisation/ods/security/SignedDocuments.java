@@ -7,7 +7,7 @@ import java.security.spec.X509EncodedKeySpec;
 import java.time.Instant;
 import java.util.*;
 
-/** Verifies immutable signed bytes and strict policy semantics before any IA decision. Exigences : DEVAI-026, DEVAI-029, DEVAI-030, DEVAI-031. */
+/** Verifies immutable signed bytes and strict policy semantics before any IA decision. Exigences : DEVAI-026, DEVAI-029, DEVAI-030, DEVAI-031, DEVAI-199. */
 public final class SignedDocuments {
     private static final Set<String> ACTIONS = Set.of("CHAT", "CODE_GENERATION", "SONAR_REMEDIATION", "XRAY_REMEDIATION", "MR_DESCRIPTION", "AGENT_RUN", "CHANGELOG", "RELEASE_NOTES");
     /** Prevents construction of the security utility. Exigences : DEVAI-029. */
@@ -88,7 +88,7 @@ public final class SignedDocuments {
         if (!policy.path("projects").isArray()) throw new OdsException("POLICY_INVALID", "Liste de projets requise");
         Set<Long> ids = new HashSet<>();
         for (JsonNode rule : policy.path("projects")) {
-            Json.fields(rule, Set.of("projectId", "aiEnabled", "allowedActions", "modelAlias", "monthlyTokenQuota", "monthlyUserTokenQuota", "allowedAgents", "contextMode", "allowFreeText", "sonarProjectKey"));
+            Json.fields(rule, Set.of("projectId", "aiEnabled", "allowedActions", "modelAlias", "allowedModelAliases", "monthlyTokenQuota", "monthlyUserTokenQuota", "allowedAgents", "contextMode", "allowFreeText", "sonarProjectKey"));
             // DEVAI-188: a signed mapping is optional, but an explicit invalid key must never select the legacy fallback.
             if(rule.has("sonarProjectKey") && (!rule.path("sonarProjectKey").isTextual() || !rule.path("sonarProjectKey").asText().matches("[A-Za-z0-9_.:-]{1,400}") || !rule.path("sonarProjectKey").asText().matches(".*[A-Za-z_.:-].*")))
                 throw new OdsException("POLICY_INVALID","Clé de projet Sonar invalide");
@@ -100,7 +100,20 @@ public final class SignedDocuments {
                 throw new OdsException("POLICY_INVALID", "Action non autorisée dans la règle");
             if (rule.path("aiEnabled").asBoolean() && (!Set.of("LOCAL_GOVERNED", "SERVER_VERIFIED").contains(rule.path("contextMode").asText()) || !aliases.contains(rule.path("modelAlias").asText())))
                 throw new OdsException("POLICY_INVALID", "Contexte ou modèle absent");
+            if(rule.has("allowedModelAliases")) modelChoices(policy,rule);
         }
+    }
+    /** Validates one to three project-scoped tool-capable choices while retaining legacy single-model policies. Exigences : DEVAI-199. */
+    private static void modelChoices(JsonNode policy,JsonNode rule) {
+        JsonNode choices=rule.path("allowedModelAliases"); Set<String> selected=new HashSet<>();
+        if(!choices.isArray()||choices.isEmpty()||choices.size()>3) throw new OdsException("POLICY_INVALID","Un à trois modèles autorisés sont requis");
+        for(JsonNode choice:choices) {
+            if(!choice.isTextual()||!selected.add(choice.asText())) throw new OdsException("POLICY_INVALID","Alias de projet invalide ou dupliqué");
+            boolean qualified=false;
+            for(JsonNode model:policy.path("models")) if(model.path("alias").asText().equals(choice.asText())&&model.path("tools").asBoolean()) qualified=true;
+            if(!qualified) throw new OdsException("MODEL_NOT_ALLOWED","Chaque choix du projet doit être un modèle signé avec outils");
+        }
+        if(!selected.contains(rule.path("modelAlias").asText())) throw new OdsException("POLICY_INVALID","Le modèle par défaut doit appartenir aux choix autorisés");
     }
     /** Finds an explicit permitted action; missing projects and actions always deny. Exigences : DEVAI-026, DEVAI-039. */
     public static JsonNode allow(JsonNode policy, long projectId, String action) {

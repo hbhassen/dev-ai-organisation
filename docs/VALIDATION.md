@@ -1,4 +1,15 @@
-# Validation de la version 0.3.0
+# Validation des versions ODS
+
+## Choix des modèles 0.8.0 — 7 novembre 2026
+
+Validation locale `py -3.12 tools/build.py --task Build` : **SUCCESS**. Maven `clean verify` : **78 tests** réussis (4 contrats, 27 moteur, 47 gateway), sans échec ni test ignoré. Python : **40 tests** ; Node : **74 tests** ; Chromium : **18 scénarios**, tous réussis. Compilation TypeScript et contrôles des commentaires Java/Python/TypeScript réussis. Version moteur 0.8.0, démarrage et santé gateway, refus des requêtes anonymes vérifiés depuis les JAR générés.
+
+DEVAI-199 est couvert pour les listes signées de 1, 2 et 3 modèles, les alias étrangers à un projet, la révocation, les outils manquants, les quotas attribués au choix, les trois modes avec chaque fournisseur simulé, l'idempotence après outil, la migration des checkpoints et le refus d'une réaffectation de modèle. Les tests natifs et navigateur couvrent la nouvelle conversation lors d'un changement, les consentements réinitialisés, la provenance des anciennes reprises, le verrouillage pendant une tâche, la largeur 330 px et la compatibilité du profil texte sans outils.
+
+Les fournisseurs de cette validation automatique sont simulés. Aucun troisième modèle réel n'a été qualifié. Les essais réels éventuels du profil privé sont consignés séparément des tests automatiques et ne changent pas cette limite. Le PDF d'architecture comporte 19 pages rendues et inspectées. Le service de contrôle graphique du poste est indisponible ; les tests Chromium ne constituent pas une vérification visuelle de l'hôte VS Code installé.
+
+Le workflow de livraison reconstruit le package public depuis le commit propre et conserve `sourceCommit`, `sourceDirty`, version et profil dans `suiteInstall/BUILD.json`. Le profil privé du banc ne doit pas être publié.
+
 
 ## Correctif 0.7.1 — 6 novembre 2026
 

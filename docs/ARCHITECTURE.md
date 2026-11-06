@@ -1,4 +1,4 @@
-# Architecture 0.7.1
+# Architecture 0.8.0
 
 La gateway expose le fournisseur, le modèle exact et les capacités de lecture/sortie résolus par la politique. Le contrôleur natif transmet l’attribution de chaque job à la conversation ; la webview ne déduit jamais le modèle de l’alias. Les technologies locales, la sélection de fichiers avant aperçu et les outils de lecture effectifs sont affichés séparément (DEVAI-065, DEVAI-192, DEVAI-193).
 
@@ -42,3 +42,7 @@ DEVAI-188 : `PolicyService.sonarProjectKey` résout le champ facultatif `project
 Le fournisseur reste résolu côté gateway en croisant le catalogue de modèles de la politique Ed25519 et `ODS_PROVIDER_REGISTRY` du package. Le profil standard reste Mistral. Le profil `mistral-openai` ajoute le backend générique OpenAI Chat Completions de Vibe 3.0.3, avec endpoint et hôte HTTPS fixes et credential distinct. Les modèles exacts, capacités et budgets optionnels restent contrôlés par la politique signée ; chaque réservation et événement d'audit garde le fournisseur, l'alias et le modèle. Une panne ne change pas de fournisseur.
 
 Le build du projet ODS peut utiliser Java 21 via `ods.javaPath`. Les processus de commandes workspace héritent séparément du `PATH` et de `JAVA_HOME` du poste, après filtrage des secrets ODS. Maven, son wrapper et les toolchains du projet gardent donc la possibilité de sélectionner Java 25 selon le POM ; aucune option Java 21 n'est ajoutée par la gateway.
+
+## Choix gouverné des modèles (DEVAI-199)
+
+`SignedDocuments` contrôle la liste signée `allowedModelAliases` (1 à 3). `PolicyService` limite la résolution aux alias autorisés pour le projet et expose leurs capacités sans secrets. `AiService` conserve la provenance du modèle dans chaque session et la contrôle avant les tours suivants, les outils et les réservations de quota. Le contrôleur natif `OdsView` applique le choix reçu des capacités, ignore une identité fournisseur injectée par la webview et démarre une nouvelle conversation après changement. La webview affiche un sélecteur verrouillé pendant l'exécution. La configuration du banc distingue le smoke texte du catalogue agent à deux fournisseurs ; aucun appel LLM n'est déclenché par la configuration seule.

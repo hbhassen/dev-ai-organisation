@@ -13,7 +13,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import java.util.*;
 import com.fasterxml.jackson.databind.JsonNode;
 
-/** Versioned gateway facade; every project route verifies server-side ownership and action permissions. Exigences : DEVAI-003, DEVAI-117, DEVAI-190, DEVAI-192, DEVAI-193, DEVAI-196. */
+/** Versioned gateway facade; every project route verifies server-side ownership and action permissions. Exigences : DEVAI-003, DEVAI-117, DEVAI-190, DEVAI-192, DEVAI-193, DEVAI-196, DEVAI-199. */
 @RestController
 public class GatewayController {
     private final Settings settings; private final PolicyService policies; private final AiService ai; private final GitLabClient gitlab; private final ScanService scans; private final Store store;
@@ -21,7 +21,7 @@ public class GatewayController {
     /** Injects authorization services rather than accepting a client-computed permission flag. Exigences : DEVAI-003. */
     public GatewayController(Settings settings,PolicyService policies,AiService ai,GitLabClient gitlab,ScanService scans,Store store,org.organisation.ods.ai.JobEvents events,LocalAnalysisService local) { this.settings=settings; this.policies=policies; this.ai=ai; this.gitlab=gitlab; this.scans=scans; this.store=store; this.events=events; this.local=local; }
     /** Exposes process liveness without disclosing infrastructure or secrets. Exigences : DEVAI-129. */
-    @GetMapping("/health/live") public Map<String,Object> live() { return Map.of("status","UP","version","0.7.1"); }
+    @GetMapping("/health/live") public Map<String,Object> live() { return Map.of("status","UP","version","0.8.0"); }
     /** Clearly separates a running local gateway from configured AI readiness. Exigences : DEVAI-129. */
     @GetMapping("/health/ready") public ResponseEntity<?> ready() { boolean configured=(settings.get("embedded").equals("true")||!settings.get("oidc-issuer").isBlank())&&!settings.get("mistral-key").isBlank()&&!settings.get("governance-project-id").isBlank(); return ResponseEntity.status(configured?200:503).body(Map.of("status",configured?"CONFIGURED":"CONFIGURATION_REQUIRED","externalServicesVerified",false)); }
     /** Supplies public native-client OIDC metadata, never service credentials. Exigences : DEVAI-020. */
@@ -34,7 +34,8 @@ public class GatewayController {
         for(JsonNode rule:policy.path("projects")) if(rule.path("projectId").asLong()==projectId) {
             if(!rule.path("aiEnabled").asBoolean()) return Map.of("projectId",projectId,"rule",Json.map(rule),"policyVersion",policy.path("policyVersion").asLong(),"validUntil",policy.path("expiresAt").asText(),"usage",store.usage(projectId,PolicyService.subject(jwt)));
             var model=policies.resolveModel(policy,rule);
-            return Map.of("projectId",projectId,"rule",Json.map(rule),"policyVersion",policy.path("policyVersion").asLong(),"validUntil",policy.path("expiresAt").asText(),"provider",model.providerId(),"model",model.model(),"modelAlias",Json.text(rule,"modelAlias"),"tools",model.tools(),"maxOutputTokens",model.maxOutputTokens(),"usage",store.usage(projectId,PolicyService.subject(jwt)));
+            Map<String,Object> result=new LinkedHashMap<>(Map.of("projectId",projectId,"rule",Json.map(rule),"policyVersion",policy.path("policyVersion").asLong(),"validUntil",policy.path("expiresAt").asText(),"provider",model.providerId(),"model",model.model(),"modelAlias",Json.text(rule,"modelAlias"),"tools",model.tools(),"maxOutputTokens",model.maxOutputTokens(),"usage",store.usage(projectId,PolicyService.subject(jwt))));
+            result.put("models",policies.modelChoices(policy,rule)); return result;
         }
         return Map.of("projectId",projectId,"aiEnabled",false,"reason","ACTION_DENIED","allowedActions",List.of());
     }

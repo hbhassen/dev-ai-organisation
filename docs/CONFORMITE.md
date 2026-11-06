@@ -1,6 +1,6 @@
 # Matrice de réalisation — 198 exigences
 
-Version applicative **0.7.1**, état du 6 novembre 2026. Ce document ne prononce pas une conformité complète.
+Version applicative **0.8.0**, état du 7 novembre 2026. Ce document ne prononce pas une conformité complète.
 
 - **I** : mécanisme implémenté ; la présence de code ne vaut pas recette exhaustive.
 - **P** : couverture partielle ou vérification incomplète, avec travail restant indiqué.
@@ -220,6 +220,7 @@ La version 0.2.1 corrige la compatibilité d'installation VS Code et conserve le
 | DEVAI-196 — Compatibilité et migration | P | Contrats Mistral/OpenAI réussis ; projet IA désactivée sans alias couvert par test HTTP ; génération OpenAI réelle réussie après activation de la facturation. | [Vibe contract](../tools/vibe_contract.py) ; [VALIDATION](VALIDATION.md) |
 | DEVAI-197 — Outils de build du workspace | P | Séparation des environnements ODS/workspace et fixture JDK 25 testées ; build réel d’un projet utilisateur sous JDK 25 non exécuté. | [ProcessRunner.java](../ods-java-core/src/main/java/org/organisation/ods/runtime/ProcessRunner.java) ; [managed.ts](../vscode-extension/src/managed.ts) |
 | DEVAI-198 — Smoke OpenAI réel sur Docker | P | Dix contrôles Docker réussis lors du parcours sans modèle ; génération OpenAI réelle réussie séparément, 987 jetons. Parcours simultané complet non qualifié après saturation mémoire. | [provision.py](../TestDOKERMan/provision.py) ; [native-smoke.cjs](../TestDOKERMan/native-smoke.cjs) ; [vibe_bridge.py](../scripts/vibe_bridge.py) |
+| DEVAI-199 — Choix de 1 à 3 modèles avec outils | P | Catalogue signé, sélection native, provenance immuable, migration et tests par doubles dans les trois modes. Qualification réelle de tout troisième modèle non réalisée. | [SignedDocuments.java](../ods-java-core/src/main/java/org/organisation/ods/security/SignedDocuments.java) ; [PolicyService.java](../ods-gateway/src/main/java/org/organisation/ods/policy/PolicyService.java) ; [AiService.java](../ods-gateway/src/main/java/org/organisation/ods/ai/AiService.java) ; [GatewayController.java](../ods-gateway/src/main/java/org/organisation/ods/api/GatewayController.java) ; [ModelChoiceTest.java](../ods-gateway/src/test/java/org/organisation/ods/ModelChoiceTest.java) ; [AiServiceTest.java](../ods-gateway/src/test/java/org/organisation/ods/AiServiceTest.java) ; [SecurityTest.java](../ods-java-core/src/test/java/org/organisation/ods/security/SecurityTest.java) ; [view.ts](../vscode-extension/src/view.ts) ; [presentation.ts](../vscode-extension/src/presentation.ts) ; [protocol.ts](../vscode-extension/src/protocol.ts) ; [view.js](../vscode-extension/media/view.js) ; [provision.py](../TestDOKERMan/provision.py) |
 
 
 Le contrôle syntaxique des commentaires Java, TypeScript et Python vérifie les références connues. La revue de responsabilités de cette évolution porte sur la configuration, le contrôle Git, les processus, les transports et les analyses. Elle ne convertit pas les écarts historiques P en conformité acquise. Le code tiers conserve sa documentation originale.
