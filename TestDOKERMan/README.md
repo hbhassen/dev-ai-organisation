@@ -56,7 +56,7 @@ Pour reconstruire et réinstaller après un changement de connexion ou de clé :
 ./TestDOKERMan/start.ps1 -Build -Install -Open
 ```
 
-Le build exécute les contrôles, tests et packaging existants. Le profil privé se trouve dans `.local/profile/organisation.json`. La version applicative est `0.7.0` ; une installation antérieure doit être reconstruite pour recevoir cette évolution.
+Le build exécute les contrôles, tests et packaging existants. Le profil privé se trouve dans `.local/profile/organisation.json`. La version applicative est `0.7.0` ; une installation antérieure doit être reconstruite pour recevoir cette évolution. Le lanceur `vscode.py install` sélectionne la version du manifeste et refuse un VSIX absent ; `vscode.py open` ouvre une nouvelle fenêtre pour activer la version installée.
 
 GitFlow : après push, **Créer une MR** prépare automatiquement la pré-revue par fichier avec Mistral, ajoute les commentaires facultatifs et affiche le texte avant publication. Le test du profil vérifie le vrai diff GitLab et sa génération structurée avec une réponse fournisseur synthétique, sans publier de MR ni appeler réellement Mistral. Voir les limites et le parcours dans `docs/INSTALLATION.md` à la racine du dépôt.
 

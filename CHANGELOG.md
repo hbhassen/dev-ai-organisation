@@ -10,6 +10,8 @@
 - Adaptation du corps Chat Completions émis par Vibe : `max_completion_tokens` et effort `none` pour GPT-6 Luna/Sol ; client TLS dédié sans redirection, avec tests de contrat HTTP et erreurs simulées.
 - Qualification Vibe sans création de bytecode dans le runtime distribué ; erreurs OpenAI d’authentification et de modèle classées sans exposer le corps fournisseur.
 - Conservation de l’affichage des capacités d’un projet où l’IA est désactivée, sans exiger un alias de modèle ; refus de génération couvert par un test HTTP.
+- Installation du banc VS Code alignée sur la version courante du manifeste, avec refus explicite si son VSIX est absent.
+- Correction de l’empreinte verrouillée de `xml2js` 0.6.0 après comparaison des métadonnées npm et du tarball officiel ; version conservée.
 - Staging concurrent du cache Vibe accéléré par liens physiques quand le système le permet, avec repli en copie et validation SHA-256 identique.
 - Retrait du suivi Git des fichiers privés du banc Docker et de son ancien PDF de configuration ; conservation locale et exclusion des futures publications. Les anciennes révisions publiées ne sont pas réécrites.
 

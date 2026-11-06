@@ -26,7 +26,7 @@ def executable():
 
 
 def main():
-    """Configure, installe ou ouvre le profil VS Code demande. Exigences : DEVAI-167, DEVAI-168, DEVAI-177."""
+    """Configure, installe la version courante ou ouvre le profil VS Code demande. Exigences : DEVAI-145, DEVAI-167, DEVAI-168, DEVAI-177."""
     parser = argparse.ArgumentParser()
     parser.add_argument('action', choices=['open', 'install', 'configure', 'list'])
     parser.add_argument('--profile', choices=['Test', 'Test1'], default='Test')
@@ -49,7 +49,14 @@ def main():
             file.write_text(json.dumps(settings, indent=2))
         print('Isolated VS Code profile configured with private Java trust.')
     elif args.action in ('install', 'list'):
-        options = ['--list-extensions', '--show-versions'] if args.action == 'list' else ['--install-extension', str(ROOT.parent / '.artifacts/ods-docker-manual-0.5.0.vsix'), '--force']
+        if args.action == 'list':
+            options = ['--list-extensions', '--show-versions']
+        else:
+            version = json.loads((ROOT.parent / 'vscode-extension/package.json').read_text(encoding='utf8'))['version']
+            package = ROOT.parent / '.artifacts' / ('ods-docker-manual-' + version + '.vsix')
+            if not package.is_file():
+                raise RuntimeError('Build the current private VSIX before installing the test profile')
+            options = ['--install-extension', str(package), '--force']
         cli = exe.parent / 'bin' / ('code-insiders.cmd' if args.profile == 'Test1' else 'code.cmd')
         subprocess.run([str(cli), *common, *options], check=True)
     else:
@@ -59,7 +66,7 @@ def main():
         env['PATH'] = str(LOCAL / 'jdk/bin') + os.pathsep + env.get('PATH', '')
         with (LOCAL / 'vscode-open.log').open('ab') as output:
             workspace = 'test1-corrections' if args.profile == 'Test1' else 'demo-allowed'
-            child = subprocess.Popen([str(exe), *common, '--disable-workspace-trust', '--reuse-window', str(LOCAL / 'workspaces' / workspace)],
+            child = subprocess.Popen([str(exe), *common, '--disable-workspace-trust', '--new-window', str(LOCAL / 'workspaces' / workspace)],
                 env=env, stdout=output, stderr=output)
         print('VS Code ' + args.profile + ' launch requested, PID=' + str(child.pid))
 

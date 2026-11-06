@@ -126,18 +126,18 @@ Les résultats historiques ci-dessus ne sont pas réattribués à cette version.
 
 | Contrôle réellement exécuté | Résultat |
 |---|---|
-| Build complet ODS | SUCCESS ; 71 tests Java, 36 Python, 63 Node, 12 Chromium |
+| Build complet ODS | SUCCESS ; 71 tests Java, 38 Python, 63 Node, 12 Chromium |
 | Vibe 3.0.3 empaqueté | Contrats Mistral/OpenAI et 16 scénarios CLI réussis, HTTP simulé |
 | Client natif → moteur/gateway → Docker | 10 contrôles réussis, aucun échec après correction |
 | GitLab et politiques signées | Projet IA autorisée et projet IA refusée, accès anonyme bloqué |
 | Maven CycloneDX → mockXray | SBOM réel et rapport simulé normalisé vérifiés |
 | Maven SonarScanner → SonarQube | Build et analyse réels réussis avec le JDK correspondant au POM du banc |
 | Authentification OpenAI renouvelée | HTTP 200 pour la lecture des modèles ; modèle du smoke accessible |
-| Génération OpenAI via la gateway | ÉCHEC : HTTP 429, diagnostic fournisseur `billing_not_active` |
-| Génération réelle et usage positif | NON VALIDÉS, activation de la facturation API nécessaire |
+| Génération OpenAI via la gateway | SUCCESS après activation de la facturation, marqueur synthétique attendu reçu |
+| Génération réelle et usage positif | `gpt-6-luna` : 977 jetons d’entrée, 10 de sortie, 987 au total |
 
 Le test a découvert une régression dans les capacités des projets avec `aiEnabled: false` : l’absence d’alias de modèle provoquait une erreur. Le contrôleur corrigé conserve ces capacités sans résoudre de fournisseur ; un nouveau test HTTP vérifie aussi le refus de génération avant tout appel modèle.
 
 Le terminal du banc utilisait initialement Java 17 via `JAVA_HOME`, alors que `java` sur `PATH` était en version 21. L’environnement du seul processus de test a été aligné sur le JDK 21 du banc, conformément aux POM existants. Aucun JDK n’a été imposé aux projets utilisateur par le produit.
 
-Une première tentative OpenAI avait été refusée avec l’ancienne clé (401). La nouvelle clé est acceptée, mais les tentatives synthétiques bornées de génération restent refusées par la facturation du compte. Aucun appel réel Mistral n’a été effectué. Les fichiers de preuve, profils et clés restent locaux et ignorés par Git ; aucune réponse complète ni donnée de compte n’est publiée.
+Les premières tentatives OpenAI ont été refusées avec l’ancienne clé (401), puis avec la nouvelle clé avant activation de la facturation (429). La reprise autorisée après activation a réussi avec un contexte vide, les outils désactivés et une sortie plafonnée à 128 jetons. Aucun autre appel payant n’a été lancé après ce succès, ni aucun appel réel Mistral. Le parcours global de cette reprise reste en échec : une saturation mémoire a ensuite rendu des services Docker indisponibles ; les dix contrôles Docker réussis proviennent du parcours séparé sans appel modèle. Les fichiers de preuve, profils et clés restent locaux et ignorés par Git ; aucune réponse complète ni donnée de compte n’est publiée.
