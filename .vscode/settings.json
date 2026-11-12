@@ -1,0 +1,13 @@
+{
+  "java.compile.nullAnalysis.mode": "automatic",
+  "files.watcherExclude": {
+    "**/.artifacts/**": true,
+    "**/suiteInstall/**": true,
+    "**/TestDOKERMan/.local/**": true
+  },
+  "search.exclude": {
+    "**/.artifacts/**": true,
+    "**/suiteInstall/**": true,
+    "**/TestDOKERMan/.local/**": true
+  }
+}
