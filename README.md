@@ -59,3 +59,5 @@ GitFlow propose aussi **Changelog** et **Release notes** : génération ou mise 
 Depuis 0.6.0, les mappings Sonar peuvent être définis dans la politique signée (`projects[].sonarProjectKey`) sans reconstruire le VSIX à chaque ajout de projet. Voir [configuration et migration](docs/CONFIGURATION.md).
 
 Le sélecteur IA propose de un à trois modèles autorisés par projet (DEVAI-199), utilisables en Question, Modification et Agent sous les droits existants. Changer de modèle ouvre une nouvelle conversation. Voir [Configuration](docs/CONFIGURATION.md#choisir-un-à-trois-modèles-par-projet-devai-199).
+
+Le profil [integration_multiIA](integration_multiIA/README.md) fournit une configuration Mistral + OpenAI et une politique de projet à deux modèles, avec copie privée ignorée par Git.

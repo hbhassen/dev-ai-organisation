@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": 1,
+  "issuedAt": "2026-11-12T00:00:00Z",
+  "expiresAt": "2026-11-13T00:00:00Z",
+  "gitlabInstance": "https://gitlab.organisation.example",
+  "defaultEffect": "DENY",
+  "allowedProviders": [
+    "MISTRAL",
+    "OPENAI"
+  ],
+  "models": [
+    {
+      "alias": "mistral-approved",
+      "provider": "MISTRAL",
+      "model": "<MODELE_MISTRAL_APPROUVE>",
+      "tools": true
+    },
+    {
+      "alias": "openai-approved",
+      "provider": "OPENAI",
+      "model": "<MODELE_OPENAI_APPROUVE>",
+      "tools": true,
+      "maxContextTokens": 32768,
+      "maxOutputTokens": 4096
+    }
+  ],
+  "projects": [
+    {
+      "projectId": 1000,
+      "sonarProjectKey": "<SONAR_PROJECT_KEY>",
+      "aiEnabled": true,
+      "allowedActions": [
+        "CHAT",
+        "CODE_GENERATION",
+        "SONAR_REMEDIATION",
+        "XRAY_REMEDIATION",
+        "MR_DESCRIPTION",
+        "AGENT_RUN",
+        "CHANGELOG",
+        "RELEASE_NOTES"
+      ],
+      "modelAlias": "mistral-approved",
+      "monthlyTokenQuota": 1000000,
+      "monthlyUserTokenQuota": 250000,
+      "allowedAgents": [
+        "implement-requirement"
+      ],
+      "contextMode": "LOCAL_GOVERNED",
+      "allowFreeText": true,
+      "allowedModelAliases": [
+        "mistral-approved",
+        "openai-approved"
+      ]
+    }
+  ]
+}

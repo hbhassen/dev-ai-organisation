@@ -1,5 +1,9 @@
 # Changelog
 
+## Non publié — 2026-11-12
+
+- Ajout de `integration_multiIA/` : profil Mistral + OpenAI, politique exemple à deux modèles, guide de configuration et exclusion des copies privées. Version applicative inchangée (0.8.0), sans nouvelle release.
+
 ## 0.8.0 — 2026-11-07
 
 - Choix d'un à trois modèles autorisés par projet, avec fournisseur et modèle exacts, sélection mémorisée par workspace et verrouillée pendant une tâche.
